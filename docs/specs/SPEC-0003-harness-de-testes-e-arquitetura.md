@@ -146,6 +146,25 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 
 ## 11. Checklist de Implementação
 <!-- Preenchido na fase PLAN, após a aprovação. Cada fase começa pelos testes. -->
+**Fase 1: Unitário e arquitetura**
+- [ ] Red: escrever UT-01..UT-05 com a tag `SPEC-0003:<ID>` e confirmar que falham pelo motivo certo (UT-05 é guarda: passa)
+- [ ] Green: projetos UnitTests e ArchitectureTests, Vitest na SPA, regras ArchUnitNET da ADR-0001, assemblies de amostra
+- [ ] Refactor mantendo tudo verde
+
+**Fase 2: Integração com dependências reais**
+- [ ] Red: escrever IT-01, IT-02, IT-03 e confirmar que falham pelo motivo certo
+- [ ] Green: `PostgresFixture` (Testcontainers), `ApiFactory` + WireMock, Wolverine com persistência PostgreSQL no host
+- [ ] Validar: build + suíte completa + arquitetura (G2/G3)
+
+**Fase 3: Jornada E2E**
+- [ ] Red: E2E-01 falhando pelo motivo certo
+- [ ] Green: Playwright (desktop + celular) + axe contra o AppHost; comandos `test`, `test_integration`, `test_e2e`, `arch_test`, `coverage` no sdd-config
+
+**Fase final: Integração, entrega e documentação**
+- [ ] Review independente (G4)
+- [ ] Integração + CI verde (G5) e aprovação (H2)
+- [ ] Deploy: N/A — só código de teste (G6)
+- [ ] Relatório de Entrega, docs raiz e CHANGELOG (G7)
 
 ## 12. Registro de Gates
 <!-- Status: PENDING | PASS | FAIL | N/A. PASS e N/A exigem evidência (comando + resultado, SHA, execução de CI, veredito). -->

@@ -145,6 +145,22 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 
 ## 11. Checklist de Implementação
 <!-- Preenchido na fase PLAN, após a aprovação. Cada fase começa pelos testes. -->
+**Fase 1: Estrutura e regras de build**
+- [ ] Red: escrever UT-01, UT-02 com a tag `SPEC-0002:<ID>` (projeto `tests/Vitrine.Tooling.Tests`) e confirmar que falham pelo motivo certo
+- [ ] Green: `global.json`, `Vitrine.slnx`, `Directory.Build.props`, `Directory.Packages.props`, `.editorconfig`, AppHost (postgres, api, web), ServiceDefaults, Api mínima com `/health/live`, SPA Vite/React/TS/Biome/Tailwind
+- [ ] Refactor mantendo tudo verde
+
+**Fase 2: Ferramentas, convenções e enforcement**
+- [ ] Red: escrever IT-01, IT-02, IT-03, IT-04 e confirmar que falham pelo motivo certo
+- [ ] Green: `.gitignore`/`.gitattributes`, `vendor --agents --pr-template github --hooks --changelog --codeowners`, README, comandos `build`/`lint` no sdd-config
+- [ ] Repositório público `thomasravache/vitrine` criado; proteção da `main` (PR obrigatório, sem force-push, merge commit) configurada
+- [ ] Validar: build + suíte completa (G2)
+
+**Fase final: Integração, entrega e documentação**
+- [ ] Review independente (G4)
+- [ ] Integração (G5; CI = N/A até a SPEC-0004) e aprovação (H2)
+- [ ] Deploy: N/A — sem serviço implantado (G6)
+- [ ] Relatório de Entrega, docs raiz e CHANGELOG (G7)
 
 ## 12. Registro de Gates
 <!-- Status: PENDING | PASS | FAIL | N/A. PASS e N/A exigem evidência (comando + resultado, SHA, execução de CI, veredito). -->

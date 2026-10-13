@@ -142,6 +142,21 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 
 ## 11. Checklist de Implementação
 <!-- Preenchido na fase PLAN, após a aprovação. Cada fase começa pelos testes. -->
+**Fase 1: Cifra de campos e autorização por padrão**
+- [ ] Red: escrever UT-01, UT-02, UT-03 com a tag `SPEC-0008:<ID>` e confirmar que falham pelo motivo certo
+- [ ] Green: `IFieldProtector` + conversor EF `IsProtected`, chaves do Data Protection no PostgreSQL, `FallbackPolicy` e lista de endpoints anônimos
+- [ ] Refactor mantendo tudo verde
+
+**Fase 2: Cabeçalhos, limites e contrato**
+- [ ] Red: escrever IT-01..IT-05 e CT-01 e confirmar que falham pelo motivo certo
+- [ ] Green: cabeçalhos de segurança, HSTS em produção, rate limiting de auth, chave mestra por ambiente + runbook de rotação
+- [ ] Validar: build + suíte completa + arquitetura (G2/G3)
+
+**Fase final: Integração, entrega e documentação**
+- [ ] Review independente (G4)
+- [ ] Integração + CI verde (G5) e aprovação (H2)
+- [ ] Deploy via pipeline com smoke e varredura de cabeçalhos em staging (G6)
+- [ ] Relatório de Entrega, docs raiz e CHANGELOG (G7)
 
 ## 12. Registro de Gates
 <!-- Status: PENDING | PASS | FAIL | N/A. PASS e N/A exigem evidência (comando + resultado, SHA, execução de CI, veredito). -->

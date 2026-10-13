@@ -141,6 +141,21 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 
 ## 11. Checklist de Implementação
 <!-- Preenchido na fase PLAN, após a aprovação. Cada fase começa pelos testes. -->
+**Fase 1: Workflow**
+- [ ] Red: escrever UT-01, UT-02 (`tests/ci/`) com a tag `SPEC-0004:<ID>` e confirmar que falham pelo motivo certo
+- [ ] Green: `ci.yml` com os 7 jobs, permissões mínimas, actions fixadas por SHA, cache, `dependabot.yml`, CodeQL, `AddDockerComposeEnvironment` no AppHost, imagem no GHCR
+- [ ] Refactor mantendo tudo verde
+
+**Fase 2: Provas no GitHub**
+- [ ] Red→Green: IT-01..IT-05 e CT-01, CT-02 com PRs/branches de prova `ci-proof/*` (link das execuções)
+- [ ] Checks obrigatórios na proteção da `main`; `security_scan` e `ci` no sdd-config
+- [ ] Validar: build + suíte completa (G2)
+
+**Fase final: Integração, entrega e documentação**
+- [ ] Review independente (G4)
+- [ ] Integração + CI verde (G5) e aprovação (H2)
+- [ ] Deploy: N/A — workflow ativo no merge (G6)
+- [ ] Relatório de Entrega, docs raiz e CHANGELOG (G7)
 
 ## 12. Registro de Gates
 <!-- Status: PENDING | PASS | FAIL | N/A. PASS e N/A exigem evidência (comando + resultado, SHA, execução de CI, veredito). -->

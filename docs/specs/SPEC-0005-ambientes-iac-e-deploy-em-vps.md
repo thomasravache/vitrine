@@ -152,6 +152,23 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 
 ## 11. Checklist de Implementação
 <!-- Preenchido na fase PLAN, após a aprovação. Cada fase começa pelos testes. -->
+**Fase 1: Infra como código**
+- [ ] Red: escrever UT-01, UT-02 (`tests/infra/`) com a tag `SPEC-0005:<ID>` e confirmar que falham pelo motivo certo
+- [ ] Green: OpenTofu (DigitalOcean), cloud-init, overrides do Compose, Caddyfile
+- [ ] Pré-requisitos externos confirmados pelo usuário: domínio, conta DigitalOcean, token e chaves SSH como secrets
+
+**Fase 2: Deploy, rollback e restauração**
+- [ ] Red→Green: CT-01, IT-01..IT-05, IT-07, IT-08 em staging (links das execuções)
+- [ ] Green: `deploy.yml` (staging automático, produção com aprovação, migrações, health, volta automática, smoke)
+- [ ] IT-06: restauração PITR ensaiada com tempo medido; runbooks em `docs/runbooks/`
+- [ ] Alerta de gasto US$ 100; preços reconfirmados e registrados no ADR-0012
+- [ ] Validar: build + suíte completa (G2)
+
+**Fase final: Integração, entrega e documentação**
+- [ ] Review independente (G4)
+- [ ] Integração + CI verde (G5) e aprovação (H2)
+- [ ] Deploy em staging e produção via pipeline (G6)
+- [ ] Relatório de Entrega, docs raiz e CHANGELOG (G7)
 
 ## 12. Registro de Gates
 <!-- Status: PENDING | PASS | FAIL | N/A. PASS e N/A exigem evidência (comando + resultado, SHA, execução de CI, veredito). -->

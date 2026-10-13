@@ -144,6 +144,25 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 
 ## 11. Checklist de Implementação
 <!-- Preenchido na fase PLAN, após a aprovação. Cada fase começa pelos testes. -->
+**Fase 1: Mascaramento e health**
+- [ ] Red: escrever UT-01, IT-01, IT-02, IT-03 com a tag `SPEC-0007:<ID>` e confirmar que falham pelo motivo certo
+- [ ] Green: enriquecedor de mascaramento, `/health/ready` com checagem do banco
+- [ ] Refactor mantendo tudo verde
+
+**Fase 2: Telemetria e métricas**
+- [ ] Red: escrever IT-04, IT-05, CT-01 e confirmar que falham pelo motivo certo
+- [ ] Green: exportação OTLP com atributos de ambiente/versão, métricas `vitrine.auth.*`, Sentry backend e SPA, Alloy no Compose
+- [ ] Validar: build + suíte completa + arquitetura (G2/G3)
+
+**Fase 3: Produção**
+- [ ] Pré-requisitos externos: contas Grafana Cloud e Sentry + secrets
+- [ ] IT-06 (alerta em produção) e IT-07 (staging) com evidência; alertas e runbooks configurados
+
+**Fase final: Integração, entrega e documentação**
+- [ ] Review independente (G4)
+- [ ] Integração + CI verde (G5) e aprovação (H2)
+- [ ] Deploy via pipeline com smoke no ambiente (G6)
+- [ ] Relatório de Entrega, docs raiz e CHANGELOG (G7)
 
 ## 12. Registro de Gates
 <!-- Status: PENDING | PASS | FAIL | N/A. PASS e N/A exigem evidência (comando + resultado, SHA, execução de CI, veredito). -->

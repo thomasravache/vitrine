@@ -88,7 +88,7 @@ Telas: /cadastro e /entrar (formulários com erros por campo); /painel (rota pro
 Evento de integração (contrato público do módulo Identity): WorkspaceCreated v1
 ```
 
-**Design:** Stitch, projeto "Vitrine" (`projects/6635450613032213900`), sistema de design `assets/15895198957828239862` (primária #0F766E, âmbar #D97706 só para pendências, Plus Jakarta Sans + Inter). Telas mobile: Criar Conta (`screens/5f1d4aa64d00423db0ff9fbc9eb1ee3b`), Entrar (`screens/5b966849f44c438a9e615291c1462194`), Painel vazio (`screens/790582561ed742e3b6f29e7cc7173a8e`). Desktop (≥ 1024 px): menu lateral no lugar da navegação inferior, conteúdo centralizado com largura máxima de 1120 px; os formulários de auth ficam num cartão centralizado. Diferenças em relação aos desenhos, por escopo: sem selo "teste grátis" no painel e sem "7 dias grátis" no botão (o botão diz "Criar conta"; teste grátis é do épico de assinatura); sem link "Ajuda" nem botão voltar no topo de Entrar; "Esqueci minha senha" visível como "em breve" e desabilitado; texto de Termos/Privacidade sem link até a spec jurídica; o cartão "operar 100% pelo celular" do painel não entra (o produto é responsivo).
+**Design:** Stitch, projeto "Vitrine" (`projects/6635450613032213900`), sistema de design `assets/15895198957828239862` (primária #0F766E, âmbar #D97706 só para pendências, Plus Jakarta Sans + Inter). Telas mobile: Criar Conta (`screens/5f1d4aa64d00423db0ff9fbc9eb1ee3b`), Entrar (`screens/5b966849f44c438a9e615291c1462194`), Painel vazio (`screens/790582561ed742e3b6f29e7cc7173a8e`). Telas desktop: Painel vazio (`screens/180baf7c767043d2a71a5eb5a2849b42`), Entrar (`screens/580775212cbe49e693f7fd3002ac7463`); Criar Conta desktop segue o mesmo cartão centralizado de Entrar. Desktop (≥ 1024 px): menu lateral no lugar da navegação inferior, conteúdo centralizado com largura máxima de 1120 px; os formulários de auth ficam num cartão centralizado. Diferenças em relação aos desenhos, por escopo: sem selo "teste grátis" no painel e sem "7 dias grátis" no botão (o botão diz "Criar conta"; teste grátis é do épico de assinatura); sem link "Ajuda" nem botão voltar no topo de Entrar; "Esqueci minha senha" visível como "em breve" e desabilitado; texto de Termos/Privacidade sem link até a spec jurídica; o cartão "operar 100% pelo celular" do painel não entra (o produto é responsivo). No painel desktop não entram: "Configurações", "Ajuda", sino de notificações, subtítulo "Gestão ML", links "Auditoria completa por catálogo"/"Menor tempo de resposta" e as promessas "análise da qualidade das fotos" e "dados reais de estoque" (fora do escopo do produto e contrárias à regra de nunca afirmar o que o anúncio não contém); os cartões usam os textos curtos da versão mobile. Em Entrar desktop não entra o selo "Conexão criptografada e segura".
 
 **Arquivos/módulos afetados:** ver `touches` no frontmatter.
 
@@ -160,6 +160,25 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 
 ## 11. Checklist de Implementação
 <!-- Preenchido na fase PLAN, após a aprovação. Cada fase começa pelos testes. -->
+**Fase 1: Domínio e aplicação**
+- [ ] Red: escrever UT-01..UT-04 com a tag `SPEC-0006:<ID>` e confirmar que falham pelo motivo certo
+- [ ] Green: módulo `Identity` (Domain, Application, Infrastructure, Presentation, IntegrationEvents), `Workspace`/`WorkspaceMember`, validações, configuração de lockout
+- [ ] Refactor mantendo tudo verde
+
+**Fase 2: API, persistência e evento**
+- [ ] Red: escrever IT-01..IT-08 e CT-01 e confirmar que falham pelo motivo certo
+- [ ] Green: endpoints `/api/v1/auth/*` e `/api/v1/me`, cookie, antiforgery, flag `Features:SignupOpen`, migração do schema `identity`, `WorkspaceCreated` via outbox
+- [ ] Validar: build + suíte completa + arquitetura (G2/G3)
+
+**Fase 3: Jornada E2E**
+- [ ] Red: E2E-01, E2E-02 falhando pelo motivo certo
+- [ ] Green: telas `/cadastro`, `/entrar`, `/painel` conforme o Stitch (mobile e desktop) e as exclusões da seção Design; cliente gerado do OpenAPI; axe sem violações sérias
+
+**Fase final: Integração, entrega e documentação**
+- [ ] Review independente (G4)
+- [ ] Integração + CI verde (G5) e aprovação (H2)
+- [ ] Deploy via pipeline com smoke/E2E no ambiente; usuário de prova em produção (G6)
+- [ ] Relatório de Entrega, docs raiz e CHANGELOG (G7)
 
 ## 12. Registro de Gates
 <!-- Status: PENDING | PASS | FAIL | N/A. PASS e N/A exigem evidência (comando + resultado, SHA, execução de CI, veredito). -->
