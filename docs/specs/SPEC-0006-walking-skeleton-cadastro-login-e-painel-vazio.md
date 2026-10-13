@@ -238,4 +238,4 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 <!-- Mudança em spec aprovada: uma linha por emenda. Mudou o contrato? Incremente `contract_version` e rode `spec_graph.py impacted SPEC-0006`. -->
 | Versão do contrato | Data | Mudança | Motivo | Specs impactadas | Aprovado por |
 |---|---|---|---|---|---|
-| v1 (sem mudança de contrato) | 2026-10-13 | Smoke de produção e usuário de prova movidos para a SPEC-0009; G6 no ambiente local prod-like | Usuário: nada que gere custo até tudo rodar localmente | SPEC-0009 | (pendente) |
+| v1 (sem mudança de contrato) | 2026-10-13 | Smoke de produção e usuário de prova movidos para a SPEC-0009; G6 no ambiente local prod-like | Usuário: nada que gere custo até tudo rodar localmente | SPEC-0009 | thomas (2026-10-13) |

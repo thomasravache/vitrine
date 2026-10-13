@@ -34,7 +34,7 @@ Migração de schema acoplada ao deploy quebra rollback e derruba versões antig
 
 **Regras (verificáveis):**
 - Migrações versionadas no repositório, uma pasta por módulo, executadas pelo pipeline como etapa dedicada antes da troca de versão — o host roda em modo `--migrate` (aplica as migrações de cada `DbContext` em ordem e sai), num container one-shot da mesma imagem —, nunca no startup normal da aplicação.
-  *(Revisão 2026-10-13, pendente de aprovação: substitui `efbundle` por modo `--migrate` porque o monólito tem um `DbContext` por módulo e um bundle por contexto multiplicaria artefatos; a regra de nunca migrar no startup se mantém.)*
+  *(Revisão 2026-10-13, aprovada por thomas: substitui `efbundle` por modo `--migrate` porque o monólito tem um `DbContext` por módulo e um bundle por contexto multiplicaria artefatos; a regra de nunca migrar no startup se mantém.)*
 - Toda migração é compatível com a versão anterior da aplicação (expand, migrar, contract em releases separados).
 - Migrações são testadas em testes de integração contra o PostgreSQL real (Testcontainers): aplicar do zero e aplicar sobre a versão anterior.
 - Cada migração destrutiva tem plano de rollback de dados documentado na spec.
