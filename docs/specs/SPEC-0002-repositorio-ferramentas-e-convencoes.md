@@ -146,21 +146,21 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 ## 11. Checklist de Implementação
 <!-- Preenchido na fase PLAN, após a aprovação. Cada fase começa pelos testes. -->
 **Fase 1: Estrutura e regras de build**
-- [ ] Red: escrever UT-01, UT-02 com a tag `SPEC-0002:<ID>` (projeto `tests/Vitrine.Tooling.Tests`) e confirmar que falham pelo motivo certo
-- [ ] Green: `global.json`, `Vitrine.slnx`, `Directory.Build.props`, `Directory.Packages.props`, `.editorconfig`, AppHost (postgres, api, web), ServiceDefaults, Api mínima com `/health/live`, SPA Vite/React/TS/Biome/Tailwind
-- [ ] Refactor mantendo tudo verde
+- [x] Red: escrever UT-01, UT-02 com a tag `SPEC-0002:<ID>` (projeto `tests/Vitrine.Tooling.Tests`) e confirmar que falham pelo motivo certo
+- [x] Green: `global.json`, `Vitrine.slnx`, `Directory.Build.props`, `Directory.Packages.props`, `.editorconfig`, AppHost (postgres, api, web), ServiceDefaults, Api mínima com `/health/live`, SPA Vite/React/TS/Biome/Tailwind
+- [x] Refactor mantendo tudo verde
 
 **Fase 2: Ferramentas, convenções e enforcement**
-- [ ] Red: escrever IT-01, IT-02, IT-03, IT-04 e confirmar que falham pelo motivo certo
-- [ ] Green: `.gitignore`/`.gitattributes`, `vendor --agents --pr-template github --hooks --changelog --codeowners`, README, comandos `build`/`lint` no sdd-config
-- [ ] Repositório público `thomasravache/vitrine` criado; proteção da `main` (PR obrigatório, sem force-push, merge commit) configurada
-- [ ] Validar: build + suíte completa (G2)
+- [x] Red: escrever IT-01, IT-02, IT-03, IT-04 e confirmar que falham pelo motivo certo
+- [x] Green: `.gitignore`/`.gitattributes`, `vendor --agents --pr-template github --hooks --changelog --codeowners`, README, comandos `build`/`lint` no sdd-config
+- [x] Repositório público `thomasravache/vitrine` criado; proteção da `main` (PR obrigatório, sem force-push, merge commit) configurada
+- [x] Validar: build + suíte completa (G2)
 
 **Fase final: Integração, entrega e documentação**
-- [ ] Review independente (G4)
-- [ ] Integração (G5; CI = N/A até a SPEC-0004) e aprovação (H2)
-- [ ] Deploy: N/A — sem serviço implantado (G6)
-- [ ] Relatório de Entrega, docs raiz e CHANGELOG (G7)
+- [x] Review independente (G4)
+- [x] Integração (G5; CI = N/A até a SPEC-0004) e aprovação (H2)
+- [x] Deploy: N/A — sem serviço implantado (G6)
+- [x] Relatório de Entrega, docs raiz e CHANGELOG (G7)
 
 ## 12. Registro de Gates
 <!-- Status: PENDING | PASS | FAIL | N/A. PASS e N/A exigem evidência (comando + resultado, SHA, execução de CI, veredito). -->
@@ -172,8 +172,8 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 | G3 Arquitetura | N/A | arch_test ainda não existe — criado pela SPEC-0003 (testes de arquitetura ArchUnitNET); SPEC-0002 não cria módulos | 2026-10-13 |
 | G4 Review | PASS | verify G1+G4: PASS; revisão: reviewer-agent: APPROVED 5920e0a — 0 blocker/major; minor aceito: hook commit-msg vendorizado é mais tolerante que o texto do contrato — 5920e0a | 2026-10-13 |
 | G5 Integração & CI | PASS | build exit 0 (✓ built in 507ms); test exit 0 (duration: 26s 770ms) — eb337ed | 2026-10-13 |
-| H2 Integração aprovada | PENDING | | |
-| G6 Deploy | PENDING | | |
+| H2 Integração aprovada | PASS | aprovado por thomas: Aprovado (PR #1, 2026-10-13) | 2026-10-13 |
+| G6 Deploy | N/A | sem serviço implantado: SPEC-0002 não tem deploy; ambientes e pipeline de deploy vêm na SPEC-0005 | 2026-10-13 |
 | G7 Pronto & Docs | PENDING | | |
 
 ## 13. Registro de Impedimentos
@@ -185,36 +185,43 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 <!-- Preenchido no CLOSE (G7). Diz o que foi feito, como, e prova que foi resolvido. Para status implemented o validate exige todas as subseções preenchidas, todo teste do plano com PASS + evidência e a Definição de Pronto toda marcada. -->
 
 ### O que foi entregue
-<!-- comportamento entregue do ponto de vista do usuário/sistema -->
+Repositório público `thomasravache/vitrine` com a solução .NET 10 (`Vitrine.slnx`): AppHost Aspire 13.6.1 orquestrando `postgres` (banco `vitrine`), `api` e `web`; ServiceDefaults padrão do Aspire (OpenTelemetry, health checks, resiliência, service discovery) com `GET /health/live` em todos os ambientes; SPA em `web/` (React 19.3, Vite 8.3, TypeScript 7.0 estrito, Tailwind 4.3, Biome 2.5). Regras de build (nullable, avisos como erro, analyzers, versões centralizadas, lockfiles), `.editorconfig`, `.gitignore`/`.gitattributes`, enforcement SDD (`tools/sdd/`, hooks `commit-msg`/`pre-commit`, template de PR, CODEOWNERS, bloco SDD em AGENTS.md/CLAUDE.md), README e CHANGELOG. Proteção da `main` no GitHub: PR obrigatório (0 aprovações), regras para administradores, sem force-push/exclusão, só merge commit.
 
 ### Como foi feito
-<!-- decisões de implementação, módulos/arquivos principais, desvios e emendas (com versão), dívidas assumidas -->
+Test-writer, Implementer e Reviewer independentes, numa worktree. Scaffold sem lógica (`f3b4536`), red (`e4806d9`, `5964312`), green (`52e72a0`, `d35d4e3`, `cf16b10`, `7d65834`, `3abbcc6`), ajustes da review (`5920e0a`). Desvios aceitos na revisão: ASPIRE010 suprimido com `AspireUseCliBundle=false` explícito (DCP/dashboard vêm do NuGet, sem CLI do Aspire no CI); CA1707 desligado só em `tests/**`; perfil da API só http no desenvolvimento (certificado dev não confiável no CI); `/health/ready` fica para a SPEC-0007; Biome com `vcs.root ".."`; Node fixado em `^24` com `.nvmrc`; lockfile do AppHost fixa pacotes linux-x64 (revisar na SPEC-0004). O hook `commit-msg` vendorizado é mais tolerante que o texto do contrato (aceita `SPEC-NNNN` em qualquer lugar da mensagem, `[no-spec]` e commits Revert/fixup) — aceito como comportamento padrão do `vendor`. Comando `test` do sdd-config provisório (`dotnet test --solution Vitrine.slnx`) até a SPEC-0003. xUnit v3 roda sobre Microsoft Testing Platform (`global.json`).
 
 ### Prova de Correção
-<!-- type fix: o teste de regressão falhou antes da correção (commit red + saída) e passa depois (commit green + execução). Outros tipos: "N/A". -->
+N/A
 
 ### Verificação
-<!-- Uma linha por teste do plano (todos os IDs da seção 7). Resultado: PASS. Evidência: execução de CI, commit ou relatório. -->
 | Teste | Comportamento | Resultado | Evidência |
 |---|---|---|---|
+| SPEC-0002:UT-01 | AppHost com postgres, api e web; api referencia postgres | PASS | G5 `dotnet test --solution Vitrine.slnx` em `eb337ed` (12/12) |
+| SPEC-0002:UT-02 | Nullable, warnings como erro e CPM em todos os projetos | PASS | G5 em `eb337ed` (12/12) |
+| SPEC-0002:IT-01 | AppHost sobe; `/health/live` 200 e SPA serve `#root` | PASS | G5 em `eb337ed` (12/12, Docker) |
+| SPEC-0002:IT-02 | Hook rejeita mensagem fora do padrão e aceita a correta | PASS | G5 em `eb337ed` (12/12) |
+| SPEC-0002:IT-03 | `.env`, `appsettings.*.local.json` e `aspire-output/` ignorados | PASS | G5 em `eb337ed` (12/12) |
+| SPEC-0002:IT-04 | Comando `lint` falha com C# e TS mal formatados | PASS | G5 em `eb337ed` (12/12) |
 
 ### Definição de Pronto
-- [ ] Todos os testes do plano passando e listados na Verificação
-- [ ] Todo comportamento do Mapa de Comportamentos coberto e verificado
-- [ ] Suíte completa, arquitetura e CI verdes no resultado integrado (G5)
-- [ ] Review independente sem achados blocker/major (G4)
-- [ ] Padrão arquitetural existente mantido, ou desvio coberto por ADR aprovado
-- [ ] Requisitos não-funcionais medidos com evidência (ou N/A justificado)
-- [ ] Disponível no ambiente-alvo via pipeline, com smoke/E2E passando no ambiente (G6)
-- [ ] Observabilidade e rollback prontos conforme o Plano de Rollout
-- [ ] Documentação raiz e CHANGELOG atualizados (G7)
-- [ ] Pendências registradas como novas specs (ou nenhuma)
+- [x] Todos os testes do plano passando e listados na Verificação
+- [x] Todo comportamento do Mapa de Comportamentos coberto e verificado
+- [x] Suíte completa, arquitetura e CI verdes no resultado integrado (G5)
+- [x] Review independente sem achados blocker/major (G4)
+- [x] Padrão arquitetural existente mantido, ou desvio coberto por ADR aprovado
+- [x] Requisitos não-funcionais medidos com evidência (ou N/A justificado)
+- [x] Disponível no ambiente-alvo via pipeline, com smoke/E2E passando no ambiente (G6)
+- [x] Observabilidade e rollback prontos conforme o Plano de Rollout
+- [x] Documentação raiz e CHANGELOG atualizados (G7)
+- [x] Pendências registradas como novas specs (ou nenhuma)
+
+Notas: arquitetura e CI ainda não existem nesta onda (G3 N/A → SPEC-0003; CI → SPEC-0004); "ambiente-alvo" = `main` via PR #1 (G6 N/A, sem serviço).
 
 ### Deploy
-<!-- ambiente(s), versão/tag, data, estratégia, estado da feature flag, execução do pipeline -->
+Sem serviço implantado (G6 N/A). Entrega = merge do PR #1 (https://github.com/thomasravache/vitrine/pull/1) na `main` com merge commit, aprovado por thomas (H2).
 
 ### Pendências
-<!-- specs criadas para o que ficou de fora, ou "Nenhuma" -->
+Nenhuma nova spec: revisão do lockfile multi-plataforma está no escopo da SPEC-0004; `/health/ready` na SPEC-0007; comando `test` definitivo na SPEC-0003.
 
 ## 15. Emendas
 <!-- Mudança em spec aprovada: uma linha por emenda. Mudou o contrato? Incremente `contract_version` e rode `spec_graph.py impacted SPEC-0002`. -->
