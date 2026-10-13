@@ -4,9 +4,15 @@
 
 ## Saúde
 
-- Validação (G0): **0 erro(s), 1 aviso(s)** — rode `spec_graph.py validate`
+- Validação (G0): **0 erro(s), 2 aviso(s)** — rode `spec_graph.py validate`
 - Specs: approved 5, in-progress 2, implemented 1
-- Impedimentos: **0 aberto(s)**, 1 resolvido(s)
+- Impedimentos: **1 aberto(s)**, 2 resolvido(s)
+
+## Impedimentos Abertos
+
+| Spec | ID | Tipo | Fase/Gate | Responsável | Aberto em | Idade | Descrição |
+|---|---|---|---|---|---|---|---|
+| SPEC-0003 | IMP-02 | externo | G5 | thomas: rodar 'cd web && sudo npx playwright install-deps chromium' | 2026-10-13 | 0d | Chromium do Playwright não abre: faltam bibliotecas de sistema (libatk); E2E-01 não executado localmente |
 
 ## Cobertura de Pilares
 
@@ -35,13 +41,13 @@ Perfil: **padrao**
 
 ## Plano de Execução
 
-**Em andamento:** SPEC-0003, SPEC-0005  
-**Paradas por impedimento:** —  
+**Em andamento:** SPEC-0005  
+**Paradas por impedimento:** SPEC-0003  
 **Próximo lote:** —
 
 | Onda | Spec | Título | Tier/Tam. | Status | Prontidão | Observação |
 |---|---|---|---|---|---|---|
-| 1 | SPEC-0003 | Harness de testes e arquitetura | full/M | in-progress | 🔄 em andamento |  |
+| 1 | SPEC-0003 | Harness de testes e arquitetura | full/M | in-progress | 🚧 parada por impedimento: IMP-02 (externo → thomas: rodar 'cd web && sudo npx playwright install-deps chromium', 0d) |  |
 | 2 | SPEC-0005 | Ambientes, IaC e deploy em VPS | full/M | in-progress | 🔄 em andamento | saiu da onda 1: arquivos em comum com SPEC-0003 |
 | 2 | SPEC-0004 | Pipeline de CI | full/M | approved | ✅ pronta | saiu da onda 1: arquivos em comum com SPEC-0003 |
 | 3 | SPEC-0006 | Walking skeleton: cadastro, login e painel vazio | full/M | approved | ⛔ aguarda implementação de SPEC-0003; aguarda implementação de SPEC-0004; aguarda implementação de SPEC-0005 |  |
