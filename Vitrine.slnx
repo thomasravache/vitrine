@@ -9,4 +9,7 @@
   <Folder Name="/src/ServiceDefaults/">
     <Project Path="src/ServiceDefaults/Vitrine.ServiceDefaults.csproj" />
   </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Vitrine.Tooling.Tests/Vitrine.Tooling.Tests.csproj" />
+  </Folder>
 </Solution>
