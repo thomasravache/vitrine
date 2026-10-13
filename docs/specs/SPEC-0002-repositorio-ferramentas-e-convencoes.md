@@ -4,7 +4,7 @@ title: Repositório, ferramentas e convenções
 tier: full
 type: foundation
 user_facing: false
-status: in-progress
+status: implemented
 created: 2026-10-13
 parent: SPEC-0001
 depends_on: []
@@ -174,7 +174,7 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 | G5 Integração & CI | PASS | build exit 0 (✓ built in 507ms); test exit 0 (duration: 26s 770ms) — eb337ed | 2026-10-13 |
 | H2 Integração aprovada | PASS | aprovado por thomas: Aprovado (PR #1, 2026-10-13) | 2026-10-13 |
 | G6 Deploy | N/A | sem serviço implantado: SPEC-0002 não tem deploy; ambientes e pipeline de deploy vêm na SPEC-0005 | 2026-10-13 |
-| G7 Pronto & Docs | PENDING | | |
+| G7 Pronto & Docs | PASS | Relatório de Entrega e Definição de Pronto: ok — a196afb | 2026-10-13 |
 
 ## 13. Registro de Impedimentos
 <!-- Toda parada é registrada pelo Architect com `spec_graph.py impede` e fechada com `resolve` — não edite à mão. Tipos: spec (spec errada/incompleta → resolve com Emenda) | decisão (só o humano decide → resposta ou ADR) | trabalho (falta algo que exige código → SPEC-NNNN nova) | externo (acesso, ambiente, terceiro → ação tomada) | falha (3 FAILs seguidos no mesmo gate → diagnóstico e decisão). Com impedimento aberto a spec aparece como parada no INDEX e não pode ser fechada. -->

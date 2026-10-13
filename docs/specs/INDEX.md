@@ -4,8 +4,8 @@
 
 ## Saúde
 
-- Validação (G0): **0 erro(s), 0 aviso(s)**
-- Specs: approved 6, in-progress 1
+- Validação (G0): **0 erro(s), 1 aviso(s)** — rode `spec_graph.py validate`
+- Specs: approved 6, implemented 1
 - Impedimentos: **0 aberto(s)**, 0 resolvido(s)
 
 ## Cobertura de Pilares
@@ -35,25 +35,24 @@ Perfil: **padrao**
 
 ## Plano de Execução
 
-**Em andamento:** SPEC-0002  
+**Em andamento:** —  
 **Paradas por impedimento:** —  
-**Próximo lote:** —
+**Próximo lote:** SPEC-0003, SPEC-0004, SPEC-0005
 
 | Onda | Spec | Título | Tier/Tam. | Status | Prontidão | Observação |
 |---|---|---|---|---|---|---|
-| 1 | SPEC-0002 | Repositório, ferramentas e convenções | full/M | in-progress | 🔄 em andamento |  |
-| 2 | SPEC-0003 | Harness de testes e arquitetura | full/M | approved | ⛔ aguarda implementação de SPEC-0002 |  |
-| 2 | SPEC-0004 | Pipeline de CI | full/M | approved | ⛔ aguarda implementação de SPEC-0002 |  |
-| 2 | SPEC-0005 | Ambientes, IaC e deploy em VPS | full/M | approved | ⛔ aguarda implementação de SPEC-0002 |  |
-| 3 | SPEC-0006 | Walking skeleton: cadastro, login e painel vazio | full/M | approved | ⛔ aguarda implementação de SPEC-0003; aguarda implementação de SPEC-0004; aguarda implementação de SPEC-0005 |  |
-| 4 | SPEC-0007 | Observabilidade de base | full/M | approved | ⛔ aguarda implementação de SPEC-0006 |  |
-| 5 | SPEC-0008 | Segurança de base | full/M | approved | ⛔ aguarda implementação de SPEC-0006 | saiu da onda 4: arquivos em comum com SPEC-0007 |
+| 1 | SPEC-0003 | Harness de testes e arquitetura | full/M | approved | ✅ pronta |  |
+| 1 | SPEC-0004 | Pipeline de CI | full/M | approved | ✅ pronta |  |
+| 1 | SPEC-0005 | Ambientes, IaC e deploy em VPS | full/M | approved | ✅ pronta |  |
+| 2 | SPEC-0006 | Walking skeleton: cadastro, login e painel vazio | full/M | approved | ⛔ aguarda implementação de SPEC-0003; aguarda implementação de SPEC-0004; aguarda implementação de SPEC-0005 |  |
+| 3 | SPEC-0007 | Observabilidade de base | full/M | approved | ⛔ aguarda implementação de SPEC-0006 |  |
+| 4 | SPEC-0008 | Segurança de base | full/M | approved | ⛔ aguarda implementação de SPEC-0006 | saiu da onda 3: arquivos em comum com SPEC-0007 |
 
 ## Épicos
 
 | Épico | Título | Status | Progresso |
 |---|---|---|---|
-| SPEC-0001 | Fundação da plataforma Vitrine | approved | 0/7 implementadas |
+| SPEC-0001 | Fundação da plataforma Vitrine | approved | 1/7 implementadas |
 
 ## Grafo de Dependências
 
@@ -62,7 +61,7 @@ Seta contínua: depende da implementação. Seta tracejada: consome contrato.
 ```mermaid
 flowchart LR
   subgraph E0001["SPEC-0001 · Fundação da plataforma Vitrine"]
-    S0002["SPEC-0002<br/>Repositório, ferramentas e convenções"]:::inprogress
+    S0002["SPEC-0002<br/>Repositório, ferramentas e convenções"]:::implemented
     S0003["SPEC-0003<br/>Harness de testes e arquitetura"]:::approved
     S0004["SPEC-0004<br/>Pipeline de CI"]:::approved
     S0005["SPEC-0005<br/>Ambientes, IaC e deploy em VPS"]:::approved
@@ -93,7 +92,7 @@ flowchart LR
 | ID | Título | Tier | Tipo | Status | Criada | Épico | Depende de | Consome contrato |
 |---|---|---|---|---|---|---|---|---|
 | [SPEC-0001](SPEC-0001-fundacao-da-plataforma-vitrine.md) | Fundação da plataforma Vitrine | epic | foundation | approved | 2026-10-13 | — | — | — |
-| [SPEC-0002](SPEC-0002-repositorio-ferramentas-e-convencoes.md) | Repositório, ferramentas e convenções | full | foundation | in-progress | 2026-10-13 | SPEC-0001 | — | — |
+| [SPEC-0002](SPEC-0002-repositorio-ferramentas-e-convencoes.md) | Repositório, ferramentas e convenções | full | foundation | implemented | 2026-10-13 | SPEC-0001 | — | — |
 | [SPEC-0003](SPEC-0003-harness-de-testes-e-arquitetura.md) | Harness de testes e arquitetura | full | foundation | approved | 2026-10-13 | SPEC-0001 | SPEC-0002 | — |
 | [SPEC-0004](SPEC-0004-pipeline-de-ci.md) | Pipeline de CI | full | foundation | approved | 2026-10-13 | SPEC-0001 | SPEC-0002 | — |
 | [SPEC-0005](SPEC-0005-ambientes-iac-e-deploy-em-vps.md) | Ambientes, IaC e deploy em VPS | full | foundation | approved | 2026-10-13 | SPEC-0001 | SPEC-0002 | SPEC-0004@1 |
