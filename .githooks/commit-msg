@@ -1,0 +1,29 @@
+#!/bin/sh
+# SDD commit-msg: Conventional Commits 1.0 + referência de spec.
+#   <tipo>(<escopo>)?!?: <descrição>
+#
+#   <corpo: por quê, não o quê>
+#
+#   Refs: SPEC-0042
+# Mudança sem comportamento (typo, formatação): inclua [no-spec] no assunto.
+msg_file="$1"
+subject=$(grep -v '^#' "$msg_file" | sed -n '1p')
+
+case "$subject" in
+  Merge\ *|Revert\ *|fixup!*|squash!*|amend!*) exit 0 ;;
+esac
+
+types='build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test'
+if ! printf '%s\n' "$subject" | grep -Eq "^($types)(\([^)]+\))?!?: .+"; then
+  echo "commit-msg: use Conventional Commits — <tipo>(<escopo>)?: <descrição>  (tipos: $types)" >&2
+  exit 1
+fi
+
+if grep -v '^#' "$msg_file" | grep -Eq 'SPEC-[0-9]{4,}'; then
+  exit 0
+fi
+if printf '%s\n' "$subject" | grep -q '\[no-spec\]'; then
+  exit 0
+fi
+echo "commit-msg: referencie a spec (rodapé 'Refs: SPEC-NNNN') ou marque [no-spec] em mudança sem comportamento" >&2
+exit 1

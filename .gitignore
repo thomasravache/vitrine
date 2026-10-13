@@ -1,0 +1,44 @@
+# --- .NET ---
+bin/
+obj/
+*.user
+*.suo
+*.rsuser
+TestResults/
+*.trx
+coverage*.xml
+*.binlog
+
+# --- IDEs ---
+.vs/
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.swp
+.DS_Store
+
+# --- Node / SPA ---
+node_modules/
+web/dist/
+*.tsbuildinfo
+npm-debug.log*
+
+# --- Playwright ---
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+playwright/.auth/
+
+# --- Aspire ---
+aspire-output/
+.aspire/
+
+# --- Segredos e configuração local (ADR-0006): nunca versionar ---
+.env
+.env.*
+!.env.example
+appsettings.*.local.json
+appsettings.local.json
+*.pfx
+*.pem

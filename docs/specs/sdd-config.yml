@@ -1,0 +1,145 @@
+# Configuração SDD do projeto — copiada para docs/specs/sdd-config.yml no primeiro DISCOVER.
+# Lida pelos agentes (comandos dos gates) e por spec_graph.py (base_branch, max_parallel, test_paths,
+# scope_exempt, dependency_manifests). Comandos rodam na raiz do repositório: valide cada um executando-o.
+# Deixe "" quando ainda não existir — e registre o gate como N/A apontando a spec que vai criá-lo.
+
+base_branch: main
+max_parallel: 3
+
+# --- Build e testes (G2, G5) ---
+# Exemplos: "dotnet build" | "npm run build" | "./gradlew build" | "go build ./..."
+build: "dotnet build Vitrine.slnx -warnaserror && npm --prefix web ci && npm --prefix web run build"
+# Suíte completa. Exemplos: "dotnet test" | "npm test" | "pytest" | "go test ./..."
+test: "dotnet test --solution Vitrine.slnx"  # provisório até a SPEC-0003 separar unitário/integração
+test_integration: ""
+# E2E da jornada do usuário. Exemplos: "npx playwright test" | "npx cypress run" | "maestro test flows/"
+test_e2e: ""
+# Subconjunto rápido rodado após cada deploy (G6).
+smoke_test: ""
+lint: "dotnet format Vitrine.slnx --verify-no-changes && npm --prefix web run lint"
+# G2 — cobertura das linhas alteradas (ex: diff-cover, coverlet + reportgenerator). Opcional.
+coverage: ""
+coverage_min_changed_lines: 80
+# Opcional: mutation testing em código de domínio crítico (Stryker, PIT, mutmut).
+mutation: ""
+
+# --- Arquitetura e segurança (G3, G5) ---
+# Exemplos: "dotnet test --filter Category=Architecture" | "npx depcruise src" | "lint-imports"
+arch_test: ""
+# Auditoria de dependências + segredos. Exemplos: "npm audit --audit-level=high" | "dotnet list package --vulnerable" | "gitleaks detect"
+security_scan: ""
+
+# --- CI/CD e ambientes (G5, G6) ---
+# Como conferir o pipeline da branch/PR. Exemplo: "gh pr checks --watch"
+ci: ""
+# Como o deploy acontece (preferencialmente pelo pipeline). Exemplos: "merge em main → pipeline" | "gh workflow run deploy.yml -f env=staging"
+deploy_staging: ""
+deploy_production: ""
+staging_url: ""
+production_url: ""
+
+# --- Worktrees ---
+# Fora do repositório, agrupadas por projeto ({repo} = nome da pasta do repositório). Dentro do repo (ex: .worktrees)
+# só com a pasta no .gitignore, .dockerignore e nas exclusões das ferramentas.
+worktree_dir: "../{repo}.worktrees"
+# Worktrees criadas pela própria ferramenta de IA numa pasta dela (globs relativos à raiz do repo ou caminhos absolutos)
+# não são apontadas como fora do lugar. Ex: ".claude/worktrees/**"
+worktree_allow: []
+
+# --- Rastreabilidade e escopo (G1, G4) ---
+# Commits test(...) só podem tocar aqui.
+test_paths:
+  - "tests/**"
+  - "**/*.Tests/**"
+  - "**/*.test.*"
+  - "**/*.spec.*"
+  - "e2e/**"
+# Nunca contam como fora de escopo.
+scope_exempt:
+  - "docs/specs/**"
+  - "docs/adr/**"
+# Mudança nesses arquivos sem ADR na spec gera alerta no G4 (lib/framework nova precisa de ADR).
+# Omitido = padrão da skill (package.json, *.csproj, pyproject.toml, go.mod, pom.xml, ...).
+dependency_manifests: []
+
+# --- Board / tracker (opcional) ---
+# O repositório é sempre a fonte da verdade; o board é uma visão dele (repo → board).
+# Credenciais NUNCA aqui: o agente usa a autenticação da ferramenta (MCP, CLI, API).
+# Guia de cada adaptador: references/trackers/<provider>.md da skill.
+tracker:
+  provider: none            # none | jira | github | linear | azure | trello | <outro>
+  project: ""               # Jira: chave do projeto (PAY) · GitHub: owner/repo · Linear: time
+  mode: push                # push (repo → board) | push+intake (tickets também viram specs)
+  labels:
+    - sdd
+  blocked_label: sdd-bloqueado
+  # status da spec → status/coluna do board (Jira: nome do status de destino da transição)
+  statuses:
+    proposed: ""
+    approved: ""
+    in-progress: ""
+    implemented: ""
+    deprecated: ""
+  # tier/type da spec → tipo de item no board
+  issue_types:
+    epic: ""
+    feature: ""
+    fix: ""
+    refactor: ""
+    migration: ""
+    foundation: ""
+
+# --- Jornadas críticas (references/testing.md) ---
+# O que o produto não pode quebrar. Cada uma precisa de um E2E marcado [jornada: <id>] no plano de alguma spec.
+critical_journeys:
+  acesso: "Vendedor se cadastra, entra e vê o painel"
+  # Jornadas de produto (adicionadas pelos épicos de produto):
+  # conectar-conta: "Vendedor conecta conta do Mercado Livre e vê os anúncios"
+  # aprovar-melhoria: "Vendedor compara antes/depois e aprova a melhoria de um anúncio"
+  # responder-pergunta: "Pergunta chega e é respondida (aprovação ou automático) em até 2 minutos"
+
+# --- Pilares de entrega (references/pillars.md) ---
+# profile: minimo | padrao | rigoroso — ativa a checagem de cobertura (`pillars`, validate, INDEX).
+# Projeto novo: defina no DISCOVER. Projeto existente: opt-in (deixe vazio para não checar).
+pillars:
+  profile: padrao
+  waived: {}              # ex: custo: "protótipo interno sem orçamento próprio"
+  extra: {}               # pilares próprios do projeto/organização: id: "Título"
+
+# --- Fluxo de mudança ---
+# pr: toda mudança entra na base_branch por solicitação de mudança revisada (PR/MR/equivalente), com merge commit.
+# direct: só para repositório sem plataforma (pessoal/local), com motivo registrado.
+change_flow: pr
+change_flow_reason: ""
+# Regex das mensagens de merge da sua plataforma (padrão cobre GitHub, GitLab, Azure DevOps, Bitbucket).
+# pr_merge_pattern: "Merge pull request #?\d+|See merge request"
+
+# --- Aprovação humana da spec (H1) ---
+# chat: o humano responde "Aprovado" na conversa. pr-approval: a aprovação do PR que contém a spec vale como H1
+# (registre approved_by = revisor e approved_via = "PR #n"). Útil em equipe; a spec entra num PR só de spec antes do código.
+h1_policy: chat
+
+# --- Aprovação humana da integração (H2) ---
+# per-wave: o humano aprova cada onda integrada (gate SPEC-X H2 --by <nome>).
+# auto-on-green: o humano autorizou, uma vez, considerar H2 aprovado quando G5 = PASS (gate SPEC-X H2 --run).
+# Deploy em PRODUÇÃO nunca é coberto por esta política: sempre confirmação explícita por release.
+h2_policy: auto-on-green
+h2_policy_approved_by: "thomas"
+h2_policy_approved_at: "2026-10-13"
+# Autorização: "Pode aprovar os PRs desde que passem pelo CI com louvor" = todos os checks obrigatórios verdes + G4 PASS. Produção nunca coberta.
+
+# --- Pull requests ---
+# Título gerado por `spec_graph.py pr` (Conventional Commits). Campos: {conv} {type} {title} {id} {scope}
+pr_title: "{conv}: {title} [{id}]"
+# fail: pr-check reprova título fora do Conventional Commits ou maior que pr_title_max (warn: só avisa).
+pr_title_policy: fail
+pr_title_max: 100
+
+# --- Documentação (G7) ---
+root_docs:
+  - CLAUDE.md
+  - AGENTS.md
+  - README.md
+changelog: CHANGELOG.md
+# Itens extras de Definição de Pronto do projeto, anexados a cada spec no PLAN.
+dod_extra: []
