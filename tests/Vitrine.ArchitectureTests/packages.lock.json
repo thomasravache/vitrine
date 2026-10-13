@@ -175,6 +175,24 @@
           "xunit.v3.extensibility.core": "[4.0.2]",
           "xunit.v3.runner.common": "[4.0.2]"
         }
+      },
+      "modulea.application": {
+        "type": "Project",
+        "dependencies": {
+          "ModuleB.Application": "[1.0.0, )"
+        }
+      },
+      "moduleb.application": {
+        "type": "Project"
+      },
+      "sample.domain": {
+        "type": "Project",
+        "dependencies": {
+          "Sample.Infrastructure": "[1.0.0, )"
+        }
+      },
+      "sample.infrastructure": {
+        "type": "Project"
       }
     }
   }

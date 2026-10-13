@@ -19,6 +19,13 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="Samples\ModuleA.Application\ModuleA.Application.csproj" />
+    <ProjectReference Include="Samples\ModuleB.Application\ModuleB.Application.csproj" />
+    <ProjectReference Include="Samples\Sample.Domain\Sample.Domain.csproj" />
+    <ProjectReference Include="Samples\Sample.Infrastructure\Sample.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Using Include="Xunit" />
   </ItemGroup>
 
