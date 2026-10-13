@@ -10,7 +10,7 @@ parent: SPEC-0001
 depends_on: [SPEC-0002]
 consumes_contract: []
 contract_version: 1
-touches: [tests/Vitrine.UnitTests/**, tests/Vitrine.IntegrationTests/**, tests/Vitrine.ArchitectureTests/**, tests/README.md, web/e2e/**, web/playwright.config.ts, web/vitest.config.ts, web/package.json, web/package-lock.json, web/src/**/*.test.tsx, Directory.Packages.props, Vitrine.slnx, src/Api/Program.cs]
+touches: [tests/Vitrine.UnitTests/**, tests/Vitrine.IntegrationTests/**, tests/Vitrine.ArchitectureTests/**, tests/README.md, web/e2e/**, web/playwright.config.ts, web/vitest.config.ts, web/package.json, web/package-lock.json, web/tsconfig*.json, web/src/**/*.test.tsx, Directory.Packages.props, Vitrine.slnx, src/Api/Program.cs, src/Api/Vitrine.Api.csproj, src/Api/packages.lock.json, src/AppHost/packages.lock.json]
 adrs: [ADR-0002, ADR-0001, ADR-0014]
 external: []
 size: M
@@ -171,7 +171,7 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 | Gate | Status | Evidência | Data |
 |---|---|---|---|
 | G0 Spec | PASS | validate: 0 erro(s) — 4602cbe (árvore suja) | 2026-10-13 |
-| G1 Red | PENDING | | |
+| G1 Red | PASS | verify G1: PASS; `dotnet test --solution Vitrine.slnx` exit 2 (red: Test run completed with non-success exit code: 2 (see: https://aka.ms/testingplatform/exit) — e7bf65f | 2026-10-13 |
 | G2 Green | PENDING | | |
 | G3 Arquitetura | PENDING | | |
 | G4 Review | PENDING | | |

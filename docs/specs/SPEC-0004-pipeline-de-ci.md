@@ -4,13 +4,13 @@ title: Pipeline de CI
 tier: full
 type: foundation
 user_facing: false
-status: in-progress
+status: approved
 created: 2026-10-13
 parent: SPEC-0001
 depends_on: [SPEC-0002]
 consumes_contract: []
 contract_version: 1
-touches: [.github/workflows/ci.yml, .github/dependabot.yml, .github/codeql/**, tests/ci/**, src/Api/Api.csproj, src/AppHost/AppHost.csproj, src/AppHost/Program.cs]
+touches: [.github/workflows/ci.yml, .github/dependabot.yml, .github/codeql/**, tests/ci/**, Directory.Packages.props, src/Api/Vitrine.Api.csproj, src/Api/packages.lock.json, src/AppHost/Vitrine.AppHost.csproj, src/AppHost/AppHost.cs, src/AppHost/packages.lock.json]
 adrs: [ADR-0004, ADR-0005, ADR-0008, ADR-0003, ADR-0006]
 external: []
 size: M
