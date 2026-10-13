@@ -10,7 +10,7 @@ parent: SPEC-0001
 depends_on: [SPEC-0002]
 consumes_contract: []
 contract_version: 1
-touches: [tests/Vitrine.UnitTests/**, tests/Vitrine.IntegrationTests/**, tests/Vitrine.ArchitectureTests/**, tests/README.md, web/e2e/**, web/playwright.config.ts, web/vitest.config.ts, web/package.json, web/package-lock.json, web/src/**/*.test.tsx, Directory.Packages.props, Vitrine.slnx, src/Api/Program.cs, src/Api/Vitrine.Api.csproj, src/Api/packages.lock.json]
+touches: [tests/Vitrine.UnitTests/**, tests/Vitrine.IntegrationTests/**, tests/Vitrine.ArchitectureTests/**, tests/README.md, web/e2e/**, web/playwright.config.ts, web/vitest.config.ts, web/package.json, web/package-lock.json, web/tsconfig*.json, web/src/**/*.test.tsx, Directory.Packages.props, Vitrine.slnx, src/Api/Program.cs, src/Api/Vitrine.Api.csproj, src/Api/packages.lock.json, src/AppHost/packages.lock.json]
 adrs: [ADR-0002, ADR-0001, ADR-0014]
 external: []
 size: M
