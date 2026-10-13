@@ -1,0 +1,207 @@
+---
+id: SPEC-0003
+title: Harness de testes e arquitetura
+tier: full
+type: foundation
+user_facing: false
+status: proposed
+created: 2026-10-13
+parent: SPEC-0001
+depends_on: [SPEC-0002]
+consumes_contract: []
+contract_version: 1
+touches: [tests/Vitrine.UnitTests/**, tests/Vitrine.IntegrationTests/**, tests/Vitrine.ArchitectureTests/**, tests/README.md, web/e2e/**, web/playwright.config.ts, web/vitest.config.ts, web/package.json, web/package-lock.json, web/src/**/*.test.tsx, Directory.Packages.props, Vitrine.slnx, src/Api/Program.cs]
+adrs: [ADR-0002, ADR-0001, ADR-0014]
+external: []
+size: M
+approved_by:
+approved_at:
+---
+
+# SPEC-0003 — Harness de testes e arquitetura
+
+## 1. Visão Geral
+Monta a infraestrutura de testes de todos os níveis definidos na ADR-0002 — unitário, integração com PostgreSQL real, contrato, E2E com Playwright e testes de arquitetura com ArchUnitNET — cada um com um exemplo funcionando localmente, e registra os comandos no `sdd-config.yml`. A partir daqui toda spec escreve seus testes sobre essa base.
+
+## 2. Motivação & Escopo
+**Motivação:** o veto de testes do processo exige que unitário, integração, E2E e arquitetura existam e rodem antes da primeira funcionalidade.
+
+**Objetivos (dentro do escopo):**
+- Projetos `tests/Vitrine.UnitTests`, `tests/Vitrine.IntegrationTests` (Testcontainers.PostgreSql + `WebApplicationFactory` + WireMock.Net), `tests/Vitrine.ArchitectureTests` (ArchUnitNET), `web/e2e/` (Playwright, perfis desktop e celular, axe) e Vitest na SPA.
+- Fixture compartilhada de Postgres por coleção de testes, com banco isolado por teste (schema/database descartável).
+- Fixture E2E que sobe a aplicação inteira pelo AppHost (`Aspire.Hosting.Testing`) e expõe a URL ao Playwright.
+- Regras de arquitetura da ADR-0001 já codificadas (valem para módulos futuros por convenção de nomes): camadas, isolamento entre módulos, sem ciclos, `Common` sem módulos.
+- Convenção de tag de teste `SPEC-NNNN:<ID>` (atributo `[Trait("spec", "SPEC-NNNN:UT-01")]` em C#; título do teste em TS) e documentação em `tests/README.md`.
+- Comandos `test`, `test_integration`, `test_e2e`, `arch_test` e `coverage` preenchidos no sdd-config e verificados.
+- Teste de durabilidade de mensagem Wolverine (ADR-0014) com Postgres real.
+
+**Não-objetivos (fora do escopo):**
+- Rodar no CI (SPEC-0004); testes de carga (k6 entra com a spec de respostas); suíte de avaliação de IA (épico de respostas).
+
+## 3. Dependências
+- **Implementações necessárias:** SPEC-0002 — solução, AppHost e SPA existem.
+- **Contratos consumidos:** N/A
+- **Pré-requisitos externos:** Docker local; navegadores do Playwright instalados (`npx playwright install --with-deps chromium`).
+
+## 4. Decisão Arquitetural
+**Contexto:** Projeto novo. Padrão definido nos ADRs ADR-0002 (estratégia de testes), ADR-0001 (fronteiras a verificar) e ADR-0014 (durabilidade de mensagens).
+
+**Decisão:** ferramentas por nível exatamente como a tabela da ADR-0002; ArchUnitNET para arquitetura.
+
+**Justificativa:** banco real nos testes de integração e o mesmo AppHost no E2E reduzem a diferença entre teste e produção.
+
+**Desvio do padrão existente:** Nenhum (projeto novo).
+
+**Alternativas descartadas:** NetArchTest (sem manutenção desde 2021); banco em memória (não reproduz PostgreSQL).
+
+**ADRs:** ADR-0002, ADR-0001, ADR-0014.
+
+## 5. Requisitos Não-Funcionais
+- **Desempenho e escala:** suíte unitária < 30 s; integração < 5 min; E2E < 5 min no ambiente local — medido pelo tempo do comando registrado no G2.
+- **Segurança:** N/A — sem código de produção exposto.
+- **Privacidade e dados pessoais:** dados de teste são sintéticos (builders); nenhum dado real em fixtures — revisado no G4.
+- **Disponibilidade e resiliência:** testes isolados e determinísticos (sem dependência de ordem ou relógio real) — verificado rodando a suíte 3 vezes em ordem aleatória no G2.
+- **Acessibilidade (UI):** helper de axe pronto para as telas da SPEC-0006 — exemplo no E2E-01.
+- **Custo:** N/A — execução local.
+
+## 6. Artefato A — Contrato
+**Interface:** comandos de teste e convenções consumidos por todas as specs
+
+```text
+sdd-config.yml:
+  test:             "dotnet test tests/Vitrine.UnitTests && npm --prefix web run test"
+  test_integration: "dotnet test tests/Vitrine.IntegrationTests"
+  test_e2e:         "npm --prefix web run e2e"            # Playwright; BASE_URL opcional (staging)
+  arch_test:        "dotnet test tests/Vitrine.ArchitectureTests"
+  coverage:         "dotnet test --collect:'XPlat Code Coverage' + reportgenerator (linhas alteradas)"
+Tag de teste:
+  C#: [Trait("spec", "SPEC-NNNN:UT-01")]     TS: test("SPEC-NNNN:E2E-01 — <descrição>", ...)
+Fixtures públicas:
+  PostgresFixture (IAsyncLifetime) -> connection string de banco isolado por teste
+  ApiFactory : WebApplicationFactory<Program> -> HttpClient com cookies; troca de serviços externos por WireMock
+  AppHostFixture (E2E) -> sobe AppHost; exporta BASE_URL para o Playwright
+Sem BASE_URL o E2E sobe a aplicação pelo AppHost; com BASE_URL roda contra o ambiente informado.
+```
+
+**Design:** N/A — sem interface.
+
+**Arquivos/módulos afetados:** ver `touches` no frontmatter.
+
+### 6.1 Mapa de Comportamentos
+| Cenário | Condição / Entrada | Resultado esperado | Testes |
+|---|---|---|---|
+| Teste unitário de exemplo | `dotnet test tests/Vitrine.UnitTests` | passa e é descoberto com a tag de spec | UT-01 |
+| Teste unitário da SPA | `npm run test` | Vitest roda e passa | UT-02 |
+| Postgres real isolado | dois testes gravam a mesma chave | cada um vê só os próprios dados | IT-01 |
+| Mensagem durável | mensagem Wolverine enviada e host reiniciado antes do processamento | mensagem processada após o reinício | IT-02 |
+| Serviço externo falso | API configurada para chamar URL externa | chamada atendida pelo WireMock, nenhuma saída à internet | IT-03 |
+| Violação de camada | `Domain` de um módulo de amostra referencia `Infrastructure` | teste de arquitetura falha | UT-03 |
+| Violação entre módulos | módulo A referencia `Application` do módulo B | teste de arquitetura falha | UT-04 |
+| Código conforme | solução atual | todos os testes de arquitetura passam | UT-05 |
+| E2E com a aplicação real | Playwright contra o AppHost | página inicial carrega em desktop e celular, sem violações axe sérias | E2E-01 |
+
+## 7. Artefato B — Plano de Testes (TDD)
+
+### 7.1 Testes de Caracterização
+- N/A — projeto novo.
+
+### 7.2 Testes Unitários
+- **UT-01** — Dado o projeto `Vitrine.UnitTests`, quando executado, então um teste de exemplo marcado `SPEC-0003:UT-01` é descoberto e passa (comprova descoberta e convenção de tag).
+- **UT-02** — Dado a SPA, quando `npm run test` roda, então um teste Vitest de exemplo do componente raiz passa.
+- **UT-03** — Dado um assembly de amostra (fixture de teste) em que `Sample.Domain` referencia `Sample.Infrastructure`, quando a regra de camadas roda, então ela falha apontando a dependência proibida.
+- **UT-04** — Dado assemblies de amostra em que `ModuleA.Application` referencia `ModuleB.Application`, quando a regra de isolamento de módulos roda, então ela falha.
+- **UT-05** — Dado os assemblies reais da solução, quando todas as regras de arquitetura rodam, então passam (guarda contra regressão estrutural).
+
+### 7.3 Testes de Integração
+- **IT-01** — Dado a `PostgresFixture`, quando dois testes paralelos gravam e leem o mesmo registro em bancos isolados, então nenhum vê os dados do outro.
+- **IT-02** — Dado Wolverine com persistência no PostgreSQL, quando uma mensagem é publicada e o host é parado antes de processá-la e reiniciado, então o handler processa a mensagem exatamente uma vez.
+- **IT-03** — Dado a `ApiFactory` com WireMock substituindo um cliente HTTP externo nomeado, quando a API faz a chamada, então o WireMock registra a requisição e nenhuma conexão sai para a internet.
+
+### 7.4 Testes de Contrato
+- N/A — esta spec não fornece nem consome contrato via `consumes_contract`; o mecanismo de teste de contrato de eventos é usado a partir do primeiro evento de integração (épicos de produto).
+
+### 7.5 Testes E2E
+- **E2E-01** — Dado a aplicação subida pelo AppHost, quando o Playwright abre `/` nos perfis desktop e celular, então a página carrega o elemento raiz e o axe não reporta violações sérias ou críticas.
+
+### 7.6 Outros
+- N/A
+
+**Dublês e dados de teste:** WireMock.Net para HTTP externo; builders de dados sintéticos; assemblies de amostra só para UT-03/UT-04 em `tests/Vitrine.ArchitectureTests/Samples`.
+
+**Ambiente de execução:** local com Docker; no CI a partir da SPEC-0004.
+
+## 8. Plano de Rollout
+- **Estratégia:** deploy direto — só código de teste; entrega = merge do PR.
+- **Dados/schema:** N/A — schemas de teste criados e descartados pelos próprios testes.
+- **Compatibilidade:** N/A
+- **Observabilidade:** N/A — sem serviço em execução.
+- **Rollback:** revert do merge commit.
+- **Etapas de migração/coexistência:** N/A
+
+## 9. Questões em Aberto
+Nenhuma
+
+## 10. Aprovação (H1)
+Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o humano responder "Aprovado". O arquiteto nunca aprova a própria spec.
+
+## 11. Checklist de Implementação
+<!-- Preenchido na fase PLAN, após a aprovação. Cada fase começa pelos testes. -->
+
+## 12. Registro de Gates
+<!-- Status: PENDING | PASS | FAIL | N/A. PASS e N/A exigem evidência (comando + resultado, SHA, execução de CI, veredito). -->
+| Gate | Status | Evidência | Data |
+|---|---|---|---|
+| G0 Spec | PENDING | | |
+| G1 Red | PENDING | | |
+| G2 Green | PENDING | | |
+| G3 Arquitetura | PENDING | | |
+| G4 Review | PENDING | | |
+| G5 Integração & CI | PENDING | | |
+| H2 Integração aprovada | PENDING | | |
+| G6 Deploy | PENDING | | |
+| G7 Pronto & Docs | PENDING | | |
+
+## 13. Registro de Impedimentos
+<!-- Toda parada é registrada pelo Architect com `spec_graph.py impede` e fechada com `resolve` — não edite à mão. Tipos: spec (spec errada/incompleta → resolve com Emenda) | decisão (só o humano decide → resposta ou ADR) | trabalho (falta algo que exige código → SPEC-NNNN nova) | externo (acesso, ambiente, terceiro → ação tomada) | falha (3 FAILs seguidos no mesmo gate → diagnóstico e decisão). Com impedimento aberto a spec aparece como parada no INDEX e não pode ser fechada. -->
+| ID | Aberto em | Fase/Gate | Tipo | Descrição | Tentativas | Responsável | Resolução | Fechado em |
+|---|---|---|---|---|---|---|---|---|
+
+## 14. Relatório de Entrega
+<!-- Preenchido no CLOSE (G7). Diz o que foi feito, como, e prova que foi resolvido. Para status implemented o validate exige todas as subseções preenchidas, todo teste do plano com PASS + evidência e a Definição de Pronto toda marcada. -->
+
+### O que foi entregue
+<!-- comportamento entregue do ponto de vista do usuário/sistema -->
+
+### Como foi feito
+<!-- decisões de implementação, módulos/arquivos principais, desvios e emendas (com versão), dívidas assumidas -->
+
+### Prova de Correção
+<!-- type fix: o teste de regressão falhou antes da correção (commit red + saída) e passa depois (commit green + execução). Outros tipos: "N/A". -->
+
+### Verificação
+<!-- Uma linha por teste do plano (todos os IDs da seção 7). Resultado: PASS. Evidência: execução de CI, commit ou relatório. -->
+| Teste | Comportamento | Resultado | Evidência |
+|---|---|---|---|
+
+### Definição de Pronto
+- [ ] Todos os testes do plano passando e listados na Verificação
+- [ ] Todo comportamento do Mapa de Comportamentos coberto e verificado
+- [ ] Suíte completa, arquitetura e CI verdes no resultado integrado (G5)
+- [ ] Review independente sem achados blocker/major (G4)
+- [ ] Padrão arquitetural existente mantido, ou desvio coberto por ADR aprovado
+- [ ] Requisitos não-funcionais medidos com evidência (ou N/A justificado)
+- [ ] Disponível no ambiente-alvo via pipeline, com smoke/E2E passando no ambiente (G6)
+- [ ] Observabilidade e rollback prontos conforme o Plano de Rollout
+- [ ] Documentação raiz e CHANGELOG atualizados (G7)
+- [ ] Pendências registradas como novas specs (ou nenhuma)
+
+### Deploy
+<!-- ambiente(s), versão/tag, data, estratégia, estado da feature flag, execução do pipeline -->
+
+### Pendências
+<!-- specs criadas para o que ficou de fora, ou "Nenhuma" -->
+
+## 15. Emendas
+<!-- Mudança em spec aprovada: uma linha por emenda. Mudou o contrato? Incremente `contract_version` e rode `spec_graph.py impacted SPEC-0003`. -->
+| Versão do contrato | Data | Mudança | Motivo | Specs impactadas | Aprovado por |
+|---|---|---|---|---|---|
