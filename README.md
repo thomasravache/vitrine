@@ -33,6 +33,9 @@ aspire run                            # sobe postgres, api e web; abre o dashboa
 
 Sem o Aspire CLI: `dotnet run --project src/AppHost`.
 
+O lockfile do AppHost (`src/AppHost/packages.lock.json`) fixa os pacotes DCP/dashboard de **linux-x64**
+(plataforma do desenvolvimento e do CI); em outro sistema operacional a restauração reescreve o lockfile — não o versione.
+
 O AppHost sobe o PostgreSQL (container), a API e o Vite com HMR. O dashboard do Aspire mostra
 logs, traces, métricas e o endereço de cada recurso. A API responde `GET /health/live`.
 
