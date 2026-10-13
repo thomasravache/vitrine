@@ -1,0 +1,6 @@
+# SDD: arquivos de controle exigem revisão de quem responde pelo processo
+/tools/sdd/ @thomasravache
+/docs/specs/sdd-config.yml @thomasravache
+/docs/adr/ @thomasravache
+/.githooks/ @thomasravache
+/.github/workflows/ @thomasravache
