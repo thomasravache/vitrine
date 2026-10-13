@@ -9,7 +9,7 @@ created: 2026-10-13
 parent: SPEC-0001
 depends_on: [SPEC-0002]
 consumes_contract: [SPEC-0004@1]
-contract_version: 1
+contract_version: 2
 touches: [infra/**, deploy/**, .github/workflows/deploy.yml, tests/infra/**, docs/runbooks/**]
 adrs: [ADR-0004, ADR-0006, ADR-0010, ADR-0011, ADR-0012]
 external: []
@@ -20,37 +20,38 @@ approved_at: 2026-10-13
 
 # SPEC-0005 — Ambientes, IaC e deploy em VPS
 
+> Emenda v2 (2026-10-13): por decisão do usuário, nada que gere custo é provisionado agora. Esta spec entrega a infraestrutura como código e o deploy **validados localmente** (ambiente "prod-like" em Docker Compose na máquina de desenvolvimento). O provisionamento real na DigitalOcean, domínio, certificados públicos, restauração PITR e aprovação de produção passaram para a SPEC-0009.
+
 ## 1. Visão Geral
-Cria os ambientes `staging` e `production` como código na DigitalOcean (droplets, PostgreSQL gerenciado em produção, firewall, DNS, Spaces) e o workflow de deploy que leva a imagem testada pelo CI até cada ambiente via Docker Compose gerado pelo Aspire, com Caddy para HTTPS, migrações executadas pelo pipeline, rollback em um passo e restauração de backup ensaiada.
+Escreve como código os ambientes `staging` e `production` na DigitalOcean (OpenTofu + cloud-init) **sem aplicá-los**, e constrói o mecanismo de deploy que levará a imagem testada pelo CI até um servidor: bundle Docker Compose gerado pelo Aspire, Caddy para HTTPS, migrações antes da troca de versão, volta automática se o health check falhar e rollback em um passo. Tudo isso roda e é testado num ambiente local "prod-like" (Compose + Caddy com CA interna), idêntico ao que rodará na VPS.
 
 ## 2. Motivação & Escopo
-**Motivação:** o produto só existe para o vendedor quando chega à produção por um caminho repetível e reversível; esse caminho precisa estar pronto antes da primeira funcionalidade.
+**Motivação:** o caminho até produção precisa estar pronto e ensaiado antes da primeira funcionalidade, mas sem custo enquanto o produto não for testado localmente pelo usuário.
 
 **Objetivos (dentro do escopo):**
-- `infra/` em OpenTofu (provider DigitalOcean): projeto, VPC, droplet de staging (2 GB) e de produção (4 GB), PostgreSQL gerenciado em produção, firewall (entrada só 22 restrito, 80, 443), registros DNS, bucket Spaces; estado remoto no Spaces.
-- `infra/cloud-init.yaml`: Docker, usuário `deploy` sem senha, SSH só por chave, `unattended-upgrades`, swap, fail2ban.
-- `deploy/`: overrides do Compose gerado pelo `aspire publish` (Caddy, volumes, Postgres em container só no staging), `Caddyfile` (HTTPS automático, redirecionamento HTTP→HTTPS).
-- `.github/workflows/deploy.yml`: dispara após CI verde na `main` (staging automático) e manualmente para produção (Environment `production` com aprovação obrigatória); grava `.env` a partir dos secrets do Environment; roda o bundle de migrações EF Core; `docker compose pull && up -d`; espera health check; volta para a tag anterior se falhar; roda smoke + E2E contra o ambiente.
-- Rollback: `workflow_dispatch` com `tag` anterior (um passo), ensaiado.
-- Restauração do PostgreSQL de produção ensaiada (PITR para cluster novo) com tempo medido.
-- Limites de gasto (alerta DigitalOcean US$ 100) e runbooks em `docs/runbooks/` (deploy, rollback, restauração, recriar servidor).
-- `deploy_staging`, `deploy_production`, `smoke_test`, `staging_url`, `production_url` no sdd-config.
+- `infra/` em OpenTofu (provider DigitalOcean): projeto, VPC, droplets de staging e produção, PostgreSQL gerenciado, firewall, DNS, Spaces, estado remoto — **validado** (`tofu validate`, `tflint`), nunca aplicado nesta spec.
+- `infra/cloud-init.yaml`: Docker, usuário `deploy`, SSH só por chave, `unattended-upgrades`, swap, fail2ban.
+- `deploy/`: overrides do Compose gerado pelo `aspire publish`, `Caddyfile` (HTTPS, redirecionamento HTTP→HTTPS; em local usa a CA interna do Caddy), `deploy/deploy.sh <tag>` (grava `.env`, roda o bundle de migrações, `compose pull/up`, espera `/health/live`, volta para a tag anterior se falhar) e `deploy/rollback.sh`.
+- Ambiente local prod-like: `deploy/local/` com variáveis de exemplo e Postgres em container, usado pelos testes e por você para testar o produto como ele rodará na VPS.
+- `.github/workflows/deploy.yml` pronto, chamando `deploy/deploy.sh` por SSH, mas **desligado** até a SPEC-0009 (só executa se a variável de repositório `DEPLOY_ENABLED` for `true`).
+- Runbooks em `docs/runbooks/` (deploy, rollback, recriar servidor, restauração) e `smoke_test`/`deploy_staging`/`deploy_production` no sdd-config apontando para o ambiente local até a SPEC-0009.
 
 **Não-objetivos (fora do escopo):**
-- Alta disponibilidade, load balancer, múltiplas réplicas.
+- Criar qualquer recurso pago (droplet, banco, domínio, Spaces) — SPEC-0009.
+- Restauração PITR real, certificado público, aprovação do Environment `production` — SPEC-0009.
 - Telemetria e alertas (SPEC-0007); cabeçalhos de segurança detalhados (SPEC-0008).
 
 ## 3. Dependências
 - **Implementações necessárias:** SPEC-0002 — repositório, AppHost e solução.
-- **Contratos consumidos:** SPEC-0004@1 — imagem `ghcr.io/thomasravache/vitrine-api:<sha>`, artefato `compose-bundle` e evento `workflow_run` do CI na `main`.
-- **Pré-requisitos externos:** conta DigitalOcean com cobrança ativa e token de API (criados pelo usuário, guardados como secret do GitHub — nunca no repositório); domínio definido (Questões em Aberto do épico) com DNS apontado para a DigitalOcean; par de chaves SSH de deploy por ambiente.
+- **Contratos consumidos:** SPEC-0004@1 — imagem `ghcr.io/thomasravache/vitrine-api:<sha>`, artefato `compose-bundle` e evento `workflow_run` do CI na `main` (GHCR e Actions são gratuitos para repositório público).
+- **Pré-requisitos externos:** N/A nesta versão — só Docker local.
 
 ## 4. Decisão Arquitetural
 **Contexto:** Projeto novo. Padrão definido em ADR-0004 (DigitalOcean + Docker Compose, escolha do usuário pela VPS), ADR-0006 (segredos), ADR-0010 (resiliência), ADR-0011 (migrações pelo pipeline), ADR-0012 (custo).
 
-**Decisão:** OpenTofu + cloud-init para a infraestrutura; `aspire publish` para gerar o Compose; deploy por SSH a partir do GitHub Actions; migrações por bundle antes da troca de versão.
+**Decisão:** OpenTofu + cloud-init para a infraestrutura; `aspire publish` para gerar o Compose; um único script `deploy/deploy.sh` usado igualmente pelo ambiente local e, depois, pelo workflow via SSH — o mesmo caminho é testado agora e usado na VPS.
 
-**Justificativa:** servidor recriável do zero, imagem imutável por SHA e rollback trocando a tag.
+**Justificativa:** o que vai rodar na VPS é exatamente o que é ensaiado localmente; o go-live (SPEC-0009) só muda o alvo.
 
 **Desvio do padrão existente:** Nenhum (projeto novo).
 
@@ -59,30 +60,29 @@ Cria os ambientes `staging` e `production` como código na DigitalOcean (droplet
 **ADRs:** ADR-0004, ADR-0006, ADR-0010, ADR-0011, ADR-0012.
 
 ## 5. Requisitos Não-Funcionais
-- **Desempenho e escala:** merge → staging implantado em ≤ 15 min; deploy com indisponibilidade ≤ 30 s (troca de container) — medido nas execuções do IT-02.
-- **Segurança:** SSH só por chave e só para o usuário `deploy`; firewall com 80/443 abertos e 22 restrito aos IPs dos runners/administrador (ou via túnel); `.env` com permissão 600; tokens com escopo mínimo — verificado pelo IT-01.
-- **Privacidade e dados pessoais:** staging nunca recebe cópia de dados de produção — regra no runbook, revisada no G4.
-- **Disponibilidade e resiliência:** RPO ≤ 15 min e RTO ≤ 4 h (ADR-0010) — RTO medido no IT-06.
+- **Desempenho e escala:** deploy local com indisponibilidade ≤ 30 s (troca de container) — medido no IT-01.
+- **Segurança:** `.env` gerado com permissão 600 e nunca versionado; scripts não imprimem segredos; cloud-init desabilita login por senha — IT-01 e revisão G4.
+- **Privacidade e dados pessoais:** o ambiente local usa só dados sintéticos — revisão G4.
+- **Disponibilidade e resiliência:** volta automática para a tag anterior quando o health check falha (IT-03); migração que falha não troca a versão (IT-04).
 - **Acessibilidade (UI):** N/A — sem interface.
-- **Custo:** ~US$ 56/mês (ADR-0012) — preços reconfirmados no painel no provisionamento e registrados no ADR-0012; alerta em US$ 100.
+- **Custo:** US$ 0 nesta spec (nada provisionado); estimativa de produção segue no ADR-0012 e é reconfirmada na SPEC-0009.
 
 ## 6. Artefato A — Contrato
-**Interface:** `.github/workflows/deploy.yml` e URLs dos ambientes
+**Interface:** `deploy/deploy.sh`, `deploy/rollback.sh`, `.github/workflows/deploy.yml` (desligado) e ambiente local prod-like
 
 ```text
-deploy.yml
-  on: workflow_run (CI, main, success) -> environment=staging, tag=<head_sha>
-      workflow_dispatch(inputs: environment=staging|production, tag=<sha>) -> produção exige aprovação do Environment
-  passos: resolve imagem/bundle (CT-01) -> grava .env -> migrações (efbundle) -> compose pull/up -> espera /health/live 200 (≤ 120 s)
-          -> falhou? volta para tag anterior e marca a execução como falha
-          -> smoke: curl -fsS https://<host>/health/live ; E2E com BASE_URL=https://<host>
-  saída: deployment registrado no GitHub (environment, tag, URL)
-sdd-config:
-  deploy_staging:    "merge na main -> deploy.yml (automático)"
-  deploy_production: "gh workflow run deploy.yml -f environment=production -f tag=<sha>"
-  smoke_test:        "curl -fsS $BASE_URL/health/live && BASE_URL=$BASE_URL npm --prefix web run e2e -- --grep @smoke"
-  staging_url / production_url: definidos pelo domínio (Questões em Aberto do épico)
-Rollback: gh workflow run deploy.yml -f environment=<env> -f tag=<sha anterior>
+deploy/deploy.sh <tag> [--env-file <arquivo>]
+  -> grava .env (600) a partir do arquivo/variáveis; roda o bundle de migrações; docker compose pull/up com IMAGE_TAG=<tag>
+  -> espera GET https://<host>/health/live = 200 (≤ 120 s); falhou: volta para a tag anterior e sai com código 1
+  -> registra a tag implantada em deploy/.state/current e a anterior em deploy/.state/previous
+deploy/rollback.sh -> implanta deploy/.state/previous (um passo)
+Ambiente local: deploy/local/.env.example ; host https://vitrine.localhost (Caddy, CA interna)
+deploy.yml (desligado até SPEC-0009): on workflow_run(CI, main, success) e workflow_dispatch(environment, tag);
+  executa somente se vars.DEPLOY_ENABLED == 'true'; chama deploy/deploy.sh no servidor via SSH
+sdd-config (até a SPEC-0009):
+  deploy_staging:    "deploy/deploy.sh <sha> --env-file deploy/local/.env"   # ambiente local prod-like
+  smoke_test:        "curl -fsSk $BASE_URL/health/live && BASE_URL=$BASE_URL npm --prefix web run e2e -- --grep @smoke"
+  deploy_production: "" (SPEC-0009)
 ```
 
 **Design:** N/A — sem interface.
@@ -94,14 +94,13 @@ Rollback: gh workflow run deploy.yml -f environment=<env> -f tag=<sha anterior>
 |---|---|---|---|
 | Infra válida | `tofu validate` + `tflint` | sem erros | UT-01 |
 | Proxy válido | `caddy validate` no Caddyfile | sem erros; redireciona HTTP→HTTPS | UT-02 |
-| Servidor do zero | `tofu apply` em staging | droplet com Docker, SSH só por chave, firewall correto | IT-01 |
-| Merge na main | CI verde | staging atualizado automaticamente e smoke verde | IT-02 |
-| Rollback | dispatch com tag anterior | versão anterior no ar, health 200 | IT-03 |
-| Deploy com health ruim | imagem que não sobe | volta sozinho para a tag anterior; execução falha | IT-04 |
-| Migração falha | bundle de migração com erro | deploy aborta antes da troca; versão atual segue no ar | IT-05 |
-| Restauração de backup | PITR de produção para cluster novo | dados restaurados; tempo medido ≤ RTO | IT-06 |
-| Produção sem aprovação | dispatch para production | execução aguarda revisor do Environment | IT-07 |
-| HTTPS | acesso por http:// | 301/308 para https:// com certificado válido | IT-08 |
+| Deploy local | `deploy.sh <tag>` | versão no ar, health 200, smoke verde, `.env` com permissão 600 | IT-01 |
+| Rollback | `rollback.sh` após dois deploys | versão anterior no ar, health 200 | IT-02 |
+| Deploy com health ruim | imagem que não sobe | volta sozinho para a tag anterior; sai com código 1 | IT-03 |
+| Migração falha | bundle de migração com erro | aborta antes da troca; versão atual segue no ar | IT-04 |
+| HTTPS local | acesso por http:// | redireciona para https:// (CA interna) | IT-05 |
+| Servidor do zero (cloud-init) | cloud-init aplicado num container de teste | Docker ativo, login por senha desabilitado, unattended-upgrades habilitado | IT-06 |
+| Workflow desligado | `deploy.yml` sem `DEPLOY_ENABLED` | jobs pulados, nada implantado | UT-03 |
 | Contrato com o CI | execução de CI concluída | imagem e bundle localizados pelo SHA | CT-01 |
 
 ## 7. Artefato B — Plano de Testes (TDD)
@@ -110,42 +109,41 @@ Rollback: gh workflow run deploy.yml -f environment=<env> -f tag=<sha anterior>
 - N/A — projeto novo.
 
 ### 7.2 Testes Unitários
-- **UT-01** — Dado `infra/`, quando `tofu validate` e `tflint` rodam, então não há erros (script em `tests/infra/`).
+- **UT-01** — Dado `infra/`, quando `tofu validate` e `tflint` rodam, então não há erros.
 - **UT-02** — Dado `deploy/Caddyfile`, quando `caddy validate` roda, então é válido e declara redirecionamento HTTP→HTTPS.
+- **UT-03** — Dado `deploy.yml`, quando analisado (actionlint + verificação), então todo job de deploy tem a condição `vars.DEPLOY_ENABLED == 'true'`.
 
 ### 7.3 Testes de Integração
-- **IT-01** — Dado o staging recriado do zero com `tofu apply`, quando o script de verificação conecta ao servidor, então Docker está ativo, login por senha está desabilitado, apenas 22/80/443 respondem e `unattended-upgrades` está habilitado.
-- **IT-02** — Dado um merge na `main`, quando o CI termina verde, então o `deploy.yml` implanta a mesma tag no staging e o smoke passa (link da execução).
-- **IT-03** — Dado duas versões implantadas em sequência no staging, quando o rollback é disparado com a tag anterior, então a versão anterior responde em `/health/live` e o tempo total é registrado.
-- **IT-04** — Dado uma imagem de prova cujo health check falha, quando implantada no staging, então o workflow volta para a tag anterior e termina com falha.
-- **IT-05** — Dado um bundle de migração de prova que falha, quando o deploy roda, então nenhum container é trocado e a versão atual continua respondendo.
-- **IT-06** — Dado o PostgreSQL de produção com dados de prova, quando uma restauração PITR para um cluster novo é executada pelo runbook, então os dados de prova estão presentes e o tempo até a aplicação apontar para o cluster novo fica registrado (≤ 4 h).
-- **IT-07** — Dado um `workflow_dispatch` para `production`, quando disparado, então a execução fica pendente até aprovação do revisor do Environment.
-- **IT-08** — Dado o domínio de staging, quando acessado por `http://`, então redireciona para `https://` com certificado válido.
+- **IT-01** — Dado o ambiente local prod-like, quando `deploy.sh <tag>` roda, então a versão responde 200 em `/health/live` via Caddy, o `.env` tem permissão 600 e o tempo de troca é registrado.
+- **IT-02** — Dado duas versões implantadas em sequência, quando `rollback.sh` roda, então a versão anterior responde em `/health/live`.
+- **IT-03** — Dado uma imagem de prova cujo health check falha, quando implantada, então o script volta para a tag anterior e sai com código 1.
+- **IT-04** — Dado um bundle de migração de prova que falha, quando o deploy roda, então nenhum container é trocado e a versão atual continua respondendo.
+- **IT-05** — Dado o ambiente local, quando acessado por `http://`, então redireciona para `https://`.
+- **IT-06** — Dado `infra/cloud-init.yaml` aplicado num container Ubuntu de teste (cloud-init em modo local), quando o script de verificação roda, então Docker está instalado, `PasswordAuthentication no` e `unattended-upgrades` habilitado.
 
 ### 7.4 Testes de Contrato
-- **CT-01** — Dado uma execução de CI concluída na `main` (contrato SPEC-0004@1), quando o `deploy.yml` resolve a tag pelo `head_sha`, então encontra a imagem no GHCR e o artefato `compose-bundle`.
+- **CT-01** — Dado uma execução de CI concluída na `main` (contrato SPEC-0004@1), quando o script de resolução busca a tag pelo `head_sha`, então encontra a imagem no GHCR e o artefato `compose-bundle`.
 
 ### 7.5 Testes E2E
-- N/A — `user_facing: false`: infraestrutura sem jornada de usuário; o `deploy.yml` executa os E2E marcados `@smoke` das outras specs contra o ambiente.
+- N/A — `user_facing: false`: infraestrutura sem jornada de usuário; o `smoke_test` executa os E2E marcados `@smoke` das outras specs contra o ambiente local.
 
 ### 7.6 Outros
 - N/A
 
-**Dublês e dados de teste:** imagens e bundles de prova (`health-fail`, `migration-fail`) publicados com tags `proof-*` e removidos após a evidência; dados sintéticos de prova no IT-06.
+**Dublês e dados de teste:** imagens de prova (`health-fail`, `migration-fail`) construídas localmente; dados sintéticos.
 
-**Ambiente de execução:** staging real na DigitalOcean (IT-01..05, IT-08); produção apenas para IT-06 (dados de prova, antes de qualquer cliente) e IT-07.
+**Ambiente de execução:** máquina local com Docker (IT-01..06); CT-01 contra o GHCR/Actions reais (gratuitos), após a SPEC-0004.
 
 ## 8. Plano de Rollout
-- **Estratégia:** deploy direto — ambientes novos, sem usuários.
-- **Dados/schema:** N/A — nenhuma migração de negócio nesta spec; o mecanismo de migração é exercitado com o bundle de prova.
+- **Estratégia:** deploy direto — só código e scripts; nada provisionado.
+- **Dados/schema:** N/A — o mecanismo de migração é exercitado com o bundle de prova.
 - **Compatibilidade:** N/A — primeira versão.
-- **Observabilidade:** histórico de deployments do GitHub; health check pelo workflow; alertas entram na SPEC-0007.
-- **Rollback:** `gh workflow run deploy.yml -f environment=<env> -f tag=<anterior>`; infraestrutura: `tofu apply` da revisão anterior de `infra/`.
+- **Observabilidade:** saída dos scripts e `docker compose ps`; alertas na SPEC-0007/0009.
+- **Rollback:** `deploy/rollback.sh`; código: revert do merge commit.
 - **Etapas de migração/coexistência:** N/A
 
 ## 9. Questões em Aberto
-Nenhuma (domínio e visibilidade do repositório estão nas Questões em Aberto do épico SPEC-0001).
+- [x] Provisionar a nuvem agora? — Não: tudo que gera custo fica para o final, depois de o produto rodar localmente e o usuário testar; provisionamento e go-live na SPEC-0009 (thomas, 2026-10-13)
 
 ## 10. Aprovação (H1)
 Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o humano responder "Aprovado". O arquiteto nunca aprova a própria spec.
@@ -228,3 +226,4 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 <!-- Mudança em spec aprovada: uma linha por emenda. Mudou o contrato? Incremente `contract_version` e rode `spec_graph.py impacted SPEC-0005`. -->
 | Versão do contrato | Data | Mudança | Motivo | Specs impactadas | Aprovado por |
 |---|---|---|---|---|---|
+| v2 | 2026-10-13 | Escopo passa a ser IaC validada + deploy por script testado em ambiente local prod-like; `deploy.yml` desligado (`DEPLOY_ENABLED`); provisionamento real, PITR, certificado público e aprovação de produção movidos para a SPEC-0009; plano de testes refeito (UT-03, IT-01..06 locais) | Usuário: nada que gere custo até tudo rodar localmente e ele testar | SPEC-0009 (nova), SPEC-0001 (critérios de aceite) | (pendente) |
