@@ -63,8 +63,9 @@ Contratos entre as filhas: comandos do repositório e layout de projetos (SPEC-0
 | SPEC-0004 | Pipeline de CI | full | foundation | M | SPEC-0002 | — |
 | SPEC-0005 | Ambientes, IaC e deploy em VPS | full | foundation | M | SPEC-0002 | SPEC-0004@1 |
 | SPEC-0006 | Walking skeleton: cadastro, login e painel vazio | full | foundation | M | SPEC-0003, SPEC-0004, SPEC-0005 | — |
-| SPEC-0007 | Observabilidade de base | full | foundation | M | — | SPEC-0006@1 |
-| SPEC-0008 | Segurança de base | full | foundation | M | — | SPEC-0006@1 |
+| SPEC-0007 | Observabilidade de base | full | foundation | M | SPEC-0006 | SPEC-0006@1 |
+| SPEC-0008 | Segurança de base | full | foundation | M | SPEC-0006 | SPEC-0006@1 |
+| SPEC-0009 | Provisionamento na nuvem e go-live | full | foundation | M | SPEC-0005, SPEC-0006, SPEC-0007, SPEC-0008 | — |
 
 ## 5. Estratégia de Entrega
 - **Ambientes:** staging atualizado automaticamente a cada merge na `main` (smoke + E2E contra ele); produção pelo mesmo pipeline com aprovação humana no GitHub Environment `production`.
@@ -82,10 +83,13 @@ Contratos entre as filhas: comandos do repositório e layout de projetos (SPEC-0
 
 ## 7. Critérios de Aceite do Épico
 - [ ] Um commit na `main` passa por build, lint, testes (unitário, integração, contrato, E2E, arquitetura), varredura de segurança e o job SDD — SPEC-0004:IT-01
-- [ ] Cada merge na `main` é implantado automaticamente em staging e o smoke passa — SPEC-0005:IT-02
-- [ ] Rollback para a versão anterior em um passo, ensaiado — SPEC-0005:IT-03
-- [ ] Vendedor se cadastra, entra e vê o painel vazio no celular em produção — SPEC-0006:E2E-01
-- [ ] Health checks, traces e alerta da jornada de acesso funcionando em produção — SPEC-0007:IT-01
+- [ ] O deploy por script funciona no ambiente local prod-like, com volta automática se o health falhar — SPEC-0005:IT-03
+- [ ] Cada merge na `main` é implantado automaticamente em staging e o smoke passa — SPEC-0009:IT-02
+- [ ] Rollback para a versão anterior em um passo, ensaiado — SPEC-0005:IT-02
+- [ ] Vendedor se cadastra, entra e vê o painel vazio no celular — SPEC-0006:E2E-01
+- [ ] Usuário de prova entra e vê o painel em produção — SPEC-0009:E2E-01
+- [ ] Health checks e traces funcionando — SPEC-0007:IT-01
+- [ ] Alerta da jornada de acesso funcionando em produção — SPEC-0009:IT-06
 - [ ] Endpoint sem autorização explícita é bloqueado e cabeçalhos de segurança estão presentes — SPEC-0008:IT-01
 
 ## 8. Questões em Aberto
@@ -105,3 +109,4 @@ Uma aprovação humana cobre o épico e as specs filhas apresentadas junto com e
 ## 12. Emendas
 | Versão | Data | Mudança | Motivo | Specs impactadas | Aprovado por |
 |---|---|---|---|---|---|
+| v2 | 2026-10-13 | Nova filha SPEC-0009 (provisionamento e go-live) no fim do épico; SPEC-0005 v2 só local; SPEC-0006/0007/0008 com G6 no ambiente local; critérios de aceite redistribuídos | Usuário: "tudo que gera custo vamos deixar pro final quando estiver tudo tinindo rodando localmente e eu testar" | SPEC-0005, SPEC-0006, SPEC-0007, SPEC-0008, SPEC-0009 | (pendente) |

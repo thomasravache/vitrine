@@ -120,7 +120,7 @@ Config: DataProtection__MasterKey (secret do Environment)
 - N/A — `user_facing: false`: nenhuma jornada muda; SPEC-0006:E2E-01 roda sob a CSP nova no CI e no deploy e falha se a CSP quebrar a SPA.
 
 ### 7.6 Outros
-- Varredura de cabeçalhos em staging (Mozilla Observatory ou `curl -I` scriptado) com nota A ou superior — evidência no G6.
+- Varredura de cabeçalhos com `curl -I` scriptado no ambiente local prod-like (G6); Mozilla Observatory em staging na SPEC-0009.
 
 **Dublês e dados de teste:** entidade de teste só no projeto de testes; chave mestra de teste gerada por execução.
 
@@ -155,7 +155,7 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 **Fase final: Integração, entrega e documentação**
 - [ ] Review independente (G4)
 - [ ] Integração + CI verde (G5) e aprovação (H2)
-- [ ] Deploy via pipeline com smoke e varredura de cabeçalhos em staging (G6)
+- [ ] Deploy no ambiente local prod-like com smoke; varredura de cabeçalhos em staging na SPEC-0009 (G6)
 - [ ] Relatório de Entrega, docs raiz e CHANGELOG (G7)
 
 ## 12. Registro de Gates
