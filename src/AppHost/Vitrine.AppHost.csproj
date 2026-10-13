@@ -1,0 +1,22 @@
+<Project Sdk="Aspire.AppHost.Sdk/13.6.1">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <UserSecretsId>vitrine-apphost</UserSecretsId>
+    <!-- ASPIRE010 suprimido: DCP e dashboard vêm dos pacotes NuGet (AspireUseCliBundle=false), para que
+         build e testes (Aspire.Hosting.Testing) rodem no CI sem exigir o Aspire CLI instalado.
+         `aspire run` continua funcionando com esta configuração. -->
+    <AspireUseCliBundle>false</AspireUseCliBundle>
+    <NoWarn>$(NoWarn);ASPIRE010</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Aspire.Hosting.JavaScript" />
+    <PackageReference Include="Aspire.Hosting.PostgreSQL" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Api\Vitrine.Api.csproj" />
+  </ItemGroup>
+
+</Project>
