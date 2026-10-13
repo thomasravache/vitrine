@@ -1,0 +1,8 @@
+<Project Sdk="Aspire.AppHost.Sdk/13.6.1">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <UserSecretsId>vitrine-apphost</UserSecretsId>
+  </PropertyGroup>
+
+</Project>
