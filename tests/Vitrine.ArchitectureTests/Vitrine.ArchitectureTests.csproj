@@ -18,6 +18,11 @@
     <PackageReference Include="xunit.v3" />
   </ItemGroup>
 
+  <!-- Assemblies reais: o host compõe a solução e referencia ServiceDefaults, Common e módulos. -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Api\Vitrine.Api.csproj" />
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="Samples\ModuleA.Application\ModuleA.Application.csproj" />
     <ProjectReference Include="Samples\ModuleB.Application\ModuleB.Application.csproj" />
