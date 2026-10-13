@@ -1,0 +1,21 @@
+# Normaliza finais de linha: LF no repositório e na cópia de trabalho.
+* text=auto eol=lf
+
+# Scripts de shell/hooks sempre LF.
+*.sh text eol=lf
+.githooks/* text eol=lf
+
+# Binários
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.woff binary
+*.woff2 binary
+*.pfx binary
+
+# Lockfiles: diffs pouco úteis em revisão.
+package-lock.json -diff linguist-generated=true
+packages.lock.json -diff linguist-generated=true
