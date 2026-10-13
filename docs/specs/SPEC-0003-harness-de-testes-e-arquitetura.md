@@ -4,7 +4,7 @@ title: Harness de testes e arquitetura
 tier: full
 type: foundation
 user_facing: false
-status: proposed
+status: approved
 created: 2026-10-13
 parent: SPEC-0001
 depends_on: [SPEC-0002]
@@ -14,8 +14,8 @@ touches: [tests/Vitrine.UnitTests/**, tests/Vitrine.IntegrationTests/**, tests/V
 adrs: [ADR-0002, ADR-0001, ADR-0014]
 external: []
 size: M
-approved_by:
-approved_at:
+approved_by: thomas
+approved_at: 2026-10-13
 ---
 
 # SPEC-0003 — Harness de testes e arquitetura

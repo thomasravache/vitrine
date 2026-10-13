@@ -1,7 +1,7 @@
 ---
 id: ADR-0006
 title: Segredos e dados sensíveis
-status: proposed
+status: accepted
 origin: decision
 date: 2026-10-13
 pillars: [segredos-dados]

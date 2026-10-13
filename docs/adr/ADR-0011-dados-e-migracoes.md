@@ -1,7 +1,7 @@
 ---
 id: ADR-0011
 title: Dados e migrações — PostgreSQL 18 com EF Core Migrations por módulo
-status: proposed
+status: accepted
 origin: decision
 date: 2026-10-13
 pillars: [dados-migracoes]

@@ -1,7 +1,7 @@
 ---
 id: ADR-0010
 title: Resiliência e recuperação
-status: proposed
+status: accepted
 origin: decision
 date: 2026-10-13
 pillars: [resiliencia]

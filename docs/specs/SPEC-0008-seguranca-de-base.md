@@ -4,7 +4,7 @@ title: Segurança de base
 tier: full
 type: foundation
 user_facing: false
-status: proposed
+status: approved
 created: 2026-10-13
 parent: SPEC-0001
 depends_on: [SPEC-0006]
@@ -14,8 +14,8 @@ touches: [src/Api/Security/**, src/Api/Program.cs, src/Common/Security/**, tests
 adrs: [ADR-0007, ADR-0006]
 external: []
 size: M
-approved_by:
-approved_at:
+approved_by: thomas
+approved_at: 2026-10-13
 ---
 
 # SPEC-0008 — Segurança de base

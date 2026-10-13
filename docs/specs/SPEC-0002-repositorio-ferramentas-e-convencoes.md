@@ -4,7 +4,7 @@ title: Repositório, ferramentas e convenções
 tier: full
 type: foundation
 user_facing: false
-status: proposed
+status: approved
 created: 2026-10-13
 parent: SPEC-0001
 depends_on: []
@@ -14,8 +14,8 @@ touches: [Vitrine.slnx, global.json, Directory.Build.props, Directory.Packages.p
 adrs: [ADR-0001, ADR-0003, ADR-0005, ADR-0008, ADR-0013]
 external: []
 size: M
-approved_by:
-approved_at:
+approved_by: thomas
+approved_at: 2026-10-13
 ---
 
 # SPEC-0002 — Repositório, ferramentas e convenções

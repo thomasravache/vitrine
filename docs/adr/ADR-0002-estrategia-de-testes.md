@@ -1,7 +1,7 @@
 ---
 id: ADR-0002
 title: Estratégia de testes
-status: proposed
+status: accepted
 origin: decision
 date: 2026-10-13
 pillars: [testes]

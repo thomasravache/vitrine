@@ -1,7 +1,7 @@
 ---
 id: ADR-0001
 title: Arquitetura e fronteiras — monólito modular .NET 10 orquestrado por Aspire
-status: proposed
+status: accepted
 origin: user
 date: 2026-10-13
 pillars: [arquitetura]

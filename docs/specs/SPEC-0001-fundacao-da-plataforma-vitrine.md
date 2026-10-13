@@ -3,13 +3,13 @@ id: SPEC-0001
 title: Fundação da plataforma Vitrine
 tier: epic
 type: foundation
-status: proposed
+status: approved
 created: 2026-10-13
 depends_on: []
 adrs: [ADR-0001, ADR-0002, ADR-0003, ADR-0004, ADR-0005, ADR-0006, ADR-0007, ADR-0008, ADR-0009, ADR-0010, ADR-0011, ADR-0012, ADR-0013, ADR-0014, ADR-0015]
 external: []
-approved_by:
-approved_at:
+approved_by: thomas
+approved_at: 2026-10-13
 ---
 
 # SPEC-0001 — Fundação da plataforma Vitrine (Épico)

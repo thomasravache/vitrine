@@ -1,7 +1,7 @@
 ---
 id: ADR-0009
 title: Observabilidade — OpenTelemetry com Grafana Cloud e Sentry
-status: proposed
+status: accepted
 origin: decision
 date: 2026-10-13
 pillars: [observabilidade]

@@ -1,7 +1,7 @@
 ---
 id: ADR-0004
 title: Entrega contínua e ambientes — GitHub Actions + Docker Compose em VPS
-status: proposed
+status: accepted
 origin: user
 date: 2026-10-13
 pillars: [entrega]

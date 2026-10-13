@@ -4,7 +4,7 @@ title: Ambientes, IaC e deploy em VPS
 tier: full
 type: foundation
 user_facing: false
-status: proposed
+status: approved
 created: 2026-10-13
 parent: SPEC-0001
 depends_on: [SPEC-0002]
@@ -14,8 +14,8 @@ touches: [infra/**, deploy/**, .github/workflows/deploy.yml, tests/infra/**, doc
 adrs: [ADR-0004, ADR-0006, ADR-0010, ADR-0011, ADR-0012]
 external: []
 size: M
-approved_by:
-approved_at:
+approved_by: thomas
+approved_at: 2026-10-13
 ---
 
 # SPEC-0005 — Ambientes, IaC e deploy em VPS

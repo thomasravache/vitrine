@@ -1,7 +1,7 @@
 ---
 id: ADR-0007
 title: Identidade e acesso — ASP.NET Core Identity com cookie na mesma origem e workspaces
-status: proposed
+status: accepted
 origin: decision
 date: 2026-10-13
 pillars: [seguranca-acesso]

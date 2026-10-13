@@ -1,7 +1,7 @@
 ---
 id: ADR-0005
 title: Fluxo de mudança — PRs no GitHub com merge commit
-status: proposed
+status: accepted
 origin: decision
 date: 2026-10-13
 pillars: [fluxo-mudanca]

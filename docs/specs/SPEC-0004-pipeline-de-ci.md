@@ -4,7 +4,7 @@ title: Pipeline de CI
 tier: full
 type: foundation
 user_facing: false
-status: proposed
+status: approved
 created: 2026-10-13
 parent: SPEC-0001
 depends_on: [SPEC-0002]
@@ -14,8 +14,8 @@ touches: [.github/workflows/ci.yml, .github/dependabot.yml, .github/codeql/**, t
 adrs: [ADR-0004, ADR-0005, ADR-0008, ADR-0003, ADR-0006]
 external: []
 size: M
-approved_by:
-approved_at:
+approved_by: thomas
+approved_at: 2026-10-13
 ---
 
 # SPEC-0004 — Pipeline de CI

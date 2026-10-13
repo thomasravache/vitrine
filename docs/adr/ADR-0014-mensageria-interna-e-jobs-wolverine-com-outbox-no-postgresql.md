@@ -1,7 +1,7 @@
 ---
 id: ADR-0014
 title: "Mensageria interna e jobs: Wolverine com outbox no PostgreSQL"
-status: proposed
+status: accepted
 origin: decision
 date: 2026-10-13
 pillars: []

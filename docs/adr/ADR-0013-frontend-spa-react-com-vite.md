@@ -1,7 +1,7 @@
 ---
 id: ADR-0013
 title: "Frontend: SPA React com Vite"
-status: proposed
+status: accepted
 origin: decision
 date: 2026-10-13
 pillars: []

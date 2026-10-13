@@ -4,7 +4,7 @@ title: Observabilidade de base
 tier: full
 type: foundation
 user_facing: false
-status: proposed
+status: approved
 created: 2026-10-13
 parent: SPEC-0001
 depends_on: [SPEC-0006]
@@ -14,8 +14,8 @@ touches: [src/ServiceDefaults/**, src/Api/Observability/**, src/Api/Program.cs, 
 adrs: [ADR-0009, ADR-0006, ADR-0004]
 external: []
 size: M
-approved_by:
-approved_at:
+approved_by: thomas
+approved_at: 2026-10-13
 ---
 
 # SPEC-0007 — Observabilidade de base

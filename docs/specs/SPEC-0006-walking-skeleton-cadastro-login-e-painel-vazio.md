@@ -4,7 +4,7 @@ title: "Walking skeleton: cadastro, login e painel vazio"
 tier: full
 type: foundation
 user_facing: true
-status: proposed
+status: approved
 created: 2026-10-13
 parent: SPEC-0001
 depends_on: [SPEC-0003, SPEC-0004, SPEC-0005]
@@ -14,8 +14,8 @@ touches: [src/Modules/Identity/**, src/Api/**, web/src/**, web/e2e/**, tests/Vit
 adrs: [ADR-0001, ADR-0007, ADR-0011, ADR-0013, ADR-0014]
 external: []
 size: M
-approved_by:
-approved_at:
+approved_by: thomas
+approved_at: 2026-10-13
 ---
 
 # SPEC-0006 — Walking skeleton: cadastro, login e painel vazio

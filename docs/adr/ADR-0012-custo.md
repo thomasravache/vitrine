@@ -1,7 +1,7 @@
 ---
 id: ADR-0012
 title: Custo — modelo de custo de infraestrutura e IA
-status: proposed
+status: accepted
 origin: decision
 date: 2026-10-13
 pillars: [custo]

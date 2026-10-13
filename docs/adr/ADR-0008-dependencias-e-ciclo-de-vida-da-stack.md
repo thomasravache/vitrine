@@ -1,7 +1,7 @@
 ---
 id: ADR-0008
 title: Dependências e ciclo de vida da stack
-status: proposed
+status: accepted
 origin: decision
 date: 2026-10-13
 pillars: [dependencias]

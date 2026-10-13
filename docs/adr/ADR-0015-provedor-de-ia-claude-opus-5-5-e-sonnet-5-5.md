@@ -1,7 +1,7 @@
 ---
 id: ADR-0015
 title: "Provedor de IA: Claude (Opus 5.5 e Sonnet 5.5)"
-status: proposed
+status: accepted
 origin: user
 date: 2026-10-13
 pillars: []
