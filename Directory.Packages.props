@@ -29,5 +29,6 @@
   <ItemGroup Label="Mensageria">
     <PackageVersion Include="WolverineFx" Version="6.49.0" />
     <PackageVersion Include="WolverineFx.Postgresql" Version="6.49.0" />
+    <PackageVersion Include="WolverineFx.RuntimeCompilation" Version="6.49.0" />
   </ItemGroup>
 </Project>
