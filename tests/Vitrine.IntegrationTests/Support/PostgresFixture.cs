@@ -1,3 +1,6 @@
+using Npgsql;
+using Testcontainers.PostgreSql;
+
 namespace Vitrine.IntegrationTests.Support;
 
 /// <summary>
@@ -6,13 +9,32 @@ namespace Vitrine.IntegrationTests.Support;
 /// </summary>
 public sealed class PostgresFixture : IAsyncLifetime
 {
-    public ValueTask InitializeAsync() => ValueTask.CompletedTask;
+    // Mesma imagem que o AppHost usa no desenvolvimento (Aspire.Hosting.PostgreSQL 13.6.1).
+    private const string Image = "postgres:18.3";
+
+    private readonly PostgreSqlContainer _container = new PostgreSqlBuilder(Image).Build();
+
+    public async ValueTask InitializeAsync() => await _container.StartAsync();
 
     /// <summary>Cria um banco vazio e isolado e devolve a connection string dele.</summary>
-    public Task<string> CreateDatabaseAsync(CancellationToken cancellationToken = default) =>
-        throw new NotImplementedException("SPEC-0003: PostgresFixture (Testcontainers) ainda não implementada.");
+    public async Task<string> CreateDatabaseAsync(CancellationToken cancellationToken = default)
+    {
+        var database = $"test_{Guid.NewGuid():N}";
 
-    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+        await using (var connection = new NpgsqlConnection(_container.GetConnectionString()))
+        {
+            await connection.OpenAsync(cancellationToken);
+            // Nome gerado aqui (só hexadecimal): não há entrada externa no comando.
+            await using var create = new NpgsqlCommand($"CREATE DATABASE \"{database}\"", connection);
+            await create.ExecuteNonQueryAsync(cancellationToken);
+        }
+
+        return new NpgsqlConnectionStringBuilder(_container.GetConnectionString()) { Database = database }
+            .ConnectionString;
+    }
+
+    // Os bancos criados por teste somem junto com o container.
+    public async ValueTask DisposeAsync() => await _container.DisposeAsync();
 }
 
 /// <summary>Coleção xUnit que compartilha um único container PostgreSQL.</summary>
