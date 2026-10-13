@@ -171,7 +171,7 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 | G2 Green | PASS | build exit 0 (✓ built in 202ms); test exit 0 (duration: 26s 640ms); lint exit 0 ([0m[34mChecked 8 files in 23[0m[0m[2m[34mms[0m[0m[34m.[0m[0m[34m No fixes appl) — 5920e0a | 2026-10-13 |
 | G3 Arquitetura | N/A | arch_test ainda não existe — criado pela SPEC-0003 (testes de arquitetura ArchUnitNET); SPEC-0002 não cria módulos | 2026-10-13 |
 | G4 Review | PASS | verify G1+G4: PASS; revisão: reviewer-agent: APPROVED 5920e0a — 0 blocker/major; minor aceito: hook commit-msg vendorizado é mais tolerante que o texto do contrato — 5920e0a | 2026-10-13 |
-| G5 Integração & CI | PENDING | | |
+| G5 Integração & CI | PASS | build exit 0 (✓ built in 507ms); test exit 0 (duration: 26s 770ms) — eb337ed | 2026-10-13 |
 | H2 Integração aprovada | PENDING | | |
 | G6 Deploy | PENDING | | |
 | G7 Pronto & Docs | PENDING | | |
