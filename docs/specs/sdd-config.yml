@@ -8,15 +8,15 @@ max_parallel: 3
 
 # --- Build e testes (G2, G5) ---
 # Exemplos: "dotnet build" | "npm run build" | "./gradlew build" | "go build ./..."
-build: ""
+build: "dotnet build Vitrine.slnx -warnaserror && npm --prefix web ci && npm --prefix web run build"
 # Suíte completa. Exemplos: "dotnet test" | "npm test" | "pytest" | "go test ./..."
-test: ""
+test: "dotnet test --solution Vitrine.slnx"  # provisório até a SPEC-0003 separar unitário/integração
 test_integration: ""
 # E2E da jornada do usuário. Exemplos: "npx playwright test" | "npx cypress run" | "maestro test flows/"
 test_e2e: ""
 # Subconjunto rápido rodado após cada deploy (G6).
 smoke_test: ""
-lint: ""
+lint: "dotnet format Vitrine.slnx --verify-no-changes && npm --prefix web run lint"
 # G2 — cobertura das linhas alteradas (ex: diff-cover, coverlet + reportgenerator). Opcional.
 coverage: ""
 coverage_min_changed_lines: 80
