@@ -4,8 +4,8 @@
 
 ## Saúde
 
-- Validação (G0): **0 erro(s), 1 aviso(s)** — rode `spec_graph.py validate`
-- Specs: approved 6, implemented 1
+- Validação (G0): **0 erro(s), 0 aviso(s)**
+- Specs: approved 3, in-progress 3, implemented 1
 - Impedimentos: **0 aberto(s)**, 0 resolvido(s)
 
 ## Cobertura de Pilares
@@ -35,15 +35,15 @@ Perfil: **padrao**
 
 ## Plano de Execução
 
-**Em andamento:** —  
+**Em andamento:** SPEC-0003, SPEC-0004, SPEC-0005  
 **Paradas por impedimento:** —  
-**Próximo lote:** SPEC-0003, SPEC-0004, SPEC-0005
+**Próximo lote:** —
 
 | Onda | Spec | Título | Tier/Tam. | Status | Prontidão | Observação |
 |---|---|---|---|---|---|---|
-| 1 | SPEC-0003 | Harness de testes e arquitetura | full/M | approved | ✅ pronta |  |
-| 1 | SPEC-0004 | Pipeline de CI | full/M | approved | ✅ pronta |  |
-| 1 | SPEC-0005 | Ambientes, IaC e deploy em VPS | full/M | approved | ✅ pronta |  |
+| 1 | SPEC-0003 | Harness de testes e arquitetura | full/M | in-progress | 🔄 em andamento |  |
+| 1 | SPEC-0004 | Pipeline de CI | full/M | in-progress | 🔄 em andamento |  |
+| 1 | SPEC-0005 | Ambientes, IaC e deploy em VPS | full/M | in-progress | 🔄 em andamento |  |
 | 2 | SPEC-0006 | Walking skeleton: cadastro, login e painel vazio | full/M | approved | ⛔ aguarda implementação de SPEC-0003; aguarda implementação de SPEC-0004; aguarda implementação de SPEC-0005 |  |
 | 3 | SPEC-0007 | Observabilidade de base | full/M | approved | ⛔ aguarda implementação de SPEC-0006 |  |
 | 4 | SPEC-0008 | Segurança de base | full/M | approved | ⛔ aguarda implementação de SPEC-0006 | saiu da onda 3: arquivos em comum com SPEC-0007 |
@@ -62,9 +62,9 @@ Seta contínua: depende da implementação. Seta tracejada: consome contrato.
 flowchart LR
   subgraph E0001["SPEC-0001 · Fundação da plataforma Vitrine"]
     S0002["SPEC-0002<br/>Repositório, ferramentas e convenções"]:::implemented
-    S0003["SPEC-0003<br/>Harness de testes e arquitetura"]:::approved
-    S0004["SPEC-0004<br/>Pipeline de CI"]:::approved
-    S0005["SPEC-0005<br/>Ambientes, IaC e deploy em VPS"]:::approved
+    S0003["SPEC-0003<br/>Harness de testes e arquitetura"]:::inprogress
+    S0004["SPEC-0004<br/>Pipeline de CI"]:::inprogress
+    S0005["SPEC-0005<br/>Ambientes, IaC e deploy em VPS"]:::inprogress
     S0006["SPEC-0006<br/>Walking skeleton: cadastro, login e pai…"]:::approved
     S0007["SPEC-0007<br/>Observabilidade de base"]:::approved
     S0008["SPEC-0008<br/>Segurança de base"]:::approved
@@ -93,9 +93,9 @@ flowchart LR
 |---|---|---|---|---|---|---|---|---|
 | [SPEC-0001](SPEC-0001-fundacao-da-plataforma-vitrine.md) | Fundação da plataforma Vitrine | epic | foundation | approved | 2026-10-13 | — | — | — |
 | [SPEC-0002](SPEC-0002-repositorio-ferramentas-e-convencoes.md) | Repositório, ferramentas e convenções | full | foundation | implemented | 2026-10-13 | SPEC-0001 | — | — |
-| [SPEC-0003](SPEC-0003-harness-de-testes-e-arquitetura.md) | Harness de testes e arquitetura | full | foundation | approved | 2026-10-13 | SPEC-0001 | SPEC-0002 | — |
-| [SPEC-0004](SPEC-0004-pipeline-de-ci.md) | Pipeline de CI | full | foundation | approved | 2026-10-13 | SPEC-0001 | SPEC-0002 | — |
-| [SPEC-0005](SPEC-0005-ambientes-iac-e-deploy-em-vps.md) | Ambientes, IaC e deploy em VPS | full | foundation | approved | 2026-10-13 | SPEC-0001 | SPEC-0002 | SPEC-0004@1 |
+| [SPEC-0003](SPEC-0003-harness-de-testes-e-arquitetura.md) | Harness de testes e arquitetura | full | foundation | in-progress | 2026-10-13 | SPEC-0001 | SPEC-0002 | — |
+| [SPEC-0004](SPEC-0004-pipeline-de-ci.md) | Pipeline de CI | full | foundation | in-progress | 2026-10-13 | SPEC-0001 | SPEC-0002 | — |
+| [SPEC-0005](SPEC-0005-ambientes-iac-e-deploy-em-vps.md) | Ambientes, IaC e deploy em VPS | full | foundation | in-progress | 2026-10-13 | SPEC-0001 | SPEC-0002 | SPEC-0004@1 |
 | [SPEC-0006](SPEC-0006-walking-skeleton-cadastro-login-e-painel-vazio.md) | Walking skeleton: cadastro, login e painel vazio | full | foundation | approved | 2026-10-13 | SPEC-0001 | SPEC-0003, SPEC-0004, SPEC-0005 | — |
 | [SPEC-0007](SPEC-0007-observabilidade-de-base.md) | Observabilidade de base | full | foundation | approved | 2026-10-13 | SPEC-0001 | SPEC-0006 | SPEC-0006@1 |
 | [SPEC-0008](SPEC-0008-seguranca-de-base.md) | Segurança de base | full | foundation | approved | 2026-10-13 | SPEC-0001 | SPEC-0006 | SPEC-0006@1 |
