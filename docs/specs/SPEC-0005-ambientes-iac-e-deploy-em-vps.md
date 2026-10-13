@@ -10,7 +10,7 @@ parent: SPEC-0001
 depends_on: [SPEC-0002]
 consumes_contract: [SPEC-0004@1]
 contract_version: 2
-touches: [infra/**, deploy/**, .github/workflows/deploy.yml, tests/infra/**, docs/runbooks/**]
+touches: [infra/**, deploy/**, .github/workflows/deploy.yml, tests/infra/**, docs/runbooks/**, src/Api/Program.cs, src/Api/Migrations/**]
 adrs: [ADR-0004, ADR-0006, ADR-0010, ADR-0011, ADR-0012]
 external: []
 size: M
@@ -71,11 +71,22 @@ Escreve como código os ambientes `staging` e `production` na DigitalOcean (Open
 **Interface:** `deploy/deploy.sh`, `deploy/rollback.sh`, `.github/workflows/deploy.yml` (desligado) e ambiente local prod-like
 
 ```text
+Imagem vitrine-api:<tag> (publicada pelo CI — SPEC-0004 — ou construída localmente com
+  `dotnet publish src/Api/Vitrine.Api.csproj -t:PublishContainer -p:ContainerRepository=vitrine-api -p:ContainerImageTag=<tag>`):
+  sem argumentos -> sobe a aplicação ; com `--migrate` -> aplica as migrações de todos os módulos (DbContexts registrados)
+  e o schema do Wolverine, em ordem, e sai (0 = ok, != 0 = falha). Nunca migra no startup normal.
+deploy/compose.override.yaml: serviço one-shot `migrate` = mesma imagem `${IMAGE_REPO:-vitrine-api}:${IMAGE_TAG}` com `command: ["--migrate"]`
 deploy/deploy.sh <tag> [--env-file <arquivo>]
-  -> grava .env (600) a partir do arquivo/variáveis; roda o bundle de migrações; docker compose pull/up com IMAGE_TAG=<tag>
+  -> grava .env (600) a partir do arquivo/variáveis; `docker compose run --rm migrate` (falhou: sai com código 1 SEM trocar a versão);
+     `docker compose pull` só para imagens de registry (imagem local existente é usada como está); `up -d` com IMAGE_TAG=<tag>
   -> espera GET https://<host>/health/live = 200 (≤ 120 s); falhou: volta para a tag anterior e sai com código 1
   -> registra a tag implantada em deploy/.state/current e a anterior em deploy/.state/previous
 deploy/rollback.sh -> implanta deploy/.state/previous (um passo)
+deploy/resolve-release.sh <sha> -> imprime a referência da imagem (ghcr.io/thomasravache/vitrine-api:<sha>) e o ID da execução de CI
+  com o artefato `compose-bundle`; sai != 0 se algum não existir (usado pelo deploy.yml)
+Dublês de teste (tests/infra/fixtures/, construídos FROM a imagem base com um wrapper estático):
+  proof-health-fail -> `--migrate` funciona; sem argumentos o processo sai com erro (health nunca fica 200)
+  proof-migration-fail -> `--migrate` sai com código 1
 Ambiente local: deploy/local/.env.example ; host https://vitrine.localhost (Caddy, CA interna)
 deploy.yml (desligado até SPEC-0009): on workflow_run(CI, main, success) e workflow_dispatch(environment, tag);
   executa somente se vars.DEPLOY_ENABLED == 'true'; chama deploy/deploy.sh no servidor via SSH
@@ -96,8 +107,9 @@ sdd-config (até a SPEC-0009):
 | Proxy válido | `caddy validate` no Caddyfile | sem erros; redireciona HTTP→HTTPS | UT-02 |
 | Deploy local | `deploy.sh <tag>` | versão no ar, health 200, smoke verde, `.env` com permissão 600 | IT-01 |
 | Rollback | `rollback.sh` após dois deploys | versão anterior no ar, health 200 | IT-02 |
-| Deploy com health ruim | imagem que não sobe | volta sozinho para a tag anterior; sai com código 1 | IT-03 |
-| Migração falha | bundle de migração com erro | aborta antes da troca; versão atual segue no ar | IT-04 |
+| Deploy com health ruim | imagem `proof-health-fail` | volta sozinho para a tag anterior; sai com código 1 | IT-03 |
+| Migração falha | imagem `proof-migration-fail` | serviço `migrate` falha; aborta antes da troca; versão atual segue no ar | IT-04 |
+| Modo de migração | imagem com `--migrate` | aplica migrações e sai 0; não sobe a aplicação | IT-07 |
 | HTTPS local | acesso por http:// | redireciona para https:// (CA interna) | IT-05 |
 | Servidor do zero (cloud-init) | cloud-init aplicado num container de teste | Docker ativo, login por senha desabilitado, unattended-upgrades habilitado | IT-06 |
 | Workflow desligado | `deploy.yml` sem `DEPLOY_ENABLED` | jobs pulados, nada implantado | UT-03 |
@@ -116,13 +128,14 @@ sdd-config (até a SPEC-0009):
 ### 7.3 Testes de Integração
 - **IT-01** — Dado o ambiente local prod-like, quando `deploy.sh <tag>` roda, então a versão responde 200 em `/health/live` via Caddy, o `.env` tem permissão 600 e o tempo de troca é registrado.
 - **IT-02** — Dado duas versões implantadas em sequência, quando `rollback.sh` roda, então a versão anterior responde em `/health/live`.
-- **IT-03** — Dado uma imagem de prova cujo health check falha, quando implantada, então o script volta para a tag anterior e sai com código 1.
-- **IT-04** — Dado um bundle de migração de prova que falha, quando o deploy roda, então nenhum container é trocado e a versão atual continua respondendo.
+- **IT-03** — Dado a versão A no ar e a imagem de prova `proof-health-fail` (migração ok, aplicação não sobe), quando `deploy.sh proof-health-fail` roda, então o script volta para A, A responde 200 e o script sai com código 1.
+- **IT-04** — Dado a versão A no ar e a imagem de prova `proof-migration-fail`, quando `deploy.sh proof-migration-fail` roda, então o serviço `migrate` falha, nenhum container da aplicação é trocado, A continua respondendo e o script sai com código 1.
+- **IT-07** — Dado o Postgres local, quando a imagem real roda com `--migrate`, então sai com código 0, cria o schema do Wolverine e a aplicação não fica em execução.
 - **IT-05** — Dado o ambiente local, quando acessado por `http://`, então redireciona para `https://`.
 - **IT-06** — Dado `infra/cloud-init.yaml` aplicado num container Ubuntu de teste (cloud-init em modo local), quando o script de verificação roda, então Docker está instalado, `PasswordAuthentication no` e `unattended-upgrades` habilitado.
 
 ### 7.4 Testes de Contrato
-- **CT-01** — Dado uma execução de CI concluída na `main` (contrato SPEC-0004@1), quando o script de resolução busca a tag pelo `head_sha`, então encontra a imagem no GHCR e o artefato `compose-bundle`.
+- **CT-01** — Dado uma execução de CI concluída na `main` (contrato SPEC-0004@1), quando `deploy/resolve-release.sh <head_sha>` roda, então imprime a imagem do GHCR e a execução com o artefato `compose-bundle`.
 
 ### 7.5 Testes E2E
 - N/A — `user_facing: false`: infraestrutura sem jornada de usuário; o `smoke_test` executa os E2E marcados `@smoke` das outras specs contra o ambiente local.
@@ -130,7 +143,7 @@ sdd-config (até a SPEC-0009):
 ### 7.6 Outros
 - N/A
 
-**Dublês e dados de teste:** imagens de prova (`health-fail`, `migration-fail`) construídas localmente; dados sintéticos.
+**Dublês e dados de teste:** imagens de prova `proof-health-fail` e `proof-migration-fail` (Dockerfiles em `tests/infra/fixtures/`, FROM a imagem base); imagem base construída localmente por `dotnet publish -t:PublishContainer` quando a do GHCR não existir; dados sintéticos.
 
 **Ambiente de execução:** máquina local com Docker (IT-01..06); CT-01 contra o GHCR/Actions reais (gratuitos), após a SPEC-0004.
 
@@ -186,6 +199,7 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 <!-- Toda parada é registrada pelo Architect com `spec_graph.py impede` e fechada com `resolve` — não edite à mão. Tipos: spec (spec errada/incompleta → resolve com Emenda) | decisão (só o humano decide → resposta ou ADR) | trabalho (falta algo que exige código → SPEC-NNNN nova) | externo (acesso, ambiente, terceiro → ação tomada) | falha (3 FAILs seguidos no mesmo gate → diagnóstico e decisão). Com impedimento aberto a spec aparece como parada no INDEX e não pode ser fechada. -->
 | ID | Aberto em | Fase/Gate | Tipo | Descrição | Tentativas | Responsável | Resolução | Fechado em |
 |---|---|---|---|---|---|---|---|---|
+| IMP-01 | 2026-10-13 | G1 | spec | Contrato não define como deploy.sh executa as migrações nem como os dublês health-fail/migration-fail chegam ao deploy (IT-03, IT-04 não escritos); CT-01 cita 'script de resolução' sem nome no contrato | Leu SPEC-0005 v2, SPEC-0004 §6, SPEC-0003 e ADR-0011; derivar os dublês da imagem base dependeria de adivinhar | Architect + thomas (emenda) |  |  |
 
 ## 14. Relatório de Entrega
 <!-- Preenchido no CLOSE (G7). Diz o que foi feito, como, e prova que foi resolvido. Para status implemented o validate exige todas as subseções preenchidas, todo teste do plano com PASS + evidência e a Definição de Pronto toda marcada. -->
@@ -226,4 +240,4 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 <!-- Mudança em spec aprovada: uma linha por emenda. Mudou o contrato? Incremente `contract_version` e rode `spec_graph.py impacted SPEC-0005`. -->
 | Versão do contrato | Data | Mudança | Motivo | Specs impactadas | Aprovado por |
 |---|---|---|---|---|---|
-| v2 | 2026-10-13 | Escopo passa a ser IaC validada + deploy por script testado em ambiente local prod-like; `deploy.yml` desligado (`DEPLOY_ENABLED`); provisionamento real, PITR, certificado público e aprovação de produção movidos para a SPEC-0009; plano de testes refeito (UT-03, IT-01..06 locais) | Usuário: nada que gere custo até tudo rodar localmente e ele testar | SPEC-0009 (nova), SPEC-0001 (critérios de aceite) | (pendente) |
+| v2 | 2026-10-13 | Contrato fixa o modo `--migrate` da imagem, o serviço `migrate` do Compose, `deploy/resolve-release.sh` e os dublês `proof-*` (IMP-01); IT-07 novo. Escopo passa a ser IaC validada + deploy por script testado em ambiente local prod-like; `deploy.yml` desligado (`DEPLOY_ENABLED`); provisionamento real, PITR, certificado público e aprovação de produção movidos para a SPEC-0009; plano de testes refeito (UT-03, IT-01..06 locais) | Usuário: nada que gere custo até tudo rodar localmente e ele testar | SPEC-0009 (nova), SPEC-0001 (critérios de aceite) | (pendente) |
