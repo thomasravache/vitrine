@@ -24,23 +24,14 @@ assert_live_version "$TAG_A"
 
 # Quando: deploy.sh B, com sonda de disponibilidade.
 probe_log="$(mktemp)"
-trap 'kill "${probe_pid:-0}" 2>/dev/null || true; rm -f "$probe_log"' EXIT
-(
-  while :; do
-    if local_health_ok; then s=up; else s=down; fi
-    printf '%s %s\n' "$(date +%s.%N)" "$s"
-    sleep 0.5
-  done
-) >>"$probe_log" &
-probe_pid=$!
-
+trap 'stop_probe; rm -f "$probe_log"' EXIT
+start_probe "$probe_log"
 deploy_ok "$TAG_B"
-kill "$probe_pid" 2>/dev/null || true
-wait "$probe_pid" 2>/dev/null || true
+stop_probe
 
 # Então: versão B no ar via Caddy.
 assert_live_version "$TAG_B"
-log "${API_IMAGE_REPO}:$TAG_B answers 200 on $LOCAL_BASE_URL/health/live"
+log "${LOCAL_IMAGE_REPO}:$TAG_B answers 200 on $LOCAL_BASE_URL/health/live"
 
 # .env gravado com permissão 600 e fora do controle de versão.
 mapfile -t dotenvs < <(deployed_dotenv_files)

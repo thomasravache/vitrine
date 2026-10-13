@@ -19,7 +19,7 @@ CADDY_IMAGE="${CADDY_IMAGE:-caddy:2.11.7-alpine}"
 ACTIONLINT_IMAGE="${ACTIONLINT_IMAGE:-rhysd/actionlint:1.7.12}"
 UBUNTU_IMAGE="${UBUNTU_IMAGE:-ubuntu:24.04}"
 
-# Contrato consumido SPEC-0004@1.
+# Contrato consumido SPEC-0004@1 (imagem publicada no GHCR).
 API_IMAGE_REPO="${API_IMAGE_REPO:-ghcr.io/thomasravache/vitrine-api}"
 CI_WORKFLOW="${CI_WORKFLOW:-CI}"
 COMPOSE_BUNDLE_ARTIFACT="${COMPOSE_BUNDLE_ARTIFACT:-compose-bundle}"
@@ -73,6 +73,8 @@ require_gh() {
 }
 
 # --- Ambiente local prod-like (contrato SPEC-0005@2, seção 6) -----------------
+# Imagem <repo>:<tag>: sem argumentos sobe a aplicação; `--migrate` migra e sai.
+# deploy/compose.override.yaml: serviço one-shot `migrate` (`${IMAGE_REPO:-vitrine-api}:${IMAGE_TAG}`).
 # deploy/deploy.sh <tag> [--env-file <arquivo>] ; deploy/rollback.sh ;
 # deploy/local/.env.example ; https://vitrine.localhost (Caddy, CA interna) ;
 # deploy/.state/current e deploy/.state/previous.
@@ -80,19 +82,27 @@ require_gh() {
 # Variáveis (todas opcionais):
 #   SPEC0005_LOCAL_HOST   host do ambiente local (padrão: vitrine.localhost)
 #   SPEC0005_ENV_FILE     arquivo passado em --env-file (padrão: cópia de deploy/local/.env.example)
-#   SPEC0005_BASE_IMAGE   imagem real da API usada como base das versões de teste
-#                         (padrão: ghcr.io/thomasravache/vitrine-api:main, publicada pela SPEC-0004)
+#   SPEC0005_IMAGE_REPO   repositório das imagens locais (padrão: vitrine-api, o padrão do Compose;
+#                         se definido, é gravado como IMAGE_REPO na cópia do --env-file)
+#   SPEC0005_BASE_IMAGE   imagem real da API usada como base; sem ela: ghcr.io/thomasravache/vitrine-api:main
+#                         se existir, senão construída localmente com
+#                         `dotnet publish src/Api/Vitrine.Api.csproj -t:PublishContainer`
+#   SPEC0005_BASE_SOURCE  local = pula o GHCR e sempre constrói a base a partir do código
 #   SPEC0005_TAG_A/_B     duas tags existentes para usar no lugar das versões locais derivadas
 #   SPEC0005_DOTENV       caminho do .env gravado pelo deploy.sh (padrão: descoberto pelos
 #                         rótulos do Compose no container da API)
 
 LOCAL_HOST="${SPEC0005_LOCAL_HOST:-vitrine.localhost}"
 LOCAL_BASE_URL="https://$LOCAL_HOST"
+LOCAL_IMAGE_REPO="${SPEC0005_IMAGE_REPO:-vitrine-api}"
 DEPLOY_SH="$REPO_ROOT/deploy/deploy.sh"
 ROLLBACK_SH="$REPO_ROOT/deploy/rollback.sh"
 ENV_EXAMPLE="$REPO_ROOT/deploy/local/.env.example"
 STATE_DIR="$REPO_ROOT/deploy/.state"
-BASE_IMAGE="${SPEC0005_BASE_IMAGE:-${API_IMAGE_REPO}:main}"
+FIXTURES_DIR="$INFRA_TESTS_DIR/fixtures"
+API_CSPROJ="$REPO_ROOT/src/Api/Vitrine.Api.csproj"
+BUSYBOX_IMAGE="${BUSYBOX_IMAGE:-busybox:1.37.0-musl}"
+PSQL_IMAGE="${PSQL_IMAGE:-postgres:18.6-alpine}"
 
 # curl contra o ambiente local: CA interna (-k) e *.localhost fixado em 127.0.0.1.
 curl_local() {
@@ -112,31 +122,81 @@ require_local_env() {
   if [[ -z "${SPEC0005_ENV_FILE:-}" ]]; then
     SPEC0005_ENV_FILE="$(mktemp)"
     cp "$ENV_EXAMPLE" "$SPEC0005_ENV_FILE"
+    if [[ -n "${SPEC0005_IMAGE_REPO:-}" ]]; then
+      printf '\nIMAGE_REPO=%s\n' "$SPEC0005_IMAGE_REPO" >>"$SPEC0005_ENV_FILE"
+    fi
   fi
   [[ -f "$SPEC0005_ENV_FILE" ]] || fail "SPEC0005_ENV_FILE does not exist: $SPEC0005_ENV_FILE"
 }
 
-# Garante a imagem base (local ou baixada do GHCR).
+# Resolve a imagem base real: SPEC0005_BASE_IMAGE > GHCR :main > build local (dotnet publish).
+# Exporta SPEC0005_BASE_IMAGE para que scripts filhos reaproveitem.
 require_base_image() {
-  docker image inspect "$BASE_IMAGE" >/dev/null 2>&1 || docker pull -q "$BASE_IMAGE" >/dev/null 2>&1 \
-    || fail "base image $BASE_IMAGE not available (published by SPEC-0004 CI; set SPEC0005_BASE_IMAGE to an existing ${API_IMAGE_REPO} image)"
+  require_docker
+  if [[ -n "${SPEC0005_BASE_IMAGE:-}" ]]; then
+    docker image inspect "$SPEC0005_BASE_IMAGE" >/dev/null 2>&1 || docker pull -q "$SPEC0005_BASE_IMAGE" >/dev/null 2>&1 \
+      || fail "SPEC0005_BASE_IMAGE=$SPEC0005_BASE_IMAGE is not available"
+  elif [[ "${SPEC0005_BASE_SOURCE:-}" != "local" ]] \
+    && docker pull -q "${API_IMAGE_REPO}:main" >/dev/null 2>&1; then
+    SPEC0005_BASE_IMAGE="${API_IMAGE_REPO}:main"
+    log "base image: $SPEC0005_BASE_IMAGE (GHCR)"
+  else
+    require_cmd dotnet git
+    local tag
+    tag="spec0005-base-$(git -C "$REPO_ROOT" rev-parse --short HEAD)"
+    if [[ -n "$(git -C "$REPO_ROOT" status --porcelain -- src)" ]] \
+      || ! docker image inspect "$LOCAL_IMAGE_REPO:$tag" >/dev/null 2>&1; then
+      log "building base image $LOCAL_IMAGE_REPO:$tag (dotnet publish -t:PublishContainer)"
+      dotnet publish "$API_CSPROJ" -t:PublishContainer -p:ContainerRepository="$LOCAL_IMAGE_REPO" \
+        -p:ContainerImageTag="$tag" -v q -nologo >&2 \
+        || fail "could not build the base image with dotnet publish -t:PublishContainer"
+    fi
+    SPEC0005_BASE_IMAGE="$LOCAL_IMAGE_REPO:$tag"
+  fi
+  export SPEC0005_BASE_IMAGE
 }
 
-# Constrói localmente ${API_IMAGE_REPO}:<tag> derivada da base (versão distinta, mesmo conteúdo).
+# Constrói localmente <repo>:<tag> derivada da base (versão distinta, mesmo conteúdo).
+# Tag existente é reaproveitada: uma tag nunca muda de imagem (como um SHA publicado).
 build_version() {
   local tag="$1"
+  docker image inspect "${LOCAL_IMAGE_REPO}:$tag" >/dev/null 2>&1 && return 0
   require_base_image
-  printf 'FROM %s\nLABEL org.opencontainers.image.version="%s" spec="SPEC-0005"\n' "$BASE_IMAGE" "$tag" \
-    | docker build -q -t "${API_IMAGE_REPO}:$tag" - >/dev/null \
-    || fail "could not build local test version ${API_IMAGE_REPO}:$tag"
+  printf 'FROM %s\nLABEL org.opencontainers.image.version="%s" spec="SPEC-0005"\n' "$SPEC0005_BASE_IMAGE" "$tag" \
+    | docker build -q -t "${LOCAL_IMAGE_REPO}:$tag" - >/dev/null \
+    || fail "could not build local test version ${LOCAL_IMAGE_REPO}:$tag"
 }
 
-# Duas versões para os testes: SPEC0005_TAG_A/_B ou versões locais derivadas da base.
+# Duas versões para os testes: SPEC0005_TAG_A/_B ou versões locais derivadas da base,
+# com o ID da base na tag (base nova => tags novas).
 prepare_versions() {
-  TAG_A="${SPEC0005_TAG_A:-local-spec0005-a}"
-  TAG_B="${SPEC0005_TAG_B:-local-spec0005-b}"
+  local base_id=""
+  if [[ -z "${SPEC0005_TAG_A:-}" || -z "${SPEC0005_TAG_B:-}" ]]; then
+    require_base_image
+    base_id="$(docker image inspect -f '{{.Id}}' "$SPEC0005_BASE_IMAGE")"
+    base_id="${base_id#sha256:}"
+    base_id="${base_id:0:12}"
+  fi
+  TAG_A="${SPEC0005_TAG_A:-local-a-$base_id}"
+  TAG_B="${SPEC0005_TAG_B:-local-b-$base_id}"
   [[ -n "${SPEC0005_TAG_A:-}" ]] || build_version "$TAG_A"
   [[ -n "${SPEC0005_TAG_B:-}" ]] || build_version "$TAG_B"
+}
+
+# Dublê tests/infra/fixtures/<nome>/Dockerfile FROM a base, com wrapper estático (busybox)
+# que delega ao entrypoint original da base; imagem <repo>:<nome>.
+build_proof() {
+  local proof="$1" entrypoint
+  [[ -f "$FIXTURES_DIR/$proof/Dockerfile" ]] || fail "fixture tests/infra/fixtures/$proof/Dockerfile does not exist"
+  require_base_image
+  entrypoint="$(docker image inspect -f '{{range .Config.Entrypoint}}{{.}} {{end}}' "$SPEC0005_BASE_IMAGE")"
+  entrypoint="${entrypoint% }"
+  [[ -n "$entrypoint" ]] || fail "base image $SPEC0005_BASE_IMAGE has no entrypoint to wrap"
+  docker build -q -t "${LOCAL_IMAGE_REPO}:$proof" \
+    --build-arg "BASE_IMAGE=$SPEC0005_BASE_IMAGE" --build-arg "BUSYBOX_IMAGE=$BUSYBOX_IMAGE" \
+    --build-arg "APP_ENTRYPOINT=$entrypoint" "$FIXTURES_DIR/$proof" >/dev/null \
+    || fail "could not build proof image ${LOCAL_IMAGE_REPO}:$proof"
+  log "proof image ${LOCAL_IMAGE_REPO}:$proof built FROM $SPEC0005_BASE_IMAGE"
 }
 
 # Roda deploy/deploy.sh <tag> --env-file <arquivo> na raiz do repositório; devolve o código de saída.
@@ -154,20 +214,24 @@ deploy_ok() {
   run_deploy "$1" || fail "deploy/deploy.sh $1 failed (exit $?)"
 }
 
-# Tag da imagem da API em execução no Docker local (exatamente uma esperada).
+# Containers da aplicação em execução (exclui one-off, como o serviço migrate): "<id> <tag>".
+api_containers() {
+  docker ps --filter status=running --format '{{.ID}} {{.Image}} {{.Label "com.docker.compose.oneoff"}}' \
+    | awk -v p="${LOCAL_IMAGE_REPO}:" 'index($2, p) == 1 && $3 != "True" { print $1, substr($2, length(p) + 1) }'
+}
+
+# Tag da imagem da aplicação em execução no Docker local (exatamente uma esperada).
 running_api_tag() {
   local tags
-  tags="$(docker ps --filter status=running --format '{{.Image}}' \
-    | awk -v p="${API_IMAGE_REPO}:" 'index($0, p) == 1 { print substr($0, length(p) + 1) }' | sort -u)"
-  [[ -n "$tags" ]] || fail "no running container of ${API_IMAGE_REPO}:<tag>"
+  tags="$(api_containers | awk '{ print $2 }' | sort -u)"
+  [[ -n "$tags" ]] || fail "no running application container of ${LOCAL_IMAGE_REPO}:<tag>"
   [[ "$(printf '%s\n' "$tags" | wc -l)" -eq 1 ]] \
-    || fail "more than one ${API_IMAGE_REPO} tag running: ${tags//$'\n'/ }"
+    || fail "more than one ${LOCAL_IMAGE_REPO} tag running: ${tags//$'\n'/ }"
   printf '%s\n' "$tags"
 }
 
 api_container_id() {
-  docker ps --filter status=running --format '{{.ID}} {{.Image}}' \
-    | awk -v p="${API_IMAGE_REPO}:" 'index($2, p) == 1 { print $1; exit }'
+  api_containers | awk 'NR == 1 { print $1 }'
 }
 
 state_tag() {
@@ -179,10 +243,33 @@ state_tag() {
 assert_live_version() {
   local expected="$1" running current
   running="$(running_api_tag)"
-  [[ "$running" == "$expected" ]] || fail "running ${API_IMAGE_REPO}:$running, expected :$expected"
+  [[ "$running" == "$expected" ]] || fail "running ${LOCAL_IMAGE_REPO}:$running, expected :$expected"
   local_health_ok || fail "GET $LOCAL_BASE_URL/health/live via Caddy is not 2xx"
   current="$(state_tag current)"
   [[ "$current" == "$expected" ]] || fail "deploy/.state/current is '$current', expected '$expected'"
+}
+
+# Eventos de container desde <epoch>: "<evento> <imagem> <oneoff> <serviço> <exitCode>".
+container_events_since() {
+  docker events --since "$1" --until "$(($(date +%s) + 1))" --filter type=container \
+    --format '{{.Action}} {{.Actor.Attributes.image}} {{index .Actor.Attributes "com.docker.compose.oneoff"}} {{index .Actor.Attributes "com.docker.compose.service"}} {{index .Actor.Attributes "exitCode"}}'
+}
+
+# Sonda de disponibilidade em segundo plano: grava "<epoch> up|down" a cada 0,5 s em $1.
+start_probe() {
+  (
+    while :; do
+      if local_health_ok; then s=up; else s=down; fi
+      printf '%s %s\n' "$(date +%s.%N)" "$s"
+      sleep 0.5
+    done
+  ) >>"$1" &
+  PROBE_PID=$!
+}
+
+stop_probe() {
+  kill "${PROBE_PID:-0}" 2>/dev/null || true
+  wait "${PROBE_PID:-0}" 2>/dev/null || true
 }
 
 # Arquivos .env gravados pelo deploy.sh para o Compose (exceto o --env-file de entrada).
@@ -195,7 +282,7 @@ deployed_dotenv_files() {
   fi
   local id envf wd f
   id="$(api_container_id)"
-  [[ -n "$id" ]] || fail "no running ${API_IMAGE_REPO} container to locate the deployed .env"
+  [[ -n "$id" ]] || fail "no running ${LOCAL_IMAGE_REPO} container to locate the deployed .env"
   envf="$(docker inspect -f '{{index .Config.Labels "com.docker.compose.project.environment_file"}}' "$id")"
   wd="$(docker inspect -f '{{index .Config.Labels "com.docker.compose.project.working_dir"}}' "$id")"
   {
