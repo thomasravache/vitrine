@@ -168,8 +168,8 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 |---|---|---|---|
 | G0 Spec | PASS | validate: 0 erro(s) — 4602cbe | 2026-10-13 |
 | G1 Red | PASS | verify G1: PASS — 5964312 | 2026-10-13 |
-| G2 Green | PENDING | | |
-| G3 Arquitetura | PENDING | | |
+| G2 Green | PASS | build exit 0 (✓ built in 99ms); test exit 0 (duration: 23s 001ms); lint exit 0 ([0m[34mChecked 8 files in 4[0m[0m[2m[34mms[0m[0m[34m.[0m[0m[34m No fixes appli) — 9edb48b | 2026-10-13 |
+| G3 Arquitetura | N/A | arch_test ainda não existe — criado pela SPEC-0003 (testes de arquitetura ArchUnitNET); SPEC-0002 não cria módulos | 2026-10-13 |
 | G4 Review | PENDING | | |
 | G5 Integração & CI | PENDING | | |
 | H2 Integração aprovada | PENDING | | |
