@@ -4,7 +4,7 @@ title: Provisionamento na nuvem e go-live
 tier: full
 type: foundation
 user_facing: true
-status: proposed
+status: approved
 created: 2026-10-13
 parent: SPEC-0001
 depends_on: [SPEC-0005, SPEC-0006, SPEC-0007, SPEC-0008]
@@ -14,8 +14,8 @@ touches: [docs/runbooks/**, tests/infra/**, infra/environments/**, .github/workf
 adrs: [ADR-0004, ADR-0006, ADR-0009, ADR-0010, ADR-0012]
 external: []
 size: M
-approved_by:
-approved_at:
+approved_by: thomas
+approved_at: 2026-10-13
 ---
 
 # SPEC-0009 — Provisionamento na nuvem e go-live

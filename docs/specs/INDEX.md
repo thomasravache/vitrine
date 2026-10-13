@@ -4,9 +4,15 @@
 
 ## Saúde
 
-- Validação (G0): **0 erro(s), 0 aviso(s)**
-- Specs: approved 4, in-progress 2, implemented 1
-- Impedimentos: **0 aberto(s)**, 0 resolvido(s)
+- Validação (G0): **0 erro(s), 2 aviso(s)** — rode `spec_graph.py validate`
+- Specs: approved 5, in-progress 2, implemented 1
+- Impedimentos: **1 aberto(s)**, 2 resolvido(s)
+
+## Impedimentos Abertos
+
+| Spec | ID | Tipo | Fase/Gate | Responsável | Aberto em | Idade | Descrição |
+|---|---|---|---|---|---|---|---|
+| SPEC-0003 | IMP-02 | externo | G5 | thomas: rodar 'cd web && sudo npx playwright install-deps chromium' | 2026-10-13 | 0d | Chromium do Playwright não abre: faltam bibliotecas de sistema (libatk); E2E-01 não executado localmente |
 
 ## Cobertura de Pilares
 
@@ -31,28 +37,29 @@ Perfil: **padrao**
 
 | Jornada | Situação | Specs |
 |---|---|---|
-| Vendedor se cadastra, entra e vê o painel | planejada | SPEC-0006 |
+| Vendedor se cadastra, entra e vê o painel | planejada | SPEC-0006, SPEC-0009 |
 
 ## Plano de Execução
 
-**Em andamento:** SPEC-0003, SPEC-0005  
-**Paradas por impedimento:** —  
+**Em andamento:** SPEC-0005  
+**Paradas por impedimento:** SPEC-0003  
 **Próximo lote:** —
 
 | Onda | Spec | Título | Tier/Tam. | Status | Prontidão | Observação |
 |---|---|---|---|---|---|---|
-| 1 | SPEC-0003 | Harness de testes e arquitetura | full/M | in-progress | 🔄 em andamento |  |
-| 1 | SPEC-0005 | Ambientes, IaC e deploy em VPS | full/M | in-progress | 🔄 em andamento |  |
+| 1 | SPEC-0003 | Harness de testes e arquitetura | full/M | in-progress | 🚧 parada por impedimento: IMP-02 (externo → thomas: rodar 'cd web && sudo npx playwright install-deps chromium', 0d) |  |
+| 2 | SPEC-0005 | Ambientes, IaC e deploy em VPS | full/M | in-progress | 🔄 em andamento | saiu da onda 1: arquivos em comum com SPEC-0003 |
 | 2 | SPEC-0004 | Pipeline de CI | full/M | approved | ✅ pronta | saiu da onda 1: arquivos em comum com SPEC-0003 |
 | 3 | SPEC-0006 | Walking skeleton: cadastro, login e painel vazio | full/M | approved | ⛔ aguarda implementação de SPEC-0003; aguarda implementação de SPEC-0004; aguarda implementação de SPEC-0005 |  |
 | 4 | SPEC-0007 | Observabilidade de base | full/M | approved | ⛔ aguarda implementação de SPEC-0006 |  |
 | 5 | SPEC-0008 | Segurança de base | full/M | approved | ⛔ aguarda implementação de SPEC-0006 | saiu da onda 4: arquivos em comum com SPEC-0007 |
+| 6 | SPEC-0009 | Provisionamento na nuvem e go-live | full/M | approved | ⛔ aguarda implementação de SPEC-0005; aguarda implementação de SPEC-0006; aguarda implementação de SPEC-0007; aguarda implementação de SPEC-0008 |  |
 
 ## Épicos
 
 | Épico | Título | Status | Progresso |
 |---|---|---|---|
-| SPEC-0001 | Fundação da plataforma Vitrine | approved | 1/7 implementadas |
+| SPEC-0001 | Fundação da plataforma Vitrine | approved | 1/8 implementadas |
 
 ## Grafo de Dependências
 
@@ -68,6 +75,7 @@ flowchart LR
     S0006["SPEC-0006<br/>Walking skeleton: cadastro, login e pai…"]:::approved
     S0007["SPEC-0007<br/>Observabilidade de base"]:::approved
     S0008["SPEC-0008<br/>Segurança de base"]:::approved
+    S0009["SPEC-0009<br/>Provisionamento na nuvem e go-live"]:::approved
   end
   S0002 --> S0003
   S0002 --> S0004
@@ -80,6 +88,10 @@ flowchart LR
   S0006 -. contrato v1 .-> S0007
   S0006 --> S0008
   S0006 -. contrato v1 .-> S0008
+  S0005 --> S0009
+  S0006 --> S0009
+  S0007 --> S0009
+  S0008 --> S0009
   classDef proposed fill:#fef3c7,stroke:#d97706,color:#111
   classDef approved fill:#dbeafe,stroke:#2563eb,color:#111
   classDef inprogress fill:#ede9fe,stroke:#7c3aed,color:#111
@@ -99,6 +111,7 @@ flowchart LR
 | [SPEC-0006](SPEC-0006-walking-skeleton-cadastro-login-e-painel-vazio.md) | Walking skeleton: cadastro, login e painel vazio | full | foundation | approved | 2026-10-13 | SPEC-0001 | SPEC-0003, SPEC-0004, SPEC-0005 | — |
 | [SPEC-0007](SPEC-0007-observabilidade-de-base.md) | Observabilidade de base | full | foundation | approved | 2026-10-13 | SPEC-0001 | SPEC-0006 | SPEC-0006@1 |
 | [SPEC-0008](SPEC-0008-seguranca-de-base.md) | Segurança de base | full | foundation | approved | 2026-10-13 | SPEC-0001 | SPEC-0006 | SPEC-0006@1 |
+| [SPEC-0009](SPEC-0009-provisionamento-na-nuvem-e-go-live.md) | Provisionamento na nuvem e go-live | full | foundation | approved | 2026-10-13 | SPEC-0001 | SPEC-0005, SPEC-0006, SPEC-0007, SPEC-0008 | — |
 
 ## ADRs
 

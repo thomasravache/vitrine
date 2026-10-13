@@ -109,4 +109,4 @@ Uma aprovação humana cobre o épico e as specs filhas apresentadas junto com e
 ## 12. Emendas
 | Versão | Data | Mudança | Motivo | Specs impactadas | Aprovado por |
 |---|---|---|---|---|---|
-| v2 | 2026-10-13 | Nova filha SPEC-0009 (provisionamento e go-live) no fim do épico; SPEC-0005 v2 só local; SPEC-0006/0007/0008 com G6 no ambiente local; critérios de aceite redistribuídos | Usuário: "tudo que gera custo vamos deixar pro final quando estiver tudo tinindo rodando localmente e eu testar" | SPEC-0005, SPEC-0006, SPEC-0007, SPEC-0008, SPEC-0009 | (pendente) |
+| v2 | 2026-10-13 | Nova filha SPEC-0009 (provisionamento e go-live) no fim do épico; SPEC-0005 v2 só local; SPEC-0006/0007/0008 com G6 no ambiente local; critérios de aceite redistribuídos | Usuário: "tudo que gera custo vamos deixar pro final quando estiver tudo tinindo rodando localmente e eu testar" | SPEC-0005, SPEC-0006, SPEC-0007, SPEC-0008, SPEC-0009 | thomas (2026-10-13) |
