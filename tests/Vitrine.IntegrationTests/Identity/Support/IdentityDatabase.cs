@@ -9,6 +9,16 @@ internal static class IdentityDatabase
     public static Task<long> CountWorkspacesAsync(string connectionString, CancellationToken cancellationToken) =>
         ScalarAsync(connectionString, "select count(*) from identity.workspaces", cancellationToken);
 
+    /// <summary>Usuários com o e-mail informado em <c>identity.users</c> (comparação sem diferenciar maiúsculas).</summary>
+    public static async Task<long> CountUsersWithEmailAsync(string connectionString, string email, CancellationToken cancellationToken)
+    {
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync(cancellationToken);
+        await using var command = new NpgsqlCommand("select count(*) from identity.users where lower(email) = lower(@email)", connection);
+        command.Parameters.AddWithValue("email", email);
+        return (long)(await command.ExecuteScalarAsync(cancellationToken))!;
+    }
+
     /// <summary>Linhas de <c>identity.workspace_members</c> (Plano de Rollout da SPEC-0006).</summary>
     public static Task<long> CountWorkspaceMembersAsync(string connectionString, CancellationToken cancellationToken) =>
         ScalarAsync(connectionString, "select count(*) from identity.workspace_members", cancellationToken);

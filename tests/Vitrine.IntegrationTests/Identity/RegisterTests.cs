@@ -129,6 +129,86 @@ public sealed class RegisterTests(PostgresFixture postgres)
     }
 
     [Fact]
+    [Trait("spec", "SPEC-0006:IT-02")]
+    public async Task Cadastros_concorrentes_com_o_mesmo_email_criam_um_so_usuario_e_os_demais_recebem_409()
+    {
+        const int Attempts = 6;
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var connectionString = await postgres.CreateDatabaseAsync(cancellationToken);
+        await using var factory = IdentityHost.Create(connectionString);
+        var email = TestUser.New().Email;
+
+        // Dado vários navegadores, cada um com seu token antiforgery
+        var apis = Enumerable.Range(0, Attempts).Select(_ => new IdentityApi(factory)).ToList();
+        try
+        {
+            var tokens = new List<AntiforgeryToken>();
+            foreach (var api in apis)
+            {
+                tokens.Add(await api.GetAntiforgeryTokenAsync(cancellationToken));
+            }
+
+            // Quando todos se cadastram ao mesmo tempo com o mesmo e-mail
+            var responses = await Task.WhenAll(apis.Select((api, index) => api.PostWithTokenAsync(
+                IdentityApi.RegisterPath,
+                IdentityApi.RegisterBody(new TestUser($"Vendedora {index}", email, TestUser.DefaultPassword)),
+                tokens[index],
+                cancellationToken)));
+            try
+            {
+                // Então exatamente um 201; os demais 409 EMAIL_TAKEN; nunca 500
+                var statuses = responses.Select(response => (int)response.StatusCode).ToList();
+                Assert.DoesNotContain(statuses, status => status >= 500);
+                Assert.Equal(1, statuses.Count(status => status == (int)HttpStatusCode.Created));
+                foreach (var response in responses.Where(response => response.StatusCode != HttpStatusCode.Created))
+                {
+                    await IdentityApi.AssertProblemAsync(HttpStatusCode.Conflict, "EMAIL_TAKEN", response, cancellationToken);
+                }
+            }
+            finally
+            {
+                foreach (var response in responses)
+                {
+                    response.Dispose();
+                }
+            }
+        }
+        finally
+        {
+            foreach (var api in apis)
+            {
+                api.Dispose();
+            }
+        }
+
+        // E exatamente um usuário, um workspace e um membro persistidos
+        Assert.Equal(1, await IdentityDatabase.CountUsersWithEmailAsync(connectionString, email, cancellationToken));
+        Assert.Equal(1, await IdentityDatabase.CountWorkspacesAsync(connectionString, cancellationToken));
+        Assert.Equal(1, await IdentityDatabase.CountWorkspaceMembersAsync(connectionString, cancellationToken));
+    }
+
+    [Theory]
+    [Trait("spec", "SPEC-0006:IT-02")]
+    [InlineData("{\"name\": \"Marina\", \"email\": ")]
+    [InlineData("isto não é json")]
+    [InlineData("{\"name\": 1, \"email\": [], \"password\": {}}")]
+    public async Task Cadastro_com_JSON_malformado_responde_400_problem_json_com_code_e_nada_e_persistido(string rawBody)
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var connectionString = await postgres.CreateDatabaseAsync(cancellationToken);
+        await using var factory = IdentityHost.Create(connectionString);
+        using var api = new IdentityApi(factory);
+
+        // Dado um corpo que não é o JSON do contrato; quando POST /register com token antiforgery válido
+        using var response = await api.PostRawJsonAsync(IdentityApi.RegisterPath, rawBody, cancellationToken);
+
+        // Então 400 application/problem+json com code, sem sessão e sem cadastro
+        await IdentityApi.AssertBadRequestProblemWithCodeAsync(response, cancellationToken);
+        Assert.Empty(SetCookies.Session(response));
+        Assert.Equal(0, await IdentityDatabase.CountWorkspacesAsync(connectionString, cancellationToken));
+    }
+
+    [Fact]
     [Trait("spec", "SPEC-0006:IT-06")]
     public async Task Com_SignupOpen_false_POST_register_responde_404()
     {

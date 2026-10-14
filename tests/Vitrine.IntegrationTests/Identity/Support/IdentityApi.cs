@@ -68,6 +68,40 @@ internal sealed class IdentityApi : IDisposable
         return await _client.SendAsync(request, timeout.Token);
     }
 
+    /// <summary>POST com token antiforgery válido e corpo bruto (ex.: JSON malformado).</summary>
+    public async Task<HttpResponseMessage> PostRawJsonAsync(string path, string rawBody, CancellationToken cancellationToken)
+    {
+        var token = await GetAntiforgeryTokenAsync(cancellationToken);
+        using var request = new HttpRequestMessage(HttpMethod.Post, new Uri(path, UriKind.Relative))
+        {
+            Content = new StringContent(rawBody, System.Text.Encoding.UTF8, "application/json"),
+        };
+        request.Headers.Add(token.HeaderName, token.Value);
+
+        using var timeout = Timeout(cancellationToken);
+        return await _client.SendAsync(request, timeout.Token);
+    }
+
+    /// <summary>GET relativo à Api (sem antiforgery).</summary>
+    public async Task<HttpResponseMessage> GetAsync(string path, CancellationToken cancellationToken)
+    {
+        using var timeout = Timeout(cancellationToken);
+        return await _client.GetAsync(new Uri(path, UriKind.Relative), timeout.Token);
+    }
+
+    /// <summary>Erro 400 em application/problem+json com um campo <c>code</c> não vazio; devolve o corpo.</summary>
+    public static async Task<JsonElement> AssertBadRequestProblemWithCodeAsync(HttpResponseMessage response, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(response);
+        await AssertStatusAsync(HttpStatusCode.BadRequest, response, cancellationToken);
+        Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
+        var problem = await ReadJsonAsync(response, cancellationToken);
+        Assert.True(
+            problem.TryGetProperty("code", out var code) && code.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(code.GetString()),
+            $"Problem sem \"code\": {problem}");
+        return problem;
+    }
+
     public Task<HttpResponseMessage> RegisterAsync(TestUser user, CancellationToken cancellationToken) =>
         PostAsync(RegisterPath, RegisterBody(user), cancellationToken);
 

@@ -23,6 +23,24 @@ public sealed class SessionTests(PostgresFixture postgres)
         await IdentityApi.AssertStatusAsync(HttpStatusCode.Unauthorized, me, cancellationToken);
     }
 
+    [Theory]
+    [Trait("spec", "SPEC-0006:IT-07")]
+    [InlineData("/health/xyz")]
+    [InlineData("/health/live/extra")]
+    public async Task Rota_de_health_desconhecida_sem_sessao_responde_404(string path)
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var connectionString = await postgres.CreateDatabaseAsync(cancellationToken);
+        await using var factory = IdentityHost.Create(connectionString);
+        using var api = new IdentityApi(factory);
+
+        // Dado um navegador sem sessão; quando GET numa rota /health desconhecida
+        using var response = await api.GetAsync(path, cancellationToken);
+
+        // Então 404 (nem 401, nem a SPA)
+        await IdentityApi.AssertStatusAsync(HttpStatusCode.NotFound, response, cancellationToken);
+    }
+
     [Fact]
     [Trait("spec", "SPEC-0006:IT-07")]
     public async Task Logout_responde_204_remove_o_cookie_e_GET_me_passa_a_responder_401()

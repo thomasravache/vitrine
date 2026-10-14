@@ -66,6 +66,28 @@ public sealed class LoginTests(PostgresFixture postgres)
         Assert.Equal(Normalize(wrongPasswordBody), Normalize(unknownEmailBody));
     }
 
+    [Theory]
+    [Trait("spec", "SPEC-0006:IT-03")]
+    [InlineData("{\"email\": ")]
+    [InlineData("isto não é json")]
+    [InlineData("{\"email\": 1, \"password\": []}")]
+    public async Task Login_com_JSON_malformado_responde_400_problem_json_com_code_e_nao_abre_sessao(string rawBody)
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var connectionString = await postgres.CreateDatabaseAsync(cancellationToken);
+        await using var factory = IdentityHost.Create(connectionString);
+        using var api = new IdentityApi(factory);
+
+        // Dado um corpo que não é o JSON do contrato; quando POST /login com token antiforgery válido
+        using var response = await api.PostRawJsonAsync(IdentityApi.LoginPath, rawBody, cancellationToken);
+
+        // Então 400 application/problem+json com code e nenhuma sessão
+        await IdentityApi.AssertBadRequestProblemWithCodeAsync(response, cancellationToken);
+        Assert.Empty(SetCookies.Session(response));
+        using var me = await api.GetMeAsync(cancellationToken);
+        await IdentityApi.AssertStatusAsync(HttpStatusCode.Unauthorized, me, cancellationToken);
+    }
+
     [Fact]
     [Trait("spec", "SPEC-0006:IT-04")]
     public async Task Apos_5_falhas_seguidas_o_6o_login_responde_423_LOCKED_OUT_com_retryAfterSeconds()

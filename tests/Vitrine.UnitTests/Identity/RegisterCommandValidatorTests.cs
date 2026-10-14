@@ -67,11 +67,17 @@ public sealed class RegisterCommandValidatorTests
 
     [Fact]
     [Trait("spec", "SPEC-0006:UT-02")]
-    public void Limites_validos_nome_com_2_e_100_caracteres_e_senha_com_10_nao_geram_erros()
+    public void Senha_com_129_caracteres_gera_erro_so_no_campo_password() =>
+        AssertOnlyFieldInvalid(new RegisterCommand(ValidName, ValidEmail, new string('s', 129)), "password");
+
+    [Fact]
+    [Trait("spec", "SPEC-0006:UT-02")]
+    public void Limites_validos_nome_com_2_e_100_caracteres_e_senha_com_10_e_128_nao_geram_erros()
     {
-        // Dado os limites inclusivos do contrato (nome 2..100, senha >= 10); quando validados; então não há erros
+        // Dado os limites inclusivos do contrato (nome 2..100, senha 10..128); quando validados; então não há erros
         Assert.Empty(RegisterCommandValidator.Validate(new RegisterCommand("Bo", ValidEmail, "1234567890")));
         Assert.Empty(RegisterCommandValidator.Validate(new RegisterCommand(new string('a', 100), ValidEmail, ValidPassword)));
+        Assert.Empty(RegisterCommandValidator.Validate(new RegisterCommand(ValidName, ValidEmail, new string('s', 128))));
     }
 
     private static void AssertOnlyFieldInvalid(RegisterCommand command, string field)
