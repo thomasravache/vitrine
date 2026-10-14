@@ -33,7 +33,7 @@ Fecha a base de segurança antes de qualquer dado de cliente: autorização nega
 - `IFieldProtector` em `src/Common` (AES-256-GCM via Data Protection com propósito por campo) + conversor EF Core `Protected<T>`; chaves do Data Protection persistidas no PostgreSQL e protegidas por chave mestra vinda do ambiente.
 - Configuração do `.env`/Environment para a chave mestra; procedimento de rotação no runbook.
 - Atrás do Caddy: `UseForwardedHeaders` (X-Forwarded-Proto/For só da rede do Compose) para `Request.IsHttps` correto; cookie antiforgery volta a `Secure=Always`; HSTS passa a valer atrás do proxy.
-- Health checks anônimos por metadado (`AllowAnonymous` nos endpoints de ServiceDefaults), removendo a exceção por caminho `/health/*` da política de fallback.
+- Health checks anônimos por metadado (`AllowAnonymous` nos endpoints de ServiceDefaults), removendo a exceção por caminho `/health/*` da política de fallback. O teste de integração correspondente sobe o host com um `index.html` de teste no web root, provando que o fallback da SPA não engole `/health/*` nem `/api/*`.
 - `security_scan` completo (gitleaks + dependências + Trivy) já no CI (SPEC-0004) — aqui só os ajustes de regra se necessário.
 
 **Não-objetivos (fora do escopo):**
