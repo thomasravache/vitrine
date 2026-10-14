@@ -163,8 +163,8 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 |---|---|---|---|
 | G0 Spec | PASS | validate: 0 erro(s) — 4602cbe (árvore suja) | 2026-10-13 |
 | G1 Red | PASS | MANUAL: verify G1 PASS (9/9 tags, a4cbee3); testes são scripts em tests/ci (fora do comando test): run.sh → UT-01/UT-02 FAIL 'ci.yml does not exist'; IT-01..05, CT-01, CT-02 falham por ci.yml ausente/variáveis de prova ausentes — a4cbee3 | 2026-10-13 |
-| G2 Green | PENDING | | |
-| G3 Arquitetura | PENDING | | |
+| G2 Green | PASS | build exit 0 (✓ built in 436ms); test exit 0 (Duration  418ms (environment 59%, import 22%, transform 11%, tests 7%, worker 1%)); lint exit 0 (> tsc --noEmit && tsc --noEmit -p tsconfig.node.json); coverage exit 0 (AVISO: uvx não encontrado; diff-cover (>= 80% das linhas alteradas) NÃO foi verificado loc) — be40dce | 2026-10-13 |
+| G3 Arquitetura | PASS | arch_test exit 0 (duration: 1s 999ms) — be40dce | 2026-10-13 |
 | G4 Review | PENDING | | |
 | G5 Integração & CI | PENDING | | |
 | H2 Integração aprovada | PENDING | | |
