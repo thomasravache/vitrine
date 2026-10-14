@@ -1,0 +1,137 @@
+# SPEC-0005 — deploy por SSH com deploy/deploy.sh (ADR-0004).
+# DESLIGADO até a SPEC-0009: todo job exige a variável de repositório DEPLOY_ENABLED = 'true'.
+# Gatilhos: CI concluído com sucesso na main (staging, automático) ou manual (ambiente + tag).
+# Por ambiente (GitHub Environments staging/production; production com revisor obrigatório):
+#   vars.DEPLOY_HOST          host/IP do droplet (saída droplet_ipv4 do OpenTofu)
+#   vars.BASE_URL             https://<SITE_ADDRESS> do ambiente (smoke)
+#   secrets.DEPLOY_SSH_KEY    chave privada SSH dedicada ao ambiente (usuário deploy)
+#   secrets.DEPLOY_KNOWN_HOSTS linha(s) do known_hosts do droplet
+#   secrets.DEPLOY_ENV_FILE   conteúdo do .env do Compose (IMAGE_REPO, SITE_ADDRESS, DB_CONNECTION_STRING, ...)
+name: Deploy
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Ambiente de destino
+        type: choice
+        options: [staging, production]
+        default: staging
+      tag:
+        description: SHA do commit a implantar (vazio = último commit da main)
+        type: string
+        required: false
+
+permissions:
+  contents: read
+  actions: read
+  packages: read
+
+concurrency:
+  group: deploy-${{ github.event.inputs.environment || 'staging' }}
+  cancel-in-progress: false
+
+jobs:
+  resolve:
+    name: resolve-release
+    # workflow_run: só CI verde de push na main deste repositório (nunca de fork/PR).
+    if: >-
+      vars.DEPLOY_ENABLED == 'true' && (github.event_name == 'workflow_dispatch'
+      || (github.event.workflow_run.conclusion == 'success'
+      && github.event.workflow_run.event == 'push'
+      && github.event.workflow_run.head_repository.full_name == github.repository))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      sha: ${{ steps.release.outputs.sha }}
+      image: ${{ steps.release.outputs.image }}
+      run_id: ${{ steps.release.outputs.run_id }}
+      environment: ${{ steps.release.outputs.environment }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Localizar imagem e compose-bundle pelo SHA
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          INPUT_TAG: ${{ github.event.inputs.tag }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+          TARGET_ENV: ${{ github.event.inputs.environment || 'staging' }}
+          ACTOR: ${{ github.actor }}
+        run: |
+          set -euo pipefail
+          sha="${INPUT_TAG:-$HEAD_SHA}"
+          printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$ACTOR" --password-stdin >/dev/null
+          deploy/resolve-release.sh "$sha" | tee release.txt
+          image="$(sed -n 's/^image=//p' release.txt)"
+          {
+            echo "image=$image"
+            echo "sha=${image##*:}"
+            sed -n 's/^run_id=/run_id=/p' release.txt
+            echo "environment=$TARGET_ENV"
+          } >>"$GITHUB_OUTPUT"
+
+  deploy:
+    name: deploy (${{ needs.resolve.outputs.environment }})
+    needs: resolve
+    if: vars.DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment:
+      name: ${{ needs.resolve.outputs.environment }}
+      url: ${{ vars.BASE_URL }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.resolve.outputs.sha }}
+          persist-credentials: false
+      - name: Configurar SSH
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" >~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" >~/.ssh/known_hosts
+      - name: Enviar arquivos de deploy
+        env:
+          DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
+        run: |
+          set -euo pipefail
+          ssh -i ~/.ssh/id_deploy "deploy@$DEPLOY_HOST" 'install -d -m 750 /opt/vitrine/deploy'
+          scp -i ~/.ssh/id_deploy deploy/compose.yaml deploy/compose.override.yaml deploy/Caddyfile \
+            deploy/deploy.sh deploy/rollback.sh "deploy@$DEPLOY_HOST:/opt/vitrine/deploy/"
+      - name: deploy.sh (migração, troca, health, volta automática)
+        env:
+          DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
+          DEPLOY_ENV_FILE: ${{ secrets.DEPLOY_ENV_FILE }}
+          TAG: ${{ needs.resolve.outputs.sha }}
+        run: |
+          set -euo pipefail
+          printf '%s\n' "$DEPLOY_ENV_FILE" \
+            | ssh -i ~/.ssh/id_deploy "deploy@$DEPLOY_HOST" 'umask 077 && cat >/opt/vitrine/deploy/.env.incoming'
+          ssh -i ~/.ssh/id_deploy "deploy@$DEPLOY_HOST" \
+            "cd /opt/vitrine && rc=0; deploy/deploy.sh '$TAG' --env-file deploy/.env.incoming || rc=\$?; rm -f deploy/.env.incoming; exit \$rc"
+      # Smoke no mesmo job: uma única aprovação do Environment por release.
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: web/.nvmrc
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Smoke (@smoke)
+        env:
+          BASE_URL: ${{ vars.BASE_URL }}
+        run: |
+          set -euo pipefail
+          curl -fsS "$BASE_URL/health/live"
+          npm --prefix web ci
+          npx --prefix web playwright install --with-deps chromium
+          npm --prefix web run e2e -- --grep @smoke --pass-with-no-tests

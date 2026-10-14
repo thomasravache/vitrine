@@ -1,0 +1,70 @@
+#cloud-config
+# SPEC-0005 — bootstrap dos droplets (staging e production), renderizado por templatefile() em main.tf.
+# Docker + Compose, usuário `deploy` só com chave SSH, login por senha e root desabilitados,
+# atualizações automáticas de segurança, swap e fail2ban (ADR-0004).
+# Variável do template: deploy_ssh_public_key (chave pública dedicada ao ambiente).
+
+timezone: Etc/UTC
+package_update: true
+package_upgrade: true
+packages:
+  - ca-certificates
+  - curl
+  - docker.io
+  - docker-compose-v2
+  - fail2ban
+  - unattended-upgrades
+
+# SSH só por chave: sem senha para nenhum usuário, sem login de root.
+ssh_pwauth: false
+disable_root: true
+users:
+  - name: deploy
+    gecos: Vitrine deploy
+    shell: /bin/bash
+    lock_passwd: true
+    sudo: "ALL=(ALL) NOPASSWD:ALL"
+    ssh_authorized_keys:
+      - ${deploy_ssh_public_key}
+
+swap:
+  filename: /swapfile
+  size: 2G
+  maxsize: 2G
+
+write_files:
+  - path: /etc/ssh/sshd_config.d/10-vitrine-hardening.conf
+    permissions: "0644"
+    content: |
+      PasswordAuthentication no
+      KbdInteractiveAuthentication no
+      PermitRootLogin no
+      PubkeyAuthentication yes
+  - path: /etc/apt/apt.conf.d/20auto-upgrades
+    permissions: "0644"
+    content: |
+      APT::Periodic::Update-Package-Lists "1";
+      APT::Periodic::Unattended-Upgrade "1";
+      APT::Periodic::AutocleanInterval "7";
+  - path: /etc/fail2ban/jail.d/sshd.local
+    permissions: "0644"
+    content: |
+      [sshd]
+      enabled = true
+      maxretry = 5
+      bantime = 1h
+  - path: /etc/docker/daemon.json
+    permissions: "0644"
+    content: |
+      {
+        "log-driver": "local",
+        "log-opts": { "max-size": "20m", "max-file": "5" }
+      }
+
+runcmd:
+  - usermod -aG docker deploy
+  - install -d -o deploy -g deploy -m 0750 /opt/vitrine
+  - systemctl enable docker unattended-upgrades fail2ban
+  - systemctl restart docker || true
+  - systemctl restart unattended-upgrades fail2ban || true
+  - systemctl reload ssh || systemctl restart ssh || true

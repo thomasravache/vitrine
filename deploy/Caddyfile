@@ -1,0 +1,9 @@
+# SPEC-0005 — proxy HTTPS da aplicação (ADR-0004).
+# SITE_ADDRESS: domínio público no servidor (certificado Let's Encrypt automático) ou
+# vitrine.localhost no ambiente local (Caddy usa a própria CA interna para *.localhost).
+# O HTTPS automático do Caddy redireciona http:// -> https:// (308).
+# Cabeçalhos de segurança detalhados: SPEC-0008.
+{$SITE_ADDRESS} {
+	encode zstd gzip
+	reverse_proxy api:8080
+}
