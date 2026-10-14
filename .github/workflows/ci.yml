@@ -245,9 +245,10 @@ jobs:
         if: ${{ !cancelled() }}
         env:
           GITLEAKS_IMAGE: ghcr.io/gitleaks/gitleaks:v8.30.1@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f
+        # Histórico inteiro do que será integrado (HEAD), não as outras branches buscadas pelo checkout.
         run: |
           docker run --rm -u "$(id -u):$(id -g)" -v "$GITHUB_WORKSPACE:/repo:ro" -w /repo "$GITLEAKS_IMAGE" \
-            git /repo --no-banner --redact --verbose
+            git /repo --log-opts=HEAD --no-banner --redact --verbose
       - name: Build image (dotnet publish container, API + SPA)
         if: ${{ !cancelled() }}
         run: |
