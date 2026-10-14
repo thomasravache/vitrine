@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Assembly de amostra (fixture de teste de arquitetura, SPEC-0003). Não é código de produção. -->
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <!-- Violação proposital (UT-03): Domain referencia Infrastructure do mesmo módulo. -->
+  <ItemGroup>
+    <ProjectReference Include="..\Sample.Infrastructure\Sample.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>
