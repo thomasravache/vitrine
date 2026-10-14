@@ -14,6 +14,12 @@
           "Microsoft.Testing.Platform": "2.4.1"
         }
       },
+      "Newtonsoft.Json": {
+        "type": "Direct",
+        "requested": "[12.0.1, )",
+        "resolved": "12.0.1",
+        "contentHash": "pBR3wCgYWZGiaZDYP+HHYnalVnPJlpP1q55qvVb+adrDHmFMDc1NAKio61xTwftK3Pw5h7TZJPJEEVMd6ty8rg=="
+      },
       "xunit.v3": {
         "type": "Direct",
         "requested": "[4.0.2, )",
