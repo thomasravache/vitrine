@@ -49,12 +49,16 @@ docker compose -p vitrine down
 |---|---|
 | `IMAGE_REPO` | `vitrine-api` (local) ou `ghcr.io/thomasravache/vitrine-api` |
 | `SITE_ADDRESS` | host público (Caddy + health check) |
-| `DB_CONNECTION_STRING` | connection string do PostgreSQL (`ConnectionStrings__vitrine`) |
+| `DB_CONNECTION_STRING` | connection string Npgsql do PostgreSQL (`ConnectionStrings__vitrine`). Produção: `tofu output -raw production_database_connection_string` (usuário `vitrine_app`, banco `vitrine`, VPC + TLS; nunca o `doadmin`) |
 | `COMPOSE_PROFILES` | `db-container` sobe o Postgres em container (local e staging) |
 | `POSTGRES_PASSWORD` | senha do Postgres em container |
 | `DEPLOY_HEALTH_INSECURE` | `true` só onde o certificado não é público (local) |
 | `DEPLOY_HEALTH_TIMEOUT` | segundos de espera do health (≤ 120) |
 | `DEPLOY_COMPOSE_BASE` | base do Compose alternativa (ex.: `docker-compose.yaml` do `compose-bundle`) |
+
+## Pendências para a SPEC-0009
+- **Versão do PostgreSQL gerenciado:** `postgres_version` está em `17` (padrão em `infra/variables.tf`); confirmar a maior versão oferecida pelo DigitalOcean (ADR-0011: ≥ 17, preferir 18 como no ambiente local) antes do provisionamento.
+- **Uso do `compose-bundle`:** o deploy usa a base `deploy/compose.yaml` do repositório; o artefato `compose-bundle` do CI (`aspire publish`) só é localizado por `resolve-release.sh`. Adotá-lo como base (`DEPLOY_COMPOSE_BASE`) exige alinhar nomes de serviço e variáveis (`api`, `IMAGE_REPO`, `IMAGE_TAG`).
 
 ## Diagnóstico
 - `deploy: migração falhou` → `docker compose -p vitrine run --rm migrate` e leia o log; a versão anterior segue no ar.
