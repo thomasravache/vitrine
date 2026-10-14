@@ -46,10 +46,13 @@ internal static class IdentityDatabase
         var sql = "select count(*) from ("
             + string.Join(" union all ", tables.Select(table => $"select message_type, body from {table}"))
             + ") envelopes where message_type ilike '%workspace%created%'"
-            + " and (@workspace = '' or position(@workspace in convert_from(body, 'UTF8')) > 0)";
+            // O corpo do envelope é binário: busca o workspace por bytes (texto UTF-8 ou os 16 bytes do GUID), sem decodificar.
+            + " and (@any or position(@workspaceText in body) > 0 or position(@workspaceBytes in body) > 0)";
         await using var count = new NpgsqlCommand(sql, connection);
 #pragma warning restore CA2100
-        count.Parameters.AddWithValue("workspace", workspaceId?.ToString("D") ?? string.Empty);
+        count.Parameters.AddWithValue("any", workspaceId is null);
+        count.Parameters.AddWithValue("workspaceText", System.Text.Encoding.UTF8.GetBytes(workspaceId?.ToString("D") ?? "-"));
+        count.Parameters.AddWithValue("workspaceBytes", (workspaceId ?? Guid.Empty).ToByteArray());
         return (long)(await count.ExecuteScalarAsync(cancellationToken))!;
     }
 
