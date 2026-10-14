@@ -73,12 +73,22 @@ public sealed class MeusTestes(PostgresFixture postgres)
 `WebApplicationFactory<Program>` da `src/Api` apontando para o banco do teste (`ConnectionStrings:vitrine`),
 com Wolverine persistindo nele (ADR-0014). `CreateClient()` devolve um `HttpClient` que mantém cookies.
 
+- `WithSetting("<chave>", "<valor>")` define configuração do host (ex.: `Features:SignupOpen`).
 - `WithServices(services => ...)` acrescenta ou troca registros de serviço do host de teste.
+- Na subida, aplica todo recurso com estado registrado (`AddResourceSetupOnStartup`): schema do Wolverine e
+  migrações dos módulos registradas como `IStatefulResource` (ADR-0011) — o banco do teste nasce vazio.
 - `RedirectToWireMock("<cliente nomeado>")` faz o `HttpClient` nomeado ser atendido por `ExternalServices`
   (um `WireMockServer`): toda requisição dele é reescrita para o WireMock, então nada sai para a internet.
   Cenários do servidor falso seguem a documentação oficial do serviço (Mercado Livre, Anthropic).
 
 Configure antes do primeiro uso de `Services` ou `CreateClient()`.
+
+### Módulo Identity (`Identity/Support`)
+
+`IdentityHost.Create(connectionString, signupOpen)` sobe a Api com a flag de cadastro e o assinante de teste
+`WorkspaceCreatedTestHandler`. `IdentityApi` age como um navegador: HTTPS (cookies `Secure`), cookies mantidos,
+sem seguir redirecionamentos, e o fluxo antiforgery do contrato — `GET /api/v1/auth/antiforgery` e o token
+devolvido no cabeçalho de mesmo nome (ou, se vier em cookie legível `XSRF-TOKEN`, em `X-XSRF-TOKEN`).
 
 ### Regras de arquitetura (`ArchitectureRules`, `SolutionArchitecture`)
 

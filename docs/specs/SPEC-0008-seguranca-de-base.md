@@ -96,6 +96,8 @@ Config: DataProtection__MasterKey (secret do Environment)
 | Cifra de campo | valor protegido gravado | coluna no banco não contém o texto claro; leitura devolve o original | UT-02, IT-04 |
 | Propósito errado / adulteração | decifrar com propósito diferente ou texto alterado | CryptographicException | UT-03 |
 | Reinício | container reiniciado | sessão e dados cifrados continuam válidos | IT-05 |
+| Atrás do proxy | requisição com `X-Forwarded-Proto: https` vinda da rede do Compose | `Request.IsHttps` verdadeiro; cookie antiforgery com `Secure` | IT-06 |
+| Rotas da SPA vs. API | `GET /health/*` e `GET /api/*` inexistente com `index.html` no web root | health responde 200 sem login; API inexistente dá 404 JSON, nunca o `index.html` | IT-07 |
 | Contrato de auth | endpoints SPEC-0006@1 | login/registro funcionam sob CSP, antiforgery e rate limit | CT-01 |
 
 ## 7. Artefato B — Plano de Testes (TDD)
@@ -114,6 +116,8 @@ Config: DataProtection__MasterKey (secret do Environment)
 - **IT-03** — Dado a API, quando 11 requisições de auth do mesmo IP chegam em um minuto, então a 11ª recebe 429 com `Retry-After`; e 6 tentativas de login para o mesmo e-mail de IPs diferentes resultam em 429 na 6ª.
 - **IT-04** — Dado uma entidade de teste com campo `IsProtected`, quando gravada no Postgres real, então a coluna lida por SQL cru não contém o texto claro e a leitura via EF devolve o original.
 - **IT-05** — Dado sessão ativa e um campo cifrado gravado, quando o host é reiniciado com a mesma chave mestra, então a sessão continua válida e o campo é decifrado.
+- **IT-06** — Dado a API configurada para confiar só na rede do proxy, quando chega `GET /api/v1/auth/antiforgery` com `X-Forwarded-Proto: https` de um IP confiável, então o cookie antiforgery sai com `Secure`; e o mesmo cabeçalho vindo de IP não confiável é ignorado.
+- **IT-07** — Dado um `index.html` de teste no web root, quando `GET /health/live`, `GET /health/ready` (anônimos) e `GET /api/v1/nao-existe`, então os health checks respondem 200 sem login pelo metadado `AllowAnonymous` e a rota de API inexistente responde 404 sem devolver o `index.html`.
 
 ### 7.4 Testes de Contrato
 - **CT-01** — Dado o contrato SPEC-0006@1, quando cadastro e login são executados pelo cliente gerado da SPA sob as novas políticas (CSP, rate limit, antiforgery), então os códigos de resposta continuam os do contrato (201/204/401/409/423).
@@ -150,7 +154,7 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 - [ ] Refactor mantendo tudo verde
 
 **Fase 2: Cabeçalhos, limites e contrato**
-- [ ] Red: escrever IT-01..IT-05 e CT-01 e confirmar que falham pelo motivo certo
+- [ ] Red: escrever IT-01..IT-07 e CT-01 e confirmar que falham pelo motivo certo
 - [ ] Green: cabeçalhos de segurança, HSTS em produção, rate limiting de auth, chave mestra por ambiente + runbook de rotação
 - [ ] Validar: build + suíte completa + arquitetura (G2/G3)
 
@@ -218,4 +222,4 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 <!-- Mudança em spec aprovada: uma linha por emenda. Mudou o contrato? Incremente `contract_version` e rode `spec_graph.py impacted SPEC-0008`. -->
 | Versão do contrato | Data | Mudança | Motivo | Specs impactadas | Aprovado por |
 |---|---|---|---|---|---|
-| v1 (escopo, sem mudança de contrato) | 2026-10-14 | Inclui forwarded headers atrás do Caddy com antiforgery `Secure=Always`, e health checks anônimos por metadado; touches ganham `src/ServiceDefaults/**` e `deploy/compose.yaml` | Review G4 da SPEC-0006 (desvios aceitos lá para serem fechados aqui) | — | (pendente) |
+| v1 (escopo, sem mudança de contrato) | 2026-10-14 | Inclui forwarded headers atrás do Caddy com antiforgery `Secure=Always`, e health checks anônimos por metadado; touches ganham `src/ServiceDefaults/**` e `deploy/compose.yaml` | Review G4 da SPEC-0006 (desvios aceitos lá para serem fechados aqui); testes IT-06 e IT-07 | — | thomas (2026-10-14) |

@@ -1,0 +1,13 @@
+{
+  "version": 2,
+  "dependencies": {
+    "net10.0": {
+      "vitrine.identity.domain": {
+        "type": "Project"
+      },
+      "vitrine.identity.integrationevents": {
+        "type": "Project"
+      }
+    }
+  }
+}

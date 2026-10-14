@@ -4,9 +4,9 @@
 
 ## Saúde
 
-- Validação (G0): **0 erro(s), 5 aviso(s)** — rode `spec_graph.py validate`
+- Validação (G0): **0 erro(s), 6 aviso(s)** — rode `spec_graph.py validate`
 - Specs: approved 3, in-progress 1, implemented 4
-- Impedimentos: **0 aberto(s)**, 4 resolvido(s)
+- Impedimentos: **0 aberto(s)**, 5 resolvido(s)
 
 ## Cobertura de Pilares
 
