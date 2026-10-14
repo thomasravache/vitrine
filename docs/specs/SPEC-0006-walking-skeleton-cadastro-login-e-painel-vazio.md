@@ -69,7 +69,7 @@ A fatia mais fina e real do produto, passando por todas as camadas: o vendedor s
 
 ```text
 POST /api/v1/auth/register   (anônimo; exige Features:SignupOpen=true; antiforgery)
-  body: { name: string(2..100), email: string(email), password: string(>=10) }
+  body: { name: string(2..100), email: string(email), password: string(10..128) }
   201 -> { userId, workspaceId }  + Set-Cookie de sessão; publica WorkspaceCreated{workspaceId, ownerUserId, createdAt}
   400 VALIDATION_FAILED { errors: { field: [msg] } }
   409 EMAIL_TAKEN
@@ -186,8 +186,8 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 |---|---|---|---|
 | G0 Spec | PASS | validate: 0 erro(s) — 4602cbe (árvore suja) | 2026-10-13 |
 | G1 Red | PASS | verify G1: PASS; `dotnet test tests/Vitrine.UnitTests && npm --prefix web run test` exit 2 (red: Test run completed with non-success exit code: 2 (see: https://aka.ms/testingplatform/exit) — 88a35f3 | 2026-10-14 |
-| G2 Green | PASS | build exit 0 (npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts a); test exit 0 (Duration  339ms (environment 60%, import 23%, transform 9%, tests 7%, worker 1%)); lint exit 0 (> tsc --noEmit && tsc --noEmit -p tsconfig.node.json); coverage exit 0 (AVISO: uvx não encontrado; diff-cover (>= 80% das linhas alteradas) NÃO foi verificado loc) — 323ec6f | 2026-10-14 |
-| G3 Arquitetura | PASS | arch_test exit 0 (duration: 1s 004ms) — 323ec6f | 2026-10-14 |
+| G2 Green | PASS | build exit 0 (npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts a); test exit 0 (Duration  309ms (environment 60%, import 23%, transform 9%, tests 7%, worker 1%)); lint exit 0 (> tsc --noEmit && tsc --noEmit -p tsconfig.node.json); coverage exit 0 (AVISO: uvx não encontrado; diff-cover (>= 80% das linhas alteradas) NÃO foi verificado loc) — 0f8f975 | 2026-10-14 |
+| G3 Arquitetura | PASS | arch_test exit 0 (duration: 1s 046ms) — 0f8f975 | 2026-10-14 |
 | G4 Review | FAIL | reviewer-agent: CHANGES_REQUESTED 323ec6f — blocker: tests/README.md fora de touches; major: SignupOpen sem como ligar no ambiente local prod-like/staging; minors: /health/* engolido pela SPA, log SQL do EF em Information, corrida de cadastro vira 500, erros do framework sem code, senha sem máximo, DomainEvents não limpos, logout que falha parece sucesso, cabeçalho duplicado e link com reload, Development migra no startup; para SPEC-0008: forwarded headers + antiforgery Always, /health AllowAnonymous, chaves do Data Protection; pendência: drift do cliente OpenAPI no CI | 2026-10-14 |
 | G5 Integração & CI | PENDING | | |
 | H2 Integração aprovada | PENDING | | |
@@ -239,6 +239,7 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 <!-- Mudança em spec aprovada: uma linha por emenda. Mudou o contrato? Incremente `contract_version` e rode `spec_graph.py impacted SPEC-0006`. -->
 | Versão do contrato | Data | Mudança | Motivo | Specs impactadas | Aprovado por |
 |---|---|---|---|---|---|
+| Emenda v1.3 (detalhe de validação, sem mudança de versão) | 2026-10-14 | Senha com máximo de 128 caracteres; cadastro concorrente com mesmo e-mail responde 409; erros do framework trazem `code`; `/health/*` desconhecido responde 404 — todos cobertos por testes de guarda adicionados após o green | Review G4 | — | Architect (sem mudança de versão) |
 | Emenda v1.2 (escopo, sem mudança de contrato) | 2026-10-14 | touches incluem `tests/README.md`, `deploy/compose.yaml`, `deploy/local/.env.example` e `docs/runbooks/deploy.md` para ligar `Features:SignupOpen` por ambiente (local prod-like) e documentar | Review G4: o Plano de Rollout pede a flag ligada fora de produção e o E2E-01 roda no ambiente local no G6 | — | Architect (sem mudança de contrato) |
 | Emenda v1.1 (correção de teste, sem mudança de contrato) | 2026-10-14 | Helper do IT-01 busca o workspaceId nos bytes do corpo binário do envelope do Wolverine; `web/vite.config.ts` nos touches (proxy /api no desenvolvimento) | IMP-01 (TEST_DEFECT) e necessidade do proxy para a SPA alcançar a API na mesma origem sob o AppHost | — | Architect (sem mudança de contrato) |
 | v1 (sem mudança de contrato) | 2026-10-13 | Smoke de produção e usuário de prova movidos para a SPEC-0009; G6 no ambiente local prod-like | Usuário: nada que gere custo até tudo rodar localmente | SPEC-0009 | thomas (2026-10-13) |
