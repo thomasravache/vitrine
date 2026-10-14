@@ -4,7 +4,7 @@ title: Pipeline de CI
 tier: full
 type: foundation
 user_facing: false
-status: approved
+status: in-progress
 created: 2026-10-13
 parent: SPEC-0001
 depends_on: [SPEC-0002]
@@ -162,7 +162,7 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 | Gate | Status | Evidência | Data |
 |---|---|---|---|
 | G0 Spec | PASS | validate: 0 erro(s) — 4602cbe (árvore suja) | 2026-10-13 |
-| G1 Red | PENDING | | |
+| G1 Red | PASS | MANUAL: verify G1 PASS (9/9 tags, a4cbee3); testes são scripts em tests/ci (fora do comando test): run.sh → UT-01/UT-02 FAIL 'ci.yml does not exist'; IT-01..05, CT-01, CT-02 falham por ci.yml ausente/variáveis de prova ausentes — a4cbee3 | 2026-10-13 |
 | G2 Green | PENDING | | |
 | G3 Arquitetura | PENDING | | |
 | G4 Review | PENDING | | |
