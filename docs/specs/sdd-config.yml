@@ -58,6 +58,7 @@ test_paths:
 scope_exempt:
   - "docs/specs/**"
   - "docs/adr/**"
+  - ".claude/**"   # estado local de ferramentas de agente (ex.: scheduled_tasks.lock commitado por engano em 750c582 e removido)
 # Mudança nesses arquivos sem ADR na spec gera alerta no G4 (lib/framework nova precisa de ADR).
 # Omitido = padrão da skill (package.json, *.csproj, pyproject.toml, go.mod, pom.xml, ...).
 dependency_manifests: []

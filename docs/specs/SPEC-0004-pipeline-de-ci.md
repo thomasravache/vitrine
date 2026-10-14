@@ -10,7 +10,7 @@ parent: SPEC-0001
 depends_on: [SPEC-0002]
 consumes_contract: []
 contract_version: 2
-touches: [.github/workflows/ci.yml, .github/dependabot.yml, .github/codeql/**, tests/ci/**, Directory.Packages.props, src/Api/Vitrine.Api.csproj, src/Api/packages.lock.json, src/AppHost/Vitrine.AppHost.csproj, src/AppHost/AppHost.cs, src/AppHost/packages.lock.json, tests/Vitrine.Tooling.Tests/packages.lock.json, web/e2e/support/packages.lock.json]
+touches: [.github/workflows/ci.yml, .github/dependabot.yml, .github/codeql/**, tests/ci/**, Directory.Packages.props, src/Api/Vitrine.Api.csproj, src/Api/packages.lock.json, src/AppHost/Vitrine.AppHost.csproj, src/AppHost/AppHost.cs, src/AppHost/packages.lock.json, tests/Vitrine.Tooling.Tests/packages.lock.json, web/e2e/support/packages.lock.json, .github/workflows/deploy.yml, deploy/resolve-release.sh]
 adrs: [ADR-0004, ADR-0005, ADR-0008, ADR-0003, ADR-0006]
 external: []
 size: M
@@ -215,4 +215,5 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 <!-- Mudança em spec aprovada: uma linha por emenda. Mudou o contrato? Incremente `contract_version` e rode `spec_graph.py impacted SPEC-0004`. -->
 | Versão do contrato | Data | Mudança | Motivo | Specs impactadas | Aprovado por |
 |---|---|---|---|---|---|
+| (rastreabilidade, sem mudança de contrato) | 2026-10-13 | touches incluem `.github/workflows/deploy.yml`, `deploy/resolve-release.sh` | O pr-check atribui à spec todo commit que cita o ID; o commit 660ca2a da SPEC-0005 menciona "CI da SPEC-0004" no corpo. Os arquivos são da SPEC-0005. | — | Architect |
 | v2 | 2026-10-13 | `security_scan` falha de fato em pacote NuGet High/Critical (`dotnet list` sempre sai 0) e o gitleaks varre só o histórico do HEAD; GHCR `vitrine-api` público (imagem de repositório público, deploy sem token de pull); touches incluem os lockfiles de Tooling.Tests e do fixture E2E (efeito do Aspire.Hosting.Docker) | Provas no GitHub mostraram que o comando aprovado não reprova vulnerabilidades e varre branches alheias | SPEC-0005 (deploy sem login no GHCR) | thomas (2026-10-13) |

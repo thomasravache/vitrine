@@ -10,7 +10,7 @@ parent: SPEC-0001
 depends_on: [SPEC-0002]
 consumes_contract: [SPEC-0004@2]
 contract_version: 2
-touches: [infra/**, deploy/**, .github/workflows/deploy.yml, tests/infra/**, docs/runbooks/**, src/Api/Program.cs, src/Api/Migrations/**]
+touches: [infra/**, deploy/**, .github/workflows/deploy.yml, tests/infra/**, docs/runbooks/**, src/Api/Program.cs, src/Api/Migrations/**, tests/Vitrine.IntegrationTests/Support/ApiFactory.cs]
 adrs: [ADR-0004, ADR-0006, ADR-0010, ADR-0011, ADR-0012]
 external: []
 size: M
@@ -240,5 +240,6 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 <!-- Mudança em spec aprovada: uma linha por emenda. Mudou o contrato? Incremente `contract_version` e rode `spec_graph.py impacted SPEC-0005`. -->
 | Versão do contrato | Data | Mudança | Motivo | Specs impactadas | Aprovado por |
 |---|---|---|---|---|---|
+| (rastreabilidade, sem mudança de contrato) | 2026-10-13 | touches incluem `tests/Vitrine.IntegrationTests/Support/ApiFactory.cs` | O commit e77c744 da SPEC-0003 menciona a SPEC-0005 no corpo; o arquivo é da SPEC-0003. | — | Architect |
 | v2 | 2026-10-13 | Contrato fixa o modo `--migrate` da imagem, o serviço `migrate` do Compose, `deploy/resolve-release.sh` e os dublês `proof-*` (IMP-01); IT-07 novo. Escopo passa a ser IaC validada + deploy por script testado em ambiente local prod-like; `deploy.yml` desligado (`DEPLOY_ENABLED`); provisionamento real, PITR, certificado público e aprovação de produção movidos para a SPEC-0009; plano de testes refeito (UT-03, IT-01..06 locais) | Usuário: nada que gere custo até tudo rodar localmente e ele testar | SPEC-0009 (nova), SPEC-0001 (critérios de aceite) | thomas (2026-10-13) |
 | v2 (esclarecimento, sem mudança de comportamento) | 2026-10-13 | `smoke_test` resolve `vitrine.localhost` explicitamente e aceita ausência de testes @smoke | Máquina não resolve *.localhost; ainda não há testes @smoke (chegam na SPEC-0006) | — | Architect (editorial) |
