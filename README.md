@@ -97,3 +97,5 @@ docs/adr/                    decisões de arquitetura
 - **Dependências** ([ADR-0008](docs/adr/ADR-0008-dependencias-e-ciclo-de-vida-da-stack.md)): versões NuGet só em
   `Directory.Packages.props`; lockfiles (`packages.lock.json`, `web/package-lock.json`) sempre versionados.
 - **Segredos:** nunca no repositório; `.env*` e `appsettings.*.local.json` são ignorados pelo git.
+
+<!-- ci-proof IT-01 recheck: PR de prova, fechado sem merge -->
