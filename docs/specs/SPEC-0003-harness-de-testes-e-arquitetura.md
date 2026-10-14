@@ -10,7 +10,7 @@ parent: SPEC-0001
 depends_on: [SPEC-0002]
 consumes_contract: []
 contract_version: 2
-touches: [web/biome.json, tests/Vitrine.UnitTests/**, tests/Vitrine.IntegrationTests/**, tests/Vitrine.ArchitectureTests/**, tests/README.md, web/e2e/**, web/playwright.config.ts, web/vitest.config.ts, web/package.json, web/package-lock.json, web/tsconfig*.json, web/src/**/*.test.tsx, Directory.Packages.props, Vitrine.slnx, src/Api/Program.cs, src/Api/Vitrine.Api.csproj, src/Api/packages.lock.json, src/AppHost/packages.lock.json]
+touches: [web/biome.json, tests/Vitrine.Tooling.Tests/Vitrine.Tooling.Tests.csproj, tests/Vitrine.Tooling.Tests/packages.lock.json, tests/Vitrine.Tooling.Tests/testconfig.json, tests/Vitrine.UnitTests/**, tests/Vitrine.IntegrationTests/**, tests/Vitrine.ArchitectureTests/**, tests/README.md, web/e2e/**, web/playwright.config.ts, web/vitest.config.ts, web/package.json, web/package-lock.json, web/tsconfig*.json, web/src/**/*.test.tsx, Directory.Packages.props, Vitrine.slnx, src/Api/Program.cs, src/Api/Vitrine.Api.csproj, src/Api/packages.lock.json, src/AppHost/packages.lock.json]
 adrs: [ADR-0002, ADR-0001, ADR-0014]
 external: []
 size: M
@@ -190,6 +190,7 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 |---|---|---|---|---|---|---|---|---|
 | IMP-01 | 2026-10-13 | G2 | spec | Comando coverage do contrato (--collect XPlat + reportgenerator) não existe sob Microsoft Testing Platform e nenhum ADR define ferramenta de cobertura de linhas alteradas | MTP sem --collect; coverlet.MTP 10.1.0 + ReportGenerator 5.5.11 funcionou em teste descartável; diff-cover indisponível localmente | Architect + thomas (emenda) | Emenda v2 — coverage com coverlet.MTP + ReportGenerator + diff-cover (≥80% linhas alteradas, obrigatório no CI); ADR-0002 atualizado; aprovada por thomas em 2026-10-13 | 2026-10-13 |
 | IMP-02 | 2026-10-13 | G5 | externo | Chromium do Playwright não abre: faltam bibliotecas de sistema (libatk); E2E-01 não executado localmente | Instalação sem sudo não é possível; fixture do AppHost e baseURL validados com teste de request descartável | thomas: rodar 'cd web && sudo npx playwright install-deps chromium' |  |  |
+| IMP-03 | 2026-10-13 | G2 | spec | Comando coverage roda em todos os projetos de teste, mas tests/Vitrine.Tooling.Tests (fora dos touches) não tem coverlet.MTP e rejeita --coverlet | Ajuste temporário no csproj do Tooling.Tests fez o comando passar (100% diff coverage); revertido | Architect (ajuste de escopo) | Ajuste de escopo dentro da Emenda v2 (sem mudança de contrato): touches incluem csproj, lockfile e testconfig do Vitrine.Tooling.Tests | 2026-10-13 |
 
 ## 14. Relatório de Entrega
 <!-- Preenchido no CLOSE (G7). Diz o que foi feito, como, e prova que foi resolvido. Para status implemented o validate exige todas as subseções preenchidas, todo teste do plano com PASS + evidência e a Definição de Pronto toda marcada. -->
@@ -230,4 +231,4 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 <!-- Mudança em spec aprovada: uma linha por emenda. Mudou o contrato? Incremente `contract_version` e rode `spec_graph.py impacted SPEC-0003`. -->
 | Versão do contrato | Data | Mudança | Motivo | Specs impactadas | Aprovado por |
 |---|---|---|---|---|---|
-| v2 | 2026-10-13 | Comando `coverage` passa a usar coverlet.MTP + ReportGenerator + diff-cover (≥ 80% nas linhas alteradas, obrigatório no CI); `web/biome.json` entra nos touches para ignorar `packages.lock.json` | IMP-01: `--collect` não existe no Microsoft Testing Platform e não havia ferramenta de linhas alteradas definida | SPEC-0004 (roda o diff-cover no CI) | thomas (2026-10-13) |
+| v2 | 2026-10-13 | Comando `coverage` passa a usar coverlet.MTP + ReportGenerator + diff-cover (≥ 80% nas linhas alteradas, obrigatório no CI); `web/biome.json` entra nos touches para ignorar `packages.lock.json`; csproj/lockfile/testconfig do `Vitrine.Tooling.Tests` entram nos touches para aceitar `--coverlet` (ajuste de escopo, IMP-03) | IMP-01: `--collect` não existe no Microsoft Testing Platform e não havia ferramenta de linhas alteradas definida | SPEC-0004 (roda o diff-cover no CI) | thomas (2026-10-13) |
