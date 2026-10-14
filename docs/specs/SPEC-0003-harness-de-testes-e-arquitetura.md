@@ -176,7 +176,7 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 | G1 Red | PASS | verify G1: PASS; `dotnet test --solution Vitrine.slnx` exit 2 (red: Test run completed with non-success exit code: 2 (see: https://aka.ms/testingplatform/exit) — e7bf65f | 2026-10-13 |
 | G2 Green | PASS | build exit 0 (✓ built in 162ms); test exit 0 (Duration  597ms (environment 55%, transform 20%, import 19%, tests 4%, worker 2%)); lint exit 0 (> tsc --noEmit && tsc --noEmit -p tsconfig.node.json); coverage exit 0 (AVISO: uvx não encontrado; diff-cover (>= 80% das linhas alteradas) NÃO foi verificado loc) — 97deb58 | 2026-10-13 |
 | G3 Arquitetura | PASS | arch_test exit 0 (duration: 1s 041ms) — 97deb58 | 2026-10-13 |
-| G4 Review | PENDING | | |
+| G4 Review | FAIL | reviewer-agent: CHANGES_REQUESTED 97deb58 — blocker: happy-dom/@testing-library sem ADR; major: Wolverine cria tabelas no startup (ADR-0011); minors: IT-02 depende do relógio, SolutionArchitecture só via referências, regras de ciclo/Common sem teste negativo, uvx não obrigatório com CI=true, happy-dom 21 recém-publicado, testconfig duplicado | 2026-10-13 |
 | G5 Integração & CI | PENDING | | |
 | H2 Integração aprovada | PENDING | | |
 | G6 Deploy | PENDING | | |
