@@ -1,5 +1,7 @@
 using JasperFx;
 using JasperFx.Resources;
+using Vitrine.Identity.Infrastructure;
+using Vitrine.Identity.Presentation;
 using Wolverine;
 using Wolverine.Postgresql;
 
@@ -10,6 +12,9 @@ var migrateOnly = args.Contains(MigrateArgument, StringComparer.Ordinal);
 var builder = WebApplication.CreateBuilder(args.Where(arg => arg != MigrateArgument).ToArray());
 
 builder.AddServiceDefaults();
+
+// Módulos (ADR-0001).
+builder.Services.AddIdentityModule(builder.Configuration);
 
 // Mensageria interna e jobs com filas duráveis e outbox/inbox no PostgreSQL (ADR-0014).
 builder.Host.UseWolverine(options =>
@@ -34,6 +39,7 @@ if (migrateOnly)
 }
 
 app.MapDefaultEndpoints();
+app.MapIdentityEndpoints();
 
 await app.RunAsync();
 return 0;

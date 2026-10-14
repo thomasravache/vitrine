@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- ASP.NET Core Identity + EF Core no schema "identity" (ADR-0007, ADR-0011) e publicação via outbox (ADR-0014). -->
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+
+    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Vitrine.Identity.Application\Vitrine.Identity.Application.csproj" />
+    <ProjectReference Include="..\Vitrine.Identity.Domain\Vitrine.Identity.Domain.csproj" />
+    <ProjectReference Include="..\Vitrine.Identity.IntegrationEvents\Vitrine.Identity.IntegrationEvents.csproj" />
+  </ItemGroup>
+
+</Project>
