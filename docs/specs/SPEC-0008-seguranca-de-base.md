@@ -10,7 +10,7 @@ parent: SPEC-0001
 depends_on: [SPEC-0006]
 consumes_contract: [SPEC-0006@1]
 contract_version: 1
-touches: [src/Api/Security/**, src/Api/Program.cs, src/Common/Security/**, tests/Vitrine.UnitTests/Security/**, tests/Vitrine.IntegrationTests/Security/**, tests/Vitrine.ArchitectureTests/**, deploy/Caddyfile, docs/runbooks/**]
+touches: [src/Api/Security/**, src/Api/Program.cs, src/ServiceDefaults/**, deploy/compose.yaml, src/Common/Security/**, tests/Vitrine.UnitTests/Security/**, tests/Vitrine.IntegrationTests/Security/**, tests/Vitrine.ArchitectureTests/**, deploy/Caddyfile, docs/runbooks/**]
 adrs: [ADR-0007, ADR-0006]
 external: []
 size: M
@@ -32,6 +32,8 @@ Fecha a base de segurança antes de qualquer dado de cliente: autorização nega
 - Rate limiting (`Microsoft.AspNetCore.RateLimiting`) em `/api/v1/auth/*`: 10 req/min por IP e 5 req/min por e-mail no login; resposta 429 com `Retry-After`.
 - `IFieldProtector` em `src/Common` (AES-256-GCM via Data Protection com propósito por campo) + conversor EF Core `Protected<T>`; chaves do Data Protection persistidas no PostgreSQL e protegidas por chave mestra vinda do ambiente.
 - Configuração do `.env`/Environment para a chave mestra; procedimento de rotação no runbook.
+- Atrás do Caddy: `UseForwardedHeaders` (X-Forwarded-Proto/For só da rede do Compose) para `Request.IsHttps` correto; cookie antiforgery volta a `Secure=Always`; HSTS passa a valer atrás do proxy.
+- Health checks anônimos por metadado (`AllowAnonymous` nos endpoints de ServiceDefaults), removendo a exceção por caminho `/health/*` da política de fallback.
 - `security_scan` completo (gitleaks + dependências + Trivy) já no CI (SPEC-0004) — aqui só os ajustes de regra se necessário.
 
 **Não-objetivos (fora do escopo):**
@@ -216,3 +218,4 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 <!-- Mudança em spec aprovada: uma linha por emenda. Mudou o contrato? Incremente `contract_version` e rode `spec_graph.py impacted SPEC-0008`. -->
 | Versão do contrato | Data | Mudança | Motivo | Specs impactadas | Aprovado por |
 |---|---|---|---|---|---|
+| v1 (escopo, sem mudança de contrato) | 2026-10-14 | Inclui forwarded headers atrás do Caddy com antiforgery `Secure=Always`, e health checks anônimos por metadado; touches ganham `src/ServiceDefaults/**` e `deploy/compose.yaml` | Review G4 da SPEC-0006 (desvios aceitos lá para serem fechados aqui) | — | (pendente) |
