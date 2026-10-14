@@ -166,8 +166,8 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 | G2 Green | PASS | build exit 0 (✓ built in 436ms); test exit 0 (Duration  418ms (environment 59%, import 22%, transform 11%, tests 7%, worker 1%)); lint exit 0 (> tsc --noEmit && tsc --noEmit -p tsconfig.node.json); coverage exit 0 (AVISO: uvx não encontrado; diff-cover (>= 80% das linhas alteradas) NÃO foi verificado loc) — be40dce | 2026-10-13 |
 | G3 Arquitetura | PASS | arch_test exit 0 (duration: 1s 999ms) — be40dce | 2026-10-13 |
 | G4 Review | PASS | MANUAL: verify SPEC-0004 --base sdd/SPEC-0001: PASS 0 falhas, 1 aviso justificado (lockfile); tests/ci 2/2; provas PR #2..#7 (IT-01 recheck run 38502052493 7/7 verde) | 2026-10-13 |
-| G5 Integração & CI | PENDING | | |
-| H2 Integração aprovada | PENDING | | |
+| G5 Integração & CI | PASS | MANUAL: PR #8 no resultado integrado ca587e5: 7/7 checks obrigatórios verdes (build-lint, unit, integration, architecture, e2e, security, sdd/pr-check) — https://github.com/thomasravache/vitrine/actions/runs/38503495881/job/115656660941; local: build 0 avisos, dotnet 21/21, Vitest 1/1, E2E 2/2, infra 3/3, ci 2/2, lint ok | 2026-10-13 |
+| H2 Integração aprovada | PASS | política auto-on-green (aprovada por thomas em 2026-10-13); G5 PASS | 2026-10-13 |
 | G6 Deploy | PENDING | | |
 | G7 Pronto & Docs | PENDING | | |
 

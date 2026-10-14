@@ -177,8 +177,8 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 | G2 Green | PASS | build exit 0 (✓ built in 333ms); test exit 0 (Duration  1.62s (environment 50%, import 29%, transform 11%, tests 9%, worker 1%)); lint exit 0 (> tsc --noEmit && tsc --noEmit -p tsconfig.node.json); coverage exit 0 (AVISO: uvx não encontrado; diff-cover (>= 80% das linhas alteradas) NÃO foi verificado loc) — 1cb9efc | 2026-10-13 |
 | G3 Arquitetura | PASS | arch_test exit 0 (duration: 1s 140ms) — 1cb9efc | 2026-10-13 |
 | G4 Review | PASS | MANUAL: verify SPEC-0003 --base 326c5c2 (integração antes do merge): PASS 0 falhas, 1 aviso justificado; a FAIL anterior apontava .claude/scheduled_tasks.lock, arquivo do agendador commitado por engano pelo Architect em 750c582 e removido em seguida — fora do trabalho da spec | 2026-10-13 |
-| G5 Integração & CI | PENDING | | |
-| H2 Integração aprovada | PENDING | | |
+| G5 Integração & CI | PASS | MANUAL: PR #8 no resultado integrado ca587e5: 7/7 checks obrigatórios verdes (build-lint, unit, integration, architecture, e2e, security, sdd/pr-check) — https://github.com/thomasravache/vitrine/actions/runs/38503495881/job/115656660941; local: build 0 avisos, dotnet 21/21, Vitest 1/1, E2E 2/2, infra 3/3, ci 2/2, lint ok | 2026-10-13 |
+| H2 Integração aprovada | PASS | política auto-on-green (aprovada por thomas em 2026-10-13); G5 PASS | 2026-10-13 |
 | G6 Deploy | PENDING | | |
 | G7 Pronto & Docs | PENDING | | |
 

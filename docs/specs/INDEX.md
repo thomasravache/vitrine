@@ -4,7 +4,7 @@
 
 ## Saúde
 
-- Validação (G0): **0 erro(s), 3 aviso(s)** — rode `spec_graph.py validate`
+- Validação (G0): **0 erro(s), 4 aviso(s)** — rode `spec_graph.py validate`
 - Specs: approved 4, in-progress 3, implemented 1
 - Impedimentos: **0 aberto(s)**, 4 resolvido(s)
 
@@ -43,11 +43,11 @@ Perfil: **padrao**
 |---|---|---|---|---|---|---|
 | 1 | SPEC-0003 | Harness de testes e arquitetura | full/M | in-progress | 🔄 em andamento |  |
 | 2 | SPEC-0004 | Pipeline de CI | full/M | in-progress | 🔄 em andamento | saiu da onda 1: arquivos em comum com SPEC-0003 |
-| 2 | SPEC-0005 | Ambientes, IaC e deploy em VPS | full/M | in-progress | 🔄 em andamento | saiu da onda 1: arquivos em comum com SPEC-0003 |
-| 3 | SPEC-0006 | Walking skeleton: cadastro, login e painel vazio | full/M | approved | ⛔ aguarda implementação de SPEC-0003; aguarda implementação de SPEC-0004; aguarda implementação de SPEC-0005 |  |
-| 4 | SPEC-0007 | Observabilidade de base | full/M | approved | ⛔ aguarda implementação de SPEC-0006 |  |
-| 5 | SPEC-0008 | Segurança de base | full/M | approved | ⛔ aguarda implementação de SPEC-0006 | saiu da onda 4: arquivos em comum com SPEC-0007 |
-| 6 | SPEC-0009 | Provisionamento na nuvem e go-live | full/M | approved | ⛔ aguarda implementação de SPEC-0005; aguarda implementação de SPEC-0006; aguarda implementação de SPEC-0007; aguarda implementação de SPEC-0008 |  |
+| 3 | SPEC-0005 | Ambientes, IaC e deploy em VPS | full/M | in-progress | 🔄 em andamento | saiu da onda 1: arquivos em comum com SPEC-0003; saiu da onda 2: arquivos em comum com SPEC-0004 |
+| 4 | SPEC-0006 | Walking skeleton: cadastro, login e painel vazio | full/M | approved | ⛔ aguarda implementação de SPEC-0003; aguarda implementação de SPEC-0004; aguarda implementação de SPEC-0005 |  |
+| 5 | SPEC-0007 | Observabilidade de base | full/M | approved | ⛔ aguarda implementação de SPEC-0006 |  |
+| 6 | SPEC-0008 | Segurança de base | full/M | approved | ⛔ aguarda implementação de SPEC-0006 | saiu da onda 5: arquivos em comum com SPEC-0007 |
+| 7 | SPEC-0009 | Provisionamento na nuvem e go-live | full/M | approved | ⛔ aguarda implementação de SPEC-0005; aguarda implementação de SPEC-0006; aguarda implementação de SPEC-0007; aguarda implementação de SPEC-0008 |  |
 
 ## Épicos
 

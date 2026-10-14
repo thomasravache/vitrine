@@ -190,8 +190,8 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 | G2 Green | PASS | build exit 0 (✓ built in 508ms); test exit 0 (Duration  1.21s (environment 63%, import 25%, transform 7%, tests 3%, worker 1%)); lint exit 0 (> tsc --noEmit && tsc --noEmit -p tsconfig.node.json); coverage exit 0 (AVISO: uvx não encontrado; diff-cover (>= 80% das linhas alteradas) NÃO foi verificado loc) — 158e80f | 2026-10-13 |
 | G3 Arquitetura | PASS | arch_test exit 0 (duration: 1s 249ms) — 158e80f | 2026-10-13 |
 | G4 Review | PASS | MANUAL: verify SPEC-0005 --base sdd/SPEC-0001 (branch de integração do épico): PASS, 0 falhas, 0 avisos, 39 arquivos em touches; o gate --run compara com main e conta o código da SPEC-0003 já integrado na branch do épico | 2026-10-13 |
-| G5 Integração & CI | PENDING | | |
-| H2 Integração aprovada | PENDING | | |
+| G5 Integração & CI | PASS | MANUAL: PR #8 no resultado integrado ca587e5: 7/7 checks obrigatórios verdes (build-lint, unit, integration, architecture, e2e, security, sdd/pr-check) — https://github.com/thomasravache/vitrine/actions/runs/38503495881/job/115656660941; local: build 0 avisos, dotnet 21/21, Vitest 1/1, E2E 2/2, infra 3/3, ci 2/2, lint ok | 2026-10-13 |
+| H2 Integração aprovada | PASS | política auto-on-green (aprovada por thomas em 2026-10-13); G5 PASS | 2026-10-13 |
 | G6 Deploy | PENDING | | |
 | G7 Pronto & Docs | PENDING | | |
 
