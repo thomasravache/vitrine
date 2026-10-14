@@ -38,7 +38,12 @@ concurrency:
 jobs:
   resolve:
     name: resolve-release
-    if: vars.DEPLOY_ENABLED == 'true' && (github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success')
+    # workflow_run: só CI verde de push na main deste repositório (nunca de fork/PR).
+    if: >-
+      vars.DEPLOY_ENABLED == 'true' && (github.event_name == 'workflow_dispatch'
+      || (github.event.workflow_run.conclusion == 'success'
+      && github.event.workflow_run.event == 'push'
+      && github.event.workflow_run.head_repository.full_name == github.repository))
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
@@ -47,7 +52,7 @@ jobs:
       run_id: ${{ steps.release.outputs.run_id }}
       environment: ${{ steps.release.outputs.environment }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - name: Localizar imagem e compose-bundle pelo SHA
@@ -77,12 +82,12 @@ jobs:
     needs: resolve
     if: vars.DEPLOY_ENABLED == 'true'
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 30
     environment:
       name: ${{ needs.resolve.outputs.environment }}
       url: ${{ vars.BASE_URL }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ needs.resolve.outputs.sha }}
           persist-credentials: false
@@ -115,22 +120,8 @@ jobs:
             | ssh -i ~/.ssh/id_deploy "deploy@$DEPLOY_HOST" 'umask 077 && cat >/opt/vitrine/deploy/.env.incoming'
           ssh -i ~/.ssh/id_deploy "deploy@$DEPLOY_HOST" \
             "cd /opt/vitrine && rc=0; deploy/deploy.sh '$TAG' --env-file deploy/.env.incoming || rc=\$?; rm -f deploy/.env.incoming; exit \$rc"
-
-  smoke:
-    name: smoke (${{ needs.resolve.outputs.environment }})
-    needs: [resolve, deploy]
-    if: vars.DEPLOY_ENABLED == 'true'
-    runs-on: ubuntu-24.04
-    timeout-minutes: 15
-    environment:
-      name: ${{ needs.resolve.outputs.environment }}
-      url: ${{ vars.BASE_URL }}
-    steps:
-      - uses: actions/checkout@v5
-        with:
-          ref: ${{ needs.resolve.outputs.sha }}
-          persist-credentials: false
-      - uses: actions/setup-node@v5
+      # Smoke no mesmo job: uma única aprovação do Environment por release.
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: web/.nvmrc
           cache: npm

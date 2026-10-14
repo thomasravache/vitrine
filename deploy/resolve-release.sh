@@ -3,7 +3,7 @@
 # Uso: deploy/resolve-release.sh <sha>
 # Imprime (stdout, uma por linha):
 #   image=ghcr.io/thomasravache/vitrine-api:<sha>
-#   run_id=<ID da execução do CI "CI" na main com o artefato compose-bundle>
+#   run_id=<ID da execução do CI "CI" (push na main) com o artefato compose-bundle>
 # Sai != 0 se a imagem ou a execução com o artefato não existir.
 # Requer: gh autenticado (GH_TOKEN), jq, docker. GH_REPO = owner/repo (padrão: o do diretório atual).
 # Variáveis opcionais: IMAGE_REPO, CI_WORKFLOW (padrão: CI), COMPOSE_BUNDLE_ARTIFACT (padrão: compose-bundle).
@@ -24,7 +24,7 @@ repo_args=()
 [[ -z "${GH_REPO:-}" ]] || repo_args=(-R "$GH_REPO")
 
 # Execução do CI concluída com sucesso para o SHA, na main, com o artefato compose-bundle não expirado.
-runs="$(gh run list "${repo_args[@]}" -w "$CI_WORKFLOW" -b main -s success -c "$sha" -L 20 \
+runs="$(gh run list "${repo_args[@]}" -w "$CI_WORKFLOW" -b main -e push -s success -c "$sha" -L 20 \
   --json databaseId,headSha 2>/dev/null)" || die "não foi possível listar as execuções de '$CI_WORKFLOW'"
 run_id=""
 for id in $(jq -r --arg sha "$sha" '.[] | select(.headSha | startswith($sha)) | .databaseId' <<<"$runs"); do
