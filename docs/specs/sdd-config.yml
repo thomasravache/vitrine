@@ -27,7 +27,7 @@ mutation: ""
 # Exemplos: "dotnet test --filter Category=Architecture" | "npx depcruise src" | "lint-imports"
 arch_test: "dotnet test tests/Vitrine.ArchitectureTests"
 # Auditoria de dependências + segredos. Exemplos: "npm audit --audit-level=high" | "dotnet list package --vulnerable" | "gitleaks detect"
-security_scan: "dotnet restore Vitrine.slnx -p:TreatWarningsAsErrors=false && ! dotnet list Vitrine.slnx package --vulnerable --include-transitive --no-restore | tee /dev/stderr | grep -qE '^ +>.* (High|Critical) ' && npm --prefix web audit --audit-level=high && gitleaks git --log-opts=HEAD --no-banner --redact"
+security_scan: "set -o pipefail; dotnet restore Vitrine.slnx -p:TreatWarningsAsErrors=false && dotnet list Vitrine.slnx package --vulnerable --include-transitive --no-restore > /tmp/vitrine-vuln.txt && cat /tmp/vitrine-vuln.txt && ! grep -qE '^ +>.* (High|Critical) ' /tmp/vitrine-vuln.txt && npm --prefix web audit --audit-level=high && gitleaks git --log-opts=HEAD --no-banner --redact"
 
 # --- CI/CD e ambientes (G5, G6) ---
 # Como conferir o pipeline da branch/PR. Exemplo: "gh pr checks --watch"
