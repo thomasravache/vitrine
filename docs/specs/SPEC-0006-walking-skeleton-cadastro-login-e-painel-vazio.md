@@ -10,7 +10,7 @@ parent: SPEC-0001
 depends_on: [SPEC-0003, SPEC-0004, SPEC-0005]
 consumes_contract: []
 contract_version: 1
-touches: [src/Modules/Identity/**, src/Api/**, web/src/**, web/e2e/**, web/package.json, web/package-lock.json, web/index.html, tests/Vitrine.UnitTests/**, tests/Vitrine.IntegrationTests/**, tests/Vitrine.ArchitectureTests/**, tests/Vitrine.Tooling.Tests/packages.lock.json, src/AppHost/packages.lock.json, web/e2e/support/packages.lock.json, Vitrine.slnx, Directory.Packages.props]
+touches: [src/Modules/Identity/**, src/Api/**, web/src/**, web/e2e/**, web/package.json, web/package-lock.json, web/index.html, web/vite.config.ts, tests/Vitrine.UnitTests/**, tests/Vitrine.IntegrationTests/**, tests/Vitrine.ArchitectureTests/**, tests/Vitrine.Tooling.Tests/packages.lock.json, src/AppHost/packages.lock.json, web/e2e/support/packages.lock.json, Vitrine.slnx, Directory.Packages.props]
 adrs: [ADR-0001, ADR-0007, ADR-0011, ADR-0013, ADR-0014]
 external: []
 size: M
@@ -198,6 +198,7 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 <!-- Toda parada é registrada pelo Architect com `spec_graph.py impede` e fechada com `resolve` — não edite à mão. Tipos: spec (spec errada/incompleta → resolve com Emenda) | decisão (só o humano decide → resposta ou ADR) | trabalho (falta algo que exige código → SPEC-NNNN nova) | externo (acesso, ambiente, terceiro → ação tomada) | falha (3 FAILs seguidos no mesmo gate → diagnóstico e decisão). Com impedimento aberto a spec aparece como parada no INDEX e não pode ser fechada. -->
 | ID | Aberto em | Fase/Gate | Tipo | Descrição | Tentativas | Responsável | Resolução | Fechado em |
 |---|---|---|---|---|---|---|---|---|
+| IMP-01 | 2026-10-14 | G2 | spec | TEST_DEFECT: IdentityDatabase.CountWorkspaceCreatedEnvelopesAsync faz convert_from(body,'UTF8') no envelope binário do Wolverine (IT-01 falha com 22021) | Implementer validou correção position(convert_to(@workspace,'UTF8') in body) localmente e reverteu | Test-writer (correção do helper) |  |  |
 
 ## 14. Relatório de Entrega
 <!-- Preenchido no CLOSE (G7). Diz o que foi feito, como, e prova que foi resolvido. Para status implemented o validate exige todas as subseções preenchidas, todo teste do plano com PASS + evidência e a Definição de Pronto toda marcada. -->
