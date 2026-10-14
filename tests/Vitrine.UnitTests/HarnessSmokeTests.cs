@@ -17,5 +17,6 @@ public sealed class HarnessSmokeTests
         Assert.NotNull(test);
         Assert.True(test.Traits.TryGetValue("spec", out var specs), "Trait 'spec' ausente no teste descoberto.");
         Assert.Contains("SPEC-0003:UT-01", specs);
+        Assert.Fail("Quebrado de propósito: PR de prova do CI (IT-02), fechado sem merge.");
     }
 }
