@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Contrato público do módulo Identity (ADR-0001): eventos de integração consumidos por outros módulos. -->
+
+</Project>

@@ -6,6 +6,14 @@
   <Folder Name="/src/AppHost/">
     <Project Path="src/AppHost/Vitrine.AppHost.csproj" />
   </Folder>
+  <Folder Name="/src/Modules/" />
+  <Folder Name="/src/Modules/Identity/">
+    <Project Path="src/Modules/Identity/Vitrine.Identity.Application/Vitrine.Identity.Application.csproj" />
+    <Project Path="src/Modules/Identity/Vitrine.Identity.Domain/Vitrine.Identity.Domain.csproj" />
+    <Project Path="src/Modules/Identity/Vitrine.Identity.Infrastructure/Vitrine.Identity.Infrastructure.csproj" />
+    <Project Path="src/Modules/Identity/Vitrine.Identity.IntegrationEvents/Vitrine.Identity.IntegrationEvents.csproj" />
+    <Project Path="src/Modules/Identity/Vitrine.Identity.Presentation/Vitrine.Identity.Presentation.csproj" />
+  </Folder>
   <Folder Name="/src/ServiceDefaults/">
     <Project Path="src/ServiceDefaults/Vitrine.ServiceDefaults.csproj" />
   </Folder>

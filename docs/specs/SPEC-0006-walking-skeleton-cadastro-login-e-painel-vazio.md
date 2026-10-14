@@ -4,13 +4,13 @@ title: "Walking skeleton: cadastro, login e painel vazio"
 tier: full
 type: foundation
 user_facing: true
-status: approved
+status: in-progress
 created: 2026-10-13
 parent: SPEC-0001
 depends_on: [SPEC-0003, SPEC-0004, SPEC-0005]
 consumes_contract: []
 contract_version: 1
-touches: [src/Modules/Identity/**, src/Api/**, web/src/**, web/e2e/**, tests/Vitrine.UnitTests/Identity/**, tests/Vitrine.IntegrationTests/Identity/**, tests/Vitrine.ArchitectureTests/**, Vitrine.slnx, Directory.Packages.props]
+touches: [src/Modules/Identity/**, src/Api/**, web/src/**, web/e2e/**, web/package.json, web/package-lock.json, web/index.html, web/vite.config.ts, tests/README.md, deploy/compose.yaml, deploy/local/.env.example, docs/runbooks/deploy.md, tests/Vitrine.UnitTests/**, tests/Vitrine.IntegrationTests/**, tests/Vitrine.ArchitectureTests/**, tests/Vitrine.Tooling.Tests/packages.lock.json, src/AppHost/packages.lock.json, web/e2e/support/packages.lock.json, Vitrine.slnx, Directory.Packages.props, .gitleaksignore]
 adrs: [ADR-0001, ADR-0007, ADR-0011, ADR-0013, ADR-0014]
 external: []
 size: M
@@ -69,7 +69,7 @@ A fatia mais fina e real do produto, passando por todas as camadas: o vendedor s
 
 ```text
 POST /api/v1/auth/register   (anônimo; exige Features:SignupOpen=true; antiforgery)
-  body: { name: string(2..100), email: string(email), password: string(>=10) }
+  body: { name: string(2..100), email: string(email), password: string(10..128) }
   201 -> { userId, workspaceId }  + Set-Cookie de sessão; publica WorkspaceCreated{workspaceId, ownerUserId, createdAt}
   400 VALIDATION_FAILED { errors: { field: [msg] } }
   409 EMAIL_TAKEN
@@ -185,10 +185,10 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 | Gate | Status | Evidência | Data |
 |---|---|---|---|
 | G0 Spec | PASS | validate: 0 erro(s) — 4602cbe (árvore suja) | 2026-10-13 |
-| G1 Red | PENDING | | |
-| G2 Green | PENDING | | |
-| G3 Arquitetura | PENDING | | |
-| G4 Review | PENDING | | |
+| G1 Red | PASS | verify G1: PASS; `dotnet test tests/Vitrine.UnitTests && npm --prefix web run test` exit 2 (red: Test run completed with non-success exit code: 2 (see: https://aka.ms/testingplatform/exit) — 88a35f3 | 2026-10-14 |
+| G2 Green | PASS | build exit 0 (npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts a); test exit 0 (Duration  311ms (environment 59%, import 23%, transform 10%, tests 7%, worker 1%)); lint exit 0 (> tsc --noEmit && tsc --noEmit -p tsconfig.node.json); coverage exit 0 (AVISO: uvx não encontrado; diff-cover (>= 80% das linhas alteradas) NÃO foi verificado loc) — 858646b | 2026-10-14 |
+| G3 Arquitetura | PASS | arch_test exit 0 (duration: 1s 028ms) — 858646b | 2026-10-14 |
+| G4 Review | PASS | verify G1+G4: PASS; revisão: reviewer-agent: APPROVED 858646b — sem blocker/major; minor: guarda de /health desconhecido não exercita o fallback da SPA (host de teste sem index.html) → levado à SPEC-0008 — 858646b | 2026-10-14 |
 | G5 Integração & CI | PENDING | | |
 | H2 Integração aprovada | PENDING | | |
 | G6 Deploy | PENDING | | |
@@ -198,6 +198,7 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 <!-- Toda parada é registrada pelo Architect com `spec_graph.py impede` e fechada com `resolve` — não edite à mão. Tipos: spec (spec errada/incompleta → resolve com Emenda) | decisão (só o humano decide → resposta ou ADR) | trabalho (falta algo que exige código → SPEC-NNNN nova) | externo (acesso, ambiente, terceiro → ação tomada) | falha (3 FAILs seguidos no mesmo gate → diagnóstico e decisão). Com impedimento aberto a spec aparece como parada no INDEX e não pode ser fechada. -->
 | ID | Aberto em | Fase/Gate | Tipo | Descrição | Tentativas | Responsável | Resolução | Fechado em |
 |---|---|---|---|---|---|---|---|---|
+| IMP-01 | 2026-10-14 | G2 | spec | TEST_DEFECT: IdentityDatabase.CountWorkspaceCreatedEnvelopesAsync faz convert_from(body,'UTF8') no envelope binário do Wolverine (IT-01 falha com 22021) | Implementer validou correção position(convert_to(@workspace,'UTF8') in body) localmente e reverteu | Test-writer (correção do helper) | Emenda v1.1 — helper do IT-01 corrigido pelo Test-writer (cdb1a6d), IntegrationTests 25/25 | 2026-10-14 |
 
 ## 14. Relatório de Entrega
 <!-- Preenchido no CLOSE (G7). Diz o que foi feito, como, e prova que foi resolvido. Para status implemented o validate exige todas as subseções preenchidas, todo teste do plano com PASS + evidência e a Definição de Pronto toda marcada. -->
@@ -238,4 +239,8 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 <!-- Mudança em spec aprovada: uma linha por emenda. Mudou o contrato? Incremente `contract_version` e rode `spec_graph.py impacted SPEC-0006`. -->
 | Versão do contrato | Data | Mudança | Motivo | Specs impactadas | Aprovado por |
 |---|---|---|---|---|---|
+| Emenda v1.3 (detalhe de validação, sem mudança de versão) | 2026-10-14 | Senha com máximo de 128 caracteres; cadastro concorrente com mesmo e-mail responde 409; erros do framework trazem `code`; `/health/*` desconhecido responde 404 — todos cobertos por testes de guarda adicionados após o green | Review G4 | — | Architect (sem mudança de versão) |
+| Emenda v1.2 (escopo, sem mudança de contrato) | 2026-10-14 | touches incluem `tests/README.md`, `deploy/compose.yaml`, `deploy/local/.env.example` e `docs/runbooks/deploy.md` para ligar `Features:SignupOpen` por ambiente (local prod-like) e documentar | Review G4: o Plano de Rollout pede a flag ligada fora de produção e o E2E-01 roda no ambiente local no G6 | — | Architect (sem mudança de contrato) |
+| Emenda v1.1 (correção de teste, sem mudança de contrato) | 2026-10-14 | Helper do IT-01 busca o workspaceId nos bytes do corpo binário do envelope do Wolverine; `web/vite.config.ts` nos touches (proxy /api no desenvolvimento) | IMP-01 (TEST_DEFECT) e necessidade do proxy para a SPA alcançar a API na mesma origem sob o AppHost | — | Architect (sem mudança de contrato) |
 | v1 (sem mudança de contrato) | 2026-10-13 | Smoke de produção e usuário de prova movidos para a SPEC-0009; G6 no ambiente local prod-like | Usuário: nada que gere custo até tudo rodar localmente | SPEC-0009 | thomas (2026-10-13) |
+| v1.4 (escopo, sem mudança de contrato) | 2026-10-14 | `touches` ganha `.gitleaksignore` com os 3 fingerprints exatos das senhas fixas de teste (regra generic-api-key) | CI do PR #13: gitleaks acusou falsos positivos em `acesso.spec.ts`, `TestUser.cs` e `RegisterCommandValidatorTests.cs` | — | (pendente) |

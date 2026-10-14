@@ -11,6 +11,13 @@
     <PackageReference Include="xunit.v3" />
   </ItemGroup>
 
+  <!-- Módulo Identity (SPEC-0006): domínio, validação do cadastro e configuração do ASP.NET Core Identity. -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Modules\Identity\Vitrine.Identity.Application\Vitrine.Identity.Application.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Identity\Vitrine.Identity.Domain\Vitrine.Identity.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Identity\Vitrine.Identity.Infrastructure\Vitrine.Identity.Infrastructure.csproj" />
+  </ItemGroup>
+
   <ItemGroup>
     <Using Include="Xunit" />
   </ItemGroup>

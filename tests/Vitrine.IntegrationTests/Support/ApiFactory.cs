@@ -1,3 +1,4 @@
+using JasperFx.Resources;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
@@ -10,10 +11,13 @@ namespace Vitrine.IntegrationTests.Support;
 /// Host da Api em memória apontando para um banco isolado (<c>ConnectionStrings:vitrine</c>).
 /// <see cref="WebApplicationFactory{TEntryPoint}.CreateClient()"/> devolve um HttpClient que mantém cookies;
 /// serviços HTTP externos são trocados pelo WireMock em <see cref="ExternalServices"/>.
-/// Configure (WithServices/RedirectToWireMock) antes do primeiro uso de Services ou CreateClient.
+/// Na subida, o host aplica todo recurso com estado registrado (schema do Wolverine e migrações dos módulos,
+/// registradas como <c>IStatefulResource</c> — ADR-0011), já que o banco do teste nasce vazio.
+/// Configure (WithSetting/WithServices/RedirectToWireMock) antes do primeiro uso de Services ou CreateClient.
 /// </summary>
 public sealed class ApiFactory(string connectionString) : WebApplicationFactory<Program>
 {
+    private readonly List<KeyValuePair<string, string?>> _settings = [];
     private readonly List<Action<IServiceCollection>> _serviceConfigurations = [];
     private readonly List<string> _redirectedClients = [];
     private readonly Lazy<WireMockServer> _externalServices = new(() => WireMockServer.Start());
@@ -23,6 +27,14 @@ public sealed class ApiFactory(string connectionString) : WebApplicationFactory<
 
     /// <summary>Servidor HTTP falso que atende os serviços externos.</summary>
     public WireMockServer ExternalServices => _externalServices.Value;
+
+    /// <summary>Define uma chave de configuração do host (ex.: <c>Features:SignupOpen</c>).</summary>
+    public ApiFactory WithSetting(string key, string? value)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(key);
+        _settings.Add(new(key, value));
+        return this;
+    }
 
     /// <summary>Acrescenta registros de serviço ao host de teste.</summary>
     public ApiFactory WithServices(Action<IServiceCollection> configure)
@@ -47,8 +59,16 @@ public sealed class ApiFactory(string connectionString) : WebApplicationFactory<
         builder.UseSetting("ConnectionStrings:vitrine", ConnectionString);
         // O banco do teste nasce vazio: o host cria o schema do Wolverine em qualquer ambiente de teste.
         builder.UseSetting("Wolverine:AutoBuildMessageStorageOnStartup", "true");
+        foreach (var (key, value) in _settings)
+        {
+            builder.UseSetting(key, value);
+        }
+
         builder.ConfigureTestServices(services =>
         {
+            // Banco vazio: aplica os recursos com estado (Wolverine + migrações dos módulos) antes de atender.
+            services.AddResourceSetupOnStartup(StartupAction.SetupOnly);
+
             foreach (var configure in _serviceConfigurations)
             {
                 configure(services);

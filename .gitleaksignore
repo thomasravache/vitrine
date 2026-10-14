@@ -1,0 +1,5 @@
+# Falsos positivos revisados (regra generic-api-key): senhas fixas de testes, sem valor real.
+# Ignorados por fingerprint exato (commit:arquivo:regra:linha); qualquer outro achado continua falhando o CI.
+88a35f3fd3713501d4cf161ae68e6309791d3de1:web/e2e/acesso.spec.ts:generic-api-key:24
+e0e91328a5ac9390b506c52b26e237f75690a79d:tests/Vitrine.IntegrationTests/Identity/Support/TestUser.cs:generic-api-key:6
+8cd0ebbb47e0c0c7f9d2d6945017ae2a5a7dadb8:tests/Vitrine.UnitTests/Identity/RegisterCommandValidatorTests.cs:generic-api-key:9

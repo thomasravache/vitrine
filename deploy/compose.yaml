@@ -11,5 +11,7 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
       ConnectionStrings__vitrine: ${DB_CONNECTION_STRING:?DB_CONNECTION_STRING não definido}
+      # Cadastro público (SPEC-0006): desligado salvo se o ambiente ligar (local prod-like e staging).
+      Features__SignupOpen: ${FEATURES_SIGNUP_OPEN:-false}
     expose:
       - "8080"

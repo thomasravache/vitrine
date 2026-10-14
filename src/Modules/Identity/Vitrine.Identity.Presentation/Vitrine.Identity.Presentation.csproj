@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Endpoints HTTP do módulo Identity (Minimal APIs em /api/v1/auth e /api/v1/me — SPEC-0006). -->
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Vitrine.Identity.Application\Vitrine.Identity.Application.csproj" />
+  </ItemGroup>
+
+</Project>
