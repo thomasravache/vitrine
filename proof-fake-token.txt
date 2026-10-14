@@ -1,0 +1,2 @@
+# SPEC-0004:IT-03: token FALSO (gerado aleatoriamente, nunca valido) para provar o gitleaks no CI.
+VITRINE_PROOF_API_KEY = "fFWwFkgqXGpBz3v8fdsNvmN6AjdM2PQyyqlc"
