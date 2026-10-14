@@ -69,7 +69,7 @@ A fatia mais fina e real do produto, passando por todas as camadas: o vendedor s
 
 ```text
 POST /api/v1/auth/register   (anônimo; exige Features:SignupOpen=true; antiforgery)
-  body: { name: string(2..100), email: string(email), password: string(>=10) }
+  body: { name: string(2..100), email: string(email), password: string(10..128) }
   201 -> { userId, workspaceId }  + Set-Cookie de sessão; publica WorkspaceCreated{workspaceId, ownerUserId, createdAt}
   400 VALIDATION_FAILED { errors: { field: [msg] } }
   409 EMAIL_TAKEN
@@ -239,6 +239,7 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 <!-- Mudança em spec aprovada: uma linha por emenda. Mudou o contrato? Incremente `contract_version` e rode `spec_graph.py impacted SPEC-0006`. -->
 | Versão do contrato | Data | Mudança | Motivo | Specs impactadas | Aprovado por |
 |---|---|---|---|---|---|
+| Emenda v1.3 (detalhe de validação, sem mudança de versão) | 2026-10-14 | Senha com máximo de 128 caracteres; cadastro concorrente com mesmo e-mail responde 409; erros do framework trazem `code`; `/health/*` desconhecido responde 404 — todos cobertos por testes de guarda adicionados após o green | Review G4 | — | Architect (sem mudança de versão) |
 | Emenda v1.2 (escopo, sem mudança de contrato) | 2026-10-14 | touches incluem `tests/README.md`, `deploy/compose.yaml`, `deploy/local/.env.example` e `docs/runbooks/deploy.md` para ligar `Features:SignupOpen` por ambiente (local prod-like) e documentar | Review G4: o Plano de Rollout pede a flag ligada fora de produção e o E2E-01 roda no ambiente local no G6 | — | Architect (sem mudança de contrato) |
 | Emenda v1.1 (correção de teste, sem mudança de contrato) | 2026-10-14 | Helper do IT-01 busca o workspaceId nos bytes do corpo binário do envelope do Wolverine; `web/vite.config.ts` nos touches (proxy /api no desenvolvimento) | IMP-01 (TEST_DEFECT) e necessidade do proxy para a SPA alcançar a API na mesma origem sob o AppHost | — | Architect (sem mudança de contrato) |
 | v1 (sem mudança de contrato) | 2026-10-13 | Smoke de produção e usuário de prova movidos para a SPEC-0009; G6 no ambiente local prod-like | Usuário: nada que gere custo até tudo rodar localmente | SPEC-0009 | thomas (2026-10-13) |
