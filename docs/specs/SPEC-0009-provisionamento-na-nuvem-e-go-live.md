@@ -199,4 +199,4 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 <!-- Mudança em spec aprovada: uma linha por emenda. Mudou o contrato? Incremente `contract_version` e rode `spec_graph.py impacted SPEC-0009`. -->
 | Versão do contrato | Data | Mudança | Motivo | Specs impactadas | Aprovado por |
 |---|---|---|---|---|---|
-| v1 (escopo) | 2026-10-13 | Inclui as pendências herdadas da SPEC-0005 (versão do Postgres, compose-bundle do Aspire, permissão do `vitrine_app`, revisão de defaults da infra) | Achados das reviews da SPEC-0005 deixados para o go-live | — | (pendente) |
+| v1 (escopo) | 2026-10-13 | Inclui as pendências herdadas da SPEC-0005 (versão do Postgres, compose-bundle do Aspire, permissão do `vitrine_app`, revisão de defaults da infra) | Achados das reviews da SPEC-0005 deixados para o go-live | — | thomas (2026-10-13) |

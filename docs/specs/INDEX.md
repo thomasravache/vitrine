@@ -4,15 +4,9 @@
 
 ## Saúde
 
-- Validação (G0): **0 erro(s), 2 aviso(s)** — rode `spec_graph.py validate`
+- Validação (G0): **0 erro(s), 3 aviso(s)** — rode `spec_graph.py validate`
 - Specs: approved 4, in-progress 3, implemented 1
-- Impedimentos: **1 aberto(s)**, 3 resolvido(s)
-
-## Impedimentos Abertos
-
-| Spec | ID | Tipo | Fase/Gate | Responsável | Aberto em | Idade | Descrição |
-|---|---|---|---|---|---|---|---|
-| SPEC-0003 | IMP-02 | externo | G5 | thomas: rodar 'cd web && sudo npx playwright install-deps chromium' | 2026-10-13 | 0d | Chromium do Playwright não abre: faltam bibliotecas de sistema (libatk); E2E-01 não executado localmente |
+- Impedimentos: **0 aberto(s)**, 4 resolvido(s)
 
 ## Cobertura de Pilares
 
@@ -41,13 +35,13 @@ Perfil: **padrao**
 
 ## Plano de Execução
 
-**Em andamento:** SPEC-0004, SPEC-0005  
-**Paradas por impedimento:** SPEC-0003  
+**Em andamento:** SPEC-0003, SPEC-0004, SPEC-0005  
+**Paradas por impedimento:** —  
 **Próximo lote:** —
 
 | Onda | Spec | Título | Tier/Tam. | Status | Prontidão | Observação |
 |---|---|---|---|---|---|---|
-| 1 | SPEC-0003 | Harness de testes e arquitetura | full/M | in-progress | 🚧 parada por impedimento: IMP-02 (externo → thomas: rodar 'cd web && sudo npx playwright install-deps chromium', 0d) |  |
+| 1 | SPEC-0003 | Harness de testes e arquitetura | full/M | in-progress | 🔄 em andamento |  |
 | 2 | SPEC-0004 | Pipeline de CI | full/M | in-progress | 🔄 em andamento | saiu da onda 1: arquivos em comum com SPEC-0003 |
 | 2 | SPEC-0005 | Ambientes, IaC e deploy em VPS | full/M | in-progress | 🔄 em andamento | saiu da onda 1: arquivos em comum com SPEC-0003 |
 | 3 | SPEC-0006 | Walking skeleton: cadastro, login e painel vazio | full/M | approved | ⛔ aguarda implementação de SPEC-0003; aguarda implementação de SPEC-0004; aguarda implementação de SPEC-0005 |  |
@@ -80,7 +74,7 @@ flowchart LR
   S0002 --> S0003
   S0002 --> S0004
   S0002 --> S0005
-  S0004 -. contrato v1 .-> S0005
+  S0004 -. contrato v2 .-> S0005
   S0003 --> S0006
   S0004 --> S0006
   S0005 --> S0006
@@ -107,7 +101,7 @@ flowchart LR
 | [SPEC-0002](SPEC-0002-repositorio-ferramentas-e-convencoes.md) | Repositório, ferramentas e convenções | full | foundation | implemented | 2026-10-13 | SPEC-0001 | — | — |
 | [SPEC-0003](SPEC-0003-harness-de-testes-e-arquitetura.md) | Harness de testes e arquitetura | full | foundation | in-progress | 2026-10-13 | SPEC-0001 | SPEC-0002 | — |
 | [SPEC-0004](SPEC-0004-pipeline-de-ci.md) | Pipeline de CI | full | foundation | in-progress | 2026-10-13 | SPEC-0001 | SPEC-0002 | — |
-| [SPEC-0005](SPEC-0005-ambientes-iac-e-deploy-em-vps.md) | Ambientes, IaC e deploy em VPS | full | foundation | in-progress | 2026-10-13 | SPEC-0001 | SPEC-0002 | SPEC-0004@1 |
+| [SPEC-0005](SPEC-0005-ambientes-iac-e-deploy-em-vps.md) | Ambientes, IaC e deploy em VPS | full | foundation | in-progress | 2026-10-13 | SPEC-0001 | SPEC-0002 | SPEC-0004@2 |
 | [SPEC-0006](SPEC-0006-walking-skeleton-cadastro-login-e-painel-vazio.md) | Walking skeleton: cadastro, login e painel vazio | full | foundation | approved | 2026-10-13 | SPEC-0001 | SPEC-0003, SPEC-0004, SPEC-0005 | — |
 | [SPEC-0007](SPEC-0007-observabilidade-de-base.md) | Observabilidade de base | full | foundation | approved | 2026-10-13 | SPEC-0001 | SPEC-0006 | SPEC-0006@1 |
 | [SPEC-0008](SPEC-0008-seguranca-de-base.md) | Segurança de base | full | foundation | approved | 2026-10-13 | SPEC-0001 | SPEC-0006 | SPEC-0006@1 |

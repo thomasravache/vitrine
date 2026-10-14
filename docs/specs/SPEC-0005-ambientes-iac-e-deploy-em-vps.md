@@ -8,7 +8,7 @@ status: in-progress
 created: 2026-10-13
 parent: SPEC-0001
 depends_on: [SPEC-0002]
-consumes_contract: [SPEC-0004@1]
+consumes_contract: [SPEC-0004@2]
 contract_version: 2
 touches: [infra/**, deploy/**, .github/workflows/deploy.yml, tests/infra/**, docs/runbooks/**, src/Api/Program.cs, src/Api/Migrations/**]
 adrs: [ADR-0004, ADR-0006, ADR-0010, ADR-0011, ADR-0012]
