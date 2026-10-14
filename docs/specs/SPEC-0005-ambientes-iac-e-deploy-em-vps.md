@@ -187,8 +187,8 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 |---|---|---|---|
 | G0 Spec | PASS | validate: 0 erro(s) — 4602cbe (árvore suja) | 2026-10-13 |
 | G1 Red | PASS | MANUAL: verify G1 PASS (11/11 tags, red antes do green, 70874fb+d022607); testes da spec são scripts em tests/infra (não cobertos pelo comando test do sdd-config): run.sh --unit → 0/3 passed (UT-01..03: infra/, Caddyfile e deploy.yml ausentes); IT-01..07 e CT-01 red por deploy.sh/cloud-init/resolve-release ausentes e --migrate não implementado (relatório do Test-writer) — d022607 | 2026-10-13 |
-| G2 Green | PENDING | | |
-| G3 Arquitetura | PENDING | | |
+| G2 Green | PASS | build exit 0 (✓ built in 2.41s); test exit 0 (Duration  6.27s (environment 59%, import 19%, transform 17%, tests 3%, worker 1%)); lint exit 0 (> tsc --noEmit && tsc --noEmit -p tsconfig.node.json); coverage exit 0 (AVISO: uvx não encontrado; diff-cover (>= 80% das linhas alteradas) NÃO foi verificado loc) — c349e97 | 2026-10-13 |
+| G3 Arquitetura | PASS | arch_test exit 0 (duration: 902ms) — c349e97 | 2026-10-13 |
 | G4 Review | PENDING | | |
 | G5 Integração & CI | PENDING | | |
 | H2 Integração aprovada | PENDING | | |
