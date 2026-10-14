@@ -186,8 +186,8 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 |---|---|---|---|
 | G0 Spec | PASS | validate: 0 erro(s) — 4602cbe (árvore suja) | 2026-10-13 |
 | G1 Red | PASS | verify G1: PASS; `dotnet test tests/Vitrine.UnitTests && npm --prefix web run test` exit 2 (red: Test run completed with non-success exit code: 2 (see: https://aka.ms/testingplatform/exit) — 88a35f3 | 2026-10-14 |
-| G2 Green | PASS | build exit 0 (npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts a); test exit 0 (Duration  309ms (environment 60%, import 23%, transform 9%, tests 7%, worker 1%)); lint exit 0 (> tsc --noEmit && tsc --noEmit -p tsconfig.node.json); coverage exit 0 (AVISO: uvx não encontrado; diff-cover (>= 80% das linhas alteradas) NÃO foi verificado loc) — 0f8f975 | 2026-10-14 |
-| G3 Arquitetura | PASS | arch_test exit 0 (duration: 1s 046ms) — 0f8f975 | 2026-10-14 |
+| G2 Green | PASS | build exit 0 (npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts a); test exit 0 (Duration  311ms (environment 59%, import 23%, transform 10%, tests 7%, worker 1%)); lint exit 0 (> tsc --noEmit && tsc --noEmit -p tsconfig.node.json); coverage exit 0 (AVISO: uvx não encontrado; diff-cover (>= 80% das linhas alteradas) NÃO foi verificado loc) — 858646b | 2026-10-14 |
+| G3 Arquitetura | PASS | arch_test exit 0 (duration: 1s 028ms) — 858646b | 2026-10-14 |
 | G4 Review | FAIL | reviewer-agent: CHANGES_REQUESTED 323ec6f — blocker: tests/README.md fora de touches; major: SignupOpen sem como ligar no ambiente local prod-like/staging; minors: /health/* engolido pela SPA, log SQL do EF em Information, corrida de cadastro vira 500, erros do framework sem code, senha sem máximo, DomainEvents não limpos, logout que falha parece sucesso, cabeçalho duplicado e link com reload, Development migra no startup; para SPEC-0008: forwarded headers + antiforgery Always, /health AllowAnonymous, chaves do Data Protection; pendência: drift do cliente OpenAPI no CI | 2026-10-14 |
 | G5 Integração & CI | PENDING | | |
 | H2 Integração aprovada | PENDING | | |
