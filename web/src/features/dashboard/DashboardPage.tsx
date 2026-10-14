@@ -3,6 +3,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { useId, useState } from "react";
 import { logout } from "../../api/generated/vitrine.ts";
 import { meQuery } from "../../api/session.ts";
+import { ErrorAlert } from "../../ui/Alert.tsx";
 import { Button } from "../../ui/Button.tsx";
 import { ChatIcon, LockIcon, SparklesIcon, StoreIcon } from "../../ui/icons.tsx";
 import { useDocumentTitle } from "../../ui/useDocumentTitle.ts";
@@ -15,26 +16,44 @@ export function DashboardPage() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [signingOut, setSigningOut] = useState(false);
+  const [signOutError, setSignOutError] = useState<string>();
   const comingSoonId = useId();
 
   if (!me) {
     return null; // a rota redireciona para /entrar antes de chegar aqui
   }
 
+  // Só sai da tela quando o servidor confirmou (204); se falhar, avisa e revalida a sessão em vez de fingir.
   async function signOut() {
     setSigningOut(true);
+    setSignOutError(undefined);
     try {
-      await logout();
+      const response = await logout();
+      if (response.status === 204) {
+        queryClient.setQueryData(meQuery.queryKey, null);
+        await navigate({ to: "/entrar" });
+        return;
+      }
+      setSignOutError("Não foi possível sair agora. Tente de novo.");
+    } catch {
+      setSignOutError(
+        "Não foi possível falar com o Vitrine. Verifique sua conexão e tente de novo.",
+      );
     } finally {
-      queryClient.setQueryData(meQuery.queryKey, null);
-      await navigate({ to: "/entrar" });
+      setSigningOut(false);
     }
+    await queryClient.invalidateQueries({ queryKey: meQuery.queryKey });
   }
 
   const firstName = me.name.trim().split(/\s+/)[0] ?? me.name;
 
   return (
     <AppShell me={me} onSignOut={signOut} signingOut={signingOut}>
+      {signOutError && (
+        <div className="mb-6">
+          <ErrorAlert>{signOutError}</ErrorAlert>
+        </div>
+      )}
       <h1 className="text-4xl font-bold tracking-tight">Olá, {firstName}</h1>
 
       <section

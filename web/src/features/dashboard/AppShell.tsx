@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import type { MeResponse } from "../../api/generated/vitrine.ts";
 import { Button } from "../../ui/Button.tsx";
@@ -42,10 +43,7 @@ export function AppShell({ me, onSignOut, signingOut, children }: Props) {
           <p className="font-display text-2xl font-bold text-primary lg:hidden">Vitrine</p>
           <p className="hidden font-display text-lg font-semibold lg:block">Painel</p>
           <div className="flex items-center gap-3">
-            <p className="hidden text-right leading-tight lg:block">
-              <span className="block text-sm font-semibold">{me.name}</span>
-              <span className="block text-xs text-muted">{me.workspace.name}</span>
-            </p>
+            <p className="hidden text-sm font-semibold lg:block">{me.name}</p>
             <Button
               variant="ghost"
               onClick={onSignOut}
@@ -90,8 +88,8 @@ function SectionList({ variant }: { variant: "sidebar" | "bottom" }) {
       {sections.map(({ label, icon: SectionIcon, current }) => (
         <li key={label}>
           {current ? (
-            <a
-              href="/painel"
+            <Link
+              to="/painel"
               aria-current="page"
               className={`${item} text-primary focus-visible:outline-3 focus-visible:outline-primary ${
                 variant === "sidebar" ? "bg-primary-soft" : ""
@@ -99,7 +97,7 @@ function SectionList({ variant }: { variant: "sidebar" | "bottom" }) {
             >
               <SectionIcon className="size-6" />
               {label}
-            </a>
+            </Link>
           ) : (
             // Seção que ainda não existe: botão desabilitado (leitores de tela anunciam "indisponível").
             <button
