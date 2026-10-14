@@ -976,6 +976,12 @@
           "xunit.v3.runner.common": "[4.0.2]"
         }
       },
+      "common.clock": {
+        "type": "Project",
+        "dependencies": {
+          "ModuleB.Application": "[1.0.0, )"
+        }
+      },
       "modulea.application": {
         "type": "Project",
         "dependencies": {
@@ -983,6 +989,24 @@
         }
       },
       "moduleb.application": {
+        "type": "Project"
+      },
+      "modulec.application": {
+        "type": "Project",
+        "dependencies": {
+          "ModuleD.IntegrationEvents": "[1.0.0, )"
+        }
+      },
+      "modulec.integrationevents": {
+        "type": "Project"
+      },
+      "moduled.application": {
+        "type": "Project",
+        "dependencies": {
+          "ModuleC.IntegrationEvents": "[1.0.0, )"
+        }
+      },
+      "moduled.integrationevents": {
         "type": "Project"
       },
       "sample.domain": {

@@ -4,7 +4,7 @@ namespace Vitrine.ArchitectureTests;
 
 public sealed class SolutionArchitectureTests
 {
-    private static readonly string[] SampleAssemblyPrefixes = ["Sample.", "ModuleA.", "ModuleB."];
+    private static readonly string[] SampleAssemblyPrefixes = ["Sample.", "ModuleA.", "ModuleB.", "ModuleC.", "ModuleD.", "Common.Clock"];
 
     [Fact]
     [Trait("spec", "SPEC-0003:UT-05")]

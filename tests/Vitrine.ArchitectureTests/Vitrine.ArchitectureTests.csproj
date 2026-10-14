@@ -25,8 +25,13 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="Samples\Common.Clock\Common.Clock.csproj" />
     <ProjectReference Include="Samples\ModuleA.Application\ModuleA.Application.csproj" />
     <ProjectReference Include="Samples\ModuleB.Application\ModuleB.Application.csproj" />
+    <ProjectReference Include="Samples\ModuleC.Application\ModuleC.Application.csproj" />
+    <ProjectReference Include="Samples\ModuleC.IntegrationEvents\ModuleC.IntegrationEvents.csproj" />
+    <ProjectReference Include="Samples\ModuleD.Application\ModuleD.Application.csproj" />
+    <ProjectReference Include="Samples\ModuleD.IntegrationEvents\ModuleD.IntegrationEvents.csproj" />
     <ProjectReference Include="Samples\Sample.Domain\Sample.Domain.csproj" />
     <ProjectReference Include="Samples\Sample.Infrastructure\Sample.Infrastructure.csproj" />
   </ItemGroup>
