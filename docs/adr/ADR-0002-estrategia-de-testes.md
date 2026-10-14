@@ -44,7 +44,7 @@ Sem estratégia explícita, os testes ficam desbalanceados (muitos E2E instávei
 **Ferramenta por nível:**
 | Nível | Ferramenta / abordagem | Por quê | Onde roda |
 |---|---|---|---|
-| Unitário | xUnit v3 (C#); Vitest (SPA) | padrão do ecossistema, rápido, paralelo | local + CI |
+| Unitário | xUnit v3 (C#); Vitest + happy-dom 20.14.6 (DOM) + @testing-library/react 16.3.3 e @testing-library/dom 10.4.2 (SPA; todos MIT) *(DOM e Testing Library adicionados em 2026-10-13, aprovação pendente; happy-dom na linha 20.x madura em vez da 21.0.x publicada há 2 dias; jsdom 30 descartado por ter muitas dependências)* | padrão do ecossistema, rápido, paralelo | local + CI |
 | Integração | xUnit v3 + Testcontainers.PostgreSql (Postgres real em container) + WireMock.Net para ML/Anthropic + `WebApplicationFactory` | banco real, sem mocks de persistência; externos com contrato controlado | local + CI |
 | Contrato | Testes de contrato dos eventos de integração entre módulos (schema do evento publicado vs. consumidor) e do cliente TS gerado do OpenAPI (verificação de drift no CI) | módulos e SPA consomem contratos de outras specs | CI |
 | E2E | Playwright (@playwright/test, TypeScript) contra a aplicação subida por `Aspire.Hosting.Testing`/AppHost | jornada real no navegador, mesmo AppHost do dev | local + CI + staging (smoke) |

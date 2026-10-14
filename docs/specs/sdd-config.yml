@@ -18,7 +18,7 @@ test_e2e: "npm --prefix web run e2e"
 smoke_test: ""
 lint: "dotnet format Vitrine.slnx --verify-no-changes && npm --prefix web run lint"
 # G2 — cobertura das linhas alteradas (ex: diff-cover, coverlet + reportgenerator). Opcional.
-coverage: 'rm -rf TestResults/coverage && dotnet test --solution Vitrine.slnx --coverlet --coverlet-output-format cobertura --results-directory TestResults/coverage && dnx -y dotnet-reportgenerator-globaltool@5.5.11 "-reports:TestResults/coverage/**/*.xml" -targetdir:TestResults/coverage/report "-reporttypes:Cobertura;TextSummary" && if command -v uvx >/dev/null 2>&1; then uvx diff-cover@10.6.0 TestResults/coverage/report/Cobertura.xml --compare-branch=origin/main --fail-under=80; else echo "AVISO: uvx não encontrado; diff-cover (>= 80% das linhas alteradas) NÃO foi verificado localmente; no CI é obrigatório (SPEC-0004)" >&2; fi'
+coverage: 'rm -rf TestResults/coverage && dotnet test --solution Vitrine.slnx --coverlet --coverlet-output-format cobertura --results-directory TestResults/coverage && dnx -y dotnet-reportgenerator-globaltool@5.5.11 "-reports:TestResults/coverage/**/*.xml" -targetdir:TestResults/coverage/report "-reporttypes:Cobertura;TextSummary" && if command -v uvx >/dev/null 2>&1; then uvx diff-cover@10.6.0 TestResults/coverage/report/Cobertura.xml --compare-branch=origin/main --fail-under=80; elif [ "${CI:-}" = "true" ]; then echo "ERRO: uvx ausente no CI; diff-cover é obrigatório" >&2; exit 1; else echo "AVISO: uvx não encontrado; diff-cover (>= 80% das linhas alteradas) NÃO foi verificado localmente; no CI é obrigatório (SPEC-0004)" >&2; fi'
 coverage_min_changed_lines: 80
 # Opcional: mutation testing em código de domínio crítico (Stryker, PIT, mutmut).
 mutation: ""

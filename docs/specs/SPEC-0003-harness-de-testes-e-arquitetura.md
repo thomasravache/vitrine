@@ -73,11 +73,9 @@ sdd-config.yml:
   test_integration: "dotnet test tests/Vitrine.IntegrationTests"
   test_e2e:         "npm --prefix web run e2e"            # Playwright; BASE_URL opcional (staging)
   arch_test:        "dotnet test tests/Vitrine.ArchitectureTests"
-  coverage:         "dotnet test --solution Vitrine.slnx --coverlet --coverlet-output-format cobertura --results-directory TestResults/coverage
-                     && dnx -y dotnet-reportgenerator-globaltool@5.5.11 -reports:TestResults/coverage/**/*.xml -targetdir:TestResults/coverage/report -reporttypes:Cobertura;TextSummary
-                     && uvx diff-cover@10.6.0 TestResults/coverage/report/Cobertura.xml --compare-branch=origin/main --fail-under=80"
-                    (coletor coverlet.MTP — MIT; relatório ReportGenerator — Apache-2.0; linhas alteradas diff-cover — Apache-2.0, via uv;
-                     localmente sem uv o passo diff-cover é pulado com aviso e roda obrigatoriamente no CI — SPEC-0004)
+  coverage:         comando de `coverage` do sdd-config: limpa TestResults/coverage; dotnet test --solution com --coverlet (cobertura);
+                    ReportGenerator 5.5.11 via dnx (Cobertura + TextSummary); diff-cover 10.6.0 via uvx contra origin/main com --fail-under=80;
+                    sem uvx: aviso local, erro quando CI=true (coletor coverlet.MTP — MIT; ReportGenerator — Apache-2.0; diff-cover — Apache-2.0)
 Tag de teste:
   C#: [Trait("spec", "SPEC-NNNN:UT-01")]     TS: test("SPEC-NNNN:E2E-01 — <descrição>", ...)
 Fixtures públicas:
