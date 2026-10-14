@@ -1,3 +1,4 @@
+using JasperFx;
 using Wolverine;
 using Wolverine.Postgresql;
 
@@ -12,6 +13,11 @@ builder.Host.UseWolverine(options =>
         ?? throw new InvalidOperationException("ConnectionStrings:vitrine não configurada (o AppHost a fornece).");
 
     options.PersistMessagesWithPostgresql(connectionString);
+
+    // Schema só no passo dedicado de migração fora do desenvolvimento (ADR-0011); testes ligam por configuração.
+    var buildStorageOnStartup = builder.Environment.IsDevelopment()
+        || builder.Configuration.GetValue<bool>("Wolverine:AutoBuildMessageStorageOnStartup");
+    options.AutoBuildMessageStorageOnStartup = buildStorageOnStartup ? AutoCreate.CreateOrUpdate : AutoCreate.None;
     options.UseRuntimeCompilation();
 });
 

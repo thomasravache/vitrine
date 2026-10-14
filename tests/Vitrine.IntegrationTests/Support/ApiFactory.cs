@@ -45,6 +45,8 @@ public sealed class ApiFactory(string connectionString) : WebApplicationFactory<
         ArgumentNullException.ThrowIfNull(builder);
 
         builder.UseSetting("ConnectionStrings:vitrine", ConnectionString);
+        // O banco do teste nasce vazio: o host cria o schema do Wolverine em qualquer ambiente de teste.
+        builder.UseSetting("Wolverine:AutoBuildMessageStorageOnStartup", "true");
         builder.ConfigureTestServices(services =>
         {
             foreach (var configure in _serviceConfigurations)
