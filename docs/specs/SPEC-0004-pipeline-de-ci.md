@@ -169,7 +169,7 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 | G5 Integração & CI | PASS | MANUAL: PR #8 no resultado integrado ca587e5: 7/7 checks obrigatórios verdes (build-lint, unit, integration, architecture, e2e, security, sdd/pr-check) — https://github.com/thomasravache/vitrine/actions/runs/38503495881/job/115656660941; local: build 0 avisos, dotnet 21/21, Vitest 1/1, E2E 2/2, infra 3/3, ci 2/2, lint ok | 2026-10-13 |
 | H2 Integração aprovada | PASS | política auto-on-green (aprovada por thomas em 2026-10-13); G5 PASS | 2026-10-13 |
 | G6 Deploy | N/A | workflow ativo desde o merge (PR #8); primeira execução na main 38504315507 publicou imagem e compose-bundle (IT-05, CT-02 PASS); deploy na nuvem na SPEC-0009 | 2026-10-14 |
-| G7 Pronto & Docs | PENDING | | |
+| G7 Pronto & Docs | PASS | Relatório de Entrega e Definição de Pronto: ok — 1ca8c96 | 2026-10-14 |
 
 ## 13. Registro de Impedimentos
 <!-- Toda parada é registrada pelo Architect com `spec_graph.py impede` e fechada com `resolve` — não edite à mão. Tipos: spec (spec errada/incompleta → resolve com Emenda) | decisão (só o humano decide → resposta ou ADR) | trabalho (falta algo que exige código → SPEC-NNNN nova) | externo (acesso, ambiente, terceiro → ação tomada) | falha (3 FAILs seguidos no mesmo gate → diagnóstico e decisão). Com impedimento aberto a spec aparece como parada no INDEX e não pode ser fechada. -->
