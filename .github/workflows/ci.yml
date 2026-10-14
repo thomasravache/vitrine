@@ -1,0 +1,368 @@
+# CI do Vitrine (SPEC-0004; ADR-0002, ADR-0003, ADR-0004, ADR-0005, ADR-0006, ADR-0008).
+# Contrato (consumido pela SPEC-0005 via workflow_run "CI"):
+#   checks obrigatórios (nomes estáveis): build-lint, unit, integration, architecture, e2e, security, sdd
+#   na main, após todos os checks: ghcr.io/thomasravache/vitrine-api:<git-sha> (+ tag "main") e o
+#   artefato "compose-bundle" (docker-compose.yaml + .env.template, saída do `aspire publish`).
+# Os comandos de build, lint e testes vêm do docs/specs/sdd-config.yml (fonte única, lidos com o yq do runner).
+# Toda action de terceiros fica fixada pelo SHA completo do commit (comentário com a versão); imagens Docker
+# rodadas pelo pipeline ficam fixadas por digest. Sem retry automático de teste (ADR-0002).
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+    # "edited": título/corpo do PR alterados reexecutam o job sdd (pr-check).
+    types: [opened, edited, synchronize, reopened]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Menor privilégio: cada job declara o que precisa; o padrão é só leitura.
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  # Na main toda execução vai até o fim (cada merge publica a própria imagem).
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  DOTNET_VERSION: 10.0.4xx # banda do global.json (10.0.400, rollForward latestFeature)
+  DOTNET_NOLOGO: "true"
+  DOTNET_CLI_TELEMETRY_OPTOUT: "true"
+  SDD_CONFIG: docs/specs/sdd-config.yml
+  IMAGE_NAME: ghcr.io/thomasravache/vitrine-api
+
+jobs:
+  build-lint:
+    name: build-lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+          cache: true
+          cache-dependency-path: "**/packages.lock.json"
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: web/.nvmrc
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Build (sdd-config build)
+        run: |
+          cmd="$(yq -r '.build' "$SDD_CONFIG")"
+          echo "+ $cmd"
+          bash -euo pipefail -c "$cmd"
+      - name: Lint (sdd-config lint)
+        run: |
+          cmd="$(yq -r '.lint' "$SDD_CONFIG")"
+          echo "+ $cmd"
+          bash -euo pipefail -c "$cmd"
+      - name: Workflow checks (actionlint, SHA pinning, contract)
+        run: bash tests/ci/run.sh
+
+  unit:
+    name: unit
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # diff-cover compara com origin/main
+          persist-credentials: false
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+          cache: true
+          cache-dependency-path: "**/packages.lock.json"
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: web/.nvmrc
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      # uv/uvx executa o diff-cover do comando de cobertura (obrigatório no CI, ADR-0002).
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          version: "0.12.20"
+          enable-cache: false
+      - name: Install SPA dependencies
+        run: npm --prefix web ci
+      - name: Unit tests (sdd-config test)
+        run: |
+          cmd="$(yq -r '.test' "$SDD_CONFIG")"
+          echo "+ $cmd"
+          bash -euo pipefail -c "$cmd"
+      - name: Coverage of changed lines (sdd-config coverage)
+        run: |
+          cmd="$(yq -r '.coverage' "$SDD_CONFIG")"
+          echo "+ $cmd"
+          bash -euo pipefail -c "$cmd"
+      - name: Upload coverage report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: coverage-report
+          path: TestResults/coverage/report
+          if-no-files-found: ignore
+          retention-days: 14
+
+  integration:
+    name: integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+          cache: true
+          cache-dependency-path: "**/packages.lock.json"
+      - name: Integration tests (sdd-config test_integration)
+        run: |
+          cmd="$(yq -r '.test_integration' "$SDD_CONFIG")"
+          echo "+ $cmd"
+          bash -euo pipefail -c "$cmd"
+
+  architecture:
+    name: architecture
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+          cache: true
+          cache-dependency-path: "**/packages.lock.json"
+      - name: Architecture tests (sdd-config arch_test)
+        run: |
+          cmd="$(yq -r '.arch_test' "$SDD_CONFIG")"
+          echo "+ $cmd"
+          bash -euo pipefail -c "$cmd"
+
+  e2e:
+    name: e2e
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+          cache: true
+          cache-dependency-path: "**/packages.lock.json"
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: web/.nvmrc
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Install SPA dependencies
+        run: npm --prefix web ci
+      - name: Install Playwright browser
+        working-directory: web
+        run: npx playwright install --with-deps chromium
+      - name: E2E tests (sdd-config test_e2e)
+        run: |
+          cmd="$(yq -r '.test_e2e' "$SDD_CONFIG")"
+          echo "+ $cmd"
+          bash -euo pipefail -c "$cmd"
+      - name: Upload Playwright report and traces
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: playwright-report
+          path: |
+            web/playwright-report
+            web/test-results
+          if-no-files-found: ignore
+          retention-days: 14
+
+  security:
+    name: security
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      security-events: write # upload dos resultados do CodeQL
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # gitleaks varre o histórico inteiro, não só o último commit
+          persist-credentials: false
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+          cache: true
+          cache-dependency-path: "**/packages.lock.json"
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: web/.nvmrc
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Initialize CodeQL (csharp, javascript-typescript)
+        uses: github/codeql-action/init@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
+        with:
+          languages: csharp, javascript-typescript
+          build-mode: none
+          config-file: ./.github/codeql/codeql-config.yml
+
+      # Cada varredura roda mesmo se a anterior falhou, para o log mostrar todos os achados.
+      - name: Vulnerable NuGet packages (dotnet list package --vulnerable)
+        if: ${{ !cancelled() }}
+        run: |
+          # NuGetAudit desligado só nesta restauração: o achado sai no relatório abaixo, não como erro de restore.
+          dotnet restore Vitrine.slnx -p:NuGetAudit=false
+          dotnet list Vitrine.slnx package --vulnerable --include-transitive 2>&1 | tee "$RUNNER_TEMP/nuget-vulnerable.txt"
+          # `dotnet list` sai com 0 mesmo com achados: alta/crítica bloqueia o merge (ADR-0008).
+          if grep -qE '^[[:space:]]+>.*[[:space:]](High|Critical)[[:space:]]' "$RUNNER_TEMP/nuget-vulnerable.txt"; then
+            echo "::error title=security::NuGet package(s) with high/critical vulnerability (see the report above)"
+            exit 1
+          fi
+      - name: npm audit (high/critical)
+        if: ${{ !cancelled() }}
+        run: npm --prefix web audit --audit-level=high
+      - name: Secret scan (gitleaks)
+        if: ${{ !cancelled() }}
+        env:
+          GITLEAKS_IMAGE: ghcr.io/gitleaks/gitleaks:v8.30.1@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f
+        run: |
+          docker run --rm -u "$(id -u):$(id -g)" -v "$GITHUB_WORKSPACE:/repo:ro" -w /repo "$GITLEAKS_IMAGE" \
+            git /repo --no-banner --redact --verbose
+      - name: Build image (dotnet publish container, API + SPA)
+        if: ${{ !cancelled() }}
+        run: |
+          npm --prefix web ci
+          npm --prefix web run build
+          dotnet publish src/Api/Vitrine.Api.csproj -c Release -t:PublishContainer -p:PublishSpa=true \
+            -p:ContainerImageTag="$GITHUB_SHA" -p:ImageRevision="$GITHUB_SHA"
+          docker save "thomasravache/vitrine-api:$GITHUB_SHA" -o "$RUNNER_TEMP/vitrine-api.tar"
+      - name: Image scan (Trivy)
+        if: ${{ !cancelled() }}
+        env:
+          TRIVY_IMAGE: aquasec/trivy:0.74.0@sha256:62b1e65e8869bc4b4c6aa4fa2b21595256c7c2f6018a9d9ad61caf87187c1969
+        run: |
+          # Vulnerabilidade alta/crítica com correção disponível bloqueia o merge (ADR-0008).
+          docker run --rm -v "$RUNNER_TEMP:/scan:ro" "$TRIVY_IMAGE" image --input /scan/vitrine-api.tar \
+            --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 --no-progress --skip-version-check
+      - name: Upload image for publishing (main only)
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: vitrine-api-image
+          path: ${{ runner.temp }}/vitrine-api.tar
+          if-no-files-found: error
+          retention-days: 1
+      - name: Analyze (CodeQL)
+        id: codeql
+        if: ${{ !cancelled() }}
+        uses: github/codeql-action/analyze@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
+        with:
+          output: ${{ runner.temp }}/codeql-sarif
+      - name: SAST findings (CodeQL high/critical)
+        if: ${{ !cancelled() && steps.codeql.outcome == 'success' }}
+        run: |
+          # Achado de segurança com security-severity >= 7.0 (alta/crítica) bloqueia o merge.
+          findings="$(jq -r '.runs[] | ([.tool.driver.rules[]?, .tool.extensions[]?.rules[]?]) as $rules
+            | .results[]? | select((.suppressions // []) | length == 0) | . as $r
+            | ([$rules[] | select(.id == $r.ruleId) | .properties["security-severity"] // "0" | tonumber] | max // 0) as $s
+            | select($s >= 7)
+            | "\($s) \($r.ruleId) \($r.locations[0].physicalLocation.artifactLocation.uri // "?"):\($r.locations[0].physicalLocation.region.startLine // 0)"' \
+            "$RUNNER_TEMP"/codeql-sarif/*.sarif)"
+          if [[ -n "$findings" ]]; then
+            printf '%s\n' "$findings"
+            echo "::error title=security::CodeQL found high/critical issue(s) (see above and the Security tab)"
+            exit 1
+          fi
+          echo "CodeQL: no high/critical findings"
+
+  # sdd: specs válidas e pr-check (ADR-0005). Roda depois dos outros seis para, na main, publicar a imagem e o
+  # compose-bundle só com tudo verde; `!cancelled()` mantém o pr-check rodando mesmo se outro job falhar.
+  sdd:
+    name: sdd
+    needs: [build-lint, unit, integration, architecture, e2e, security]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: write # push da imagem no GHCR (só nos passos de publicação, na main)
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # verify/pr-check comparam com a branch alvo
+          persist-credentials: false
+      - name: Specs e ADRs válidos (G0)
+        run: python3 tools/sdd/spec_graph.py validate --exclude-drafts
+      # Título/corpo do PR entram por variável de ambiente, nunca interpolados no script (script injection).
+      - name: PR ligado a specs aprovadas, gates G0–G4, TDD e escopo (pr-check)
+        if: ${{ github.event_name == 'pull_request' }}
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: python3 tools/sdd/spec_graph.py pr-check --base "origin/${BASE_REF}"
+
+      # --- Publicação (push na main, os seis outros jobs verdes) ---
+      - name: Download scanned image
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled') && !contains(needs.*.result, 'skipped') }}
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: vitrine-api-image
+          path: ${{ runner.temp }}/image
+      - name: Publish image to GHCR (<sha> and main)
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled') && !contains(needs.*.result, 'skipped') }}
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+        run: |
+          docker load -i "$RUNNER_TEMP/image/vitrine-api.tar"
+          echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          for tag in "$GITHUB_SHA" main; do
+            docker tag "thomasravache/vitrine-api:$GITHUB_SHA" "$IMAGE_NAME:$tag"
+            docker push "$IMAGE_NAME:$tag"
+          done
+          docker logout ghcr.io
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled') && !contains(needs.*.result, 'skipped') }}
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+          cache: true
+          cache-dependency-path: "**/packages.lock.json"
+      - name: Generate compose-bundle (aspire publish)
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled') && !contains(needs.*.result, 'skipped') }}
+        run: |
+          # Equivale a `aspire publish -o compose-bundle` sem exigir o Aspire CLI (AspireUseCliBundle=false).
+          out="$RUNNER_TEMP/compose-bundle"
+          dotnet run --project src/AppHost/Vitrine.AppHost.csproj -- --operation publish --step publish --output-path "$out"
+          # O .env gerado só tem nomes de variáveis (valores vazios): vira o modelo do .env do servidor (SPEC-0005),
+          # com a imagem desta execução já preenchida.
+          mv "$out/.env" "$out/.env.template"
+          sed -i "s|^API_IMAGE=.*|API_IMAGE=$IMAGE_NAME:$GITHUB_SHA|" "$out/.env.template"
+          ls -la "$out"
+      - name: Upload compose-bundle
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled') && !contains(needs.*.result, 'skipped') }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: compose-bundle
+          path: ${{ runner.temp }}/compose-bundle
+          include-hidden-files: true # .env.template
+          if-no-files-found: error

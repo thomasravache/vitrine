@@ -1,0 +1,12 @@
+# CodeQL (SAST, ADR-0003) — usado pelo job `security` do CI (SPEC-0004).
+# Consultas padrão de segurança para csharp e javascript-typescript; ignora código gerado, dependências e as
+# amostras de arquitetura (projetos-fixture dos testes de regras, não código do produto).
+name: vitrine-codeql
+paths-ignore:
+  - "**/bin/**"
+  - "**/obj/**"
+  - "**/node_modules/**"
+  - web/dist
+  - web/playwright-report
+  - web/test-results
+  - tests/Vitrine.ArchitectureTests/Samples
