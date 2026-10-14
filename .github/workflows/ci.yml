@@ -22,12 +22,12 @@ permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.event.pull_request.number || github.ref }}
-  # Na main toda execução vai até o fim (cada merge publica a própria imagem).
+  # PR: um grupo por PR, a execução nova cancela a anterior. Push/dispatch: um grupo por ref + SHA, então
+  # execuções da main nunca se enfileiram nem se cancelam — todo merge publica a própria imagem e bundle.
+  group: ci-${{ github.event.pull_request.number || format('{0}-{1}', github.ref, github.sha) }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
-  DOTNET_VERSION: 10.0.4xx # banda do global.json (10.0.400, rollForward latestFeature)
   DOTNET_NOLOGO: "true"
   DOTNET_CLI_TELEMETRY_OPTOUT: "true"
   SDD_CONFIG: docs/specs/sdd-config.yml
@@ -46,7 +46,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
-          dotnet-version: ${{ env.DOTNET_VERSION }}
+          global-json-file: global.json
           cache: true
           cache-dependency-path: "**/packages.lock.json"
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -80,7 +80,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
-          dotnet-version: ${{ env.DOTNET_VERSION }}
+          global-json-file: global.json
           cache: true
           cache-dependency-path: "**/packages.lock.json"
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -126,7 +126,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
-          dotnet-version: ${{ env.DOTNET_VERSION }}
+          global-json-file: global.json
           cache: true
           cache-dependency-path: "**/packages.lock.json"
       - name: Integration tests (sdd-config test_integration)
@@ -147,7 +147,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
-          dotnet-version: ${{ env.DOTNET_VERSION }}
+          global-json-file: global.json
           cache: true
           cache-dependency-path: "**/packages.lock.json"
       - name: Architecture tests (sdd-config arch_test)
@@ -168,7 +168,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
-          dotnet-version: ${{ env.DOTNET_VERSION }}
+          global-json-file: global.json
           cache: true
           cache-dependency-path: "**/packages.lock.json"
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -211,7 +211,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
-          dotnet-version: ${{ env.DOTNET_VERSION }}
+          global-json-file: global.json
           cache: true
           cache-dependency-path: "**/packages.lock.json"
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -229,6 +229,7 @@ jobs:
       # Cada varredura roda mesmo se a anterior falhou, para o log mostrar todos os achados.
       - name: Vulnerable NuGet packages (dotnet list package --vulnerable)
         if: ${{ !cancelled() }}
+        shell: bash # bash -eo pipefail: falha do `dotnet list` não se perde no pipe com o tee (fail-closed)
         run: |
           # Aviso de auditoria (NU190x) não vira erro nesta restauração: o achado sai no relatório abaixo.
           dotnet restore Vitrine.slnx -p:TreatWarningsAsErrors=false
@@ -345,7 +346,7 @@ jobs:
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled') && !contains(needs.*.result, 'skipped') }}
         with:
-          dotnet-version: ${{ env.DOTNET_VERSION }}
+          global-json-file: global.json
           cache: true
           cache-dependency-path: "**/packages.lock.json"
       - name: Generate compose-bundle (aspire publish)
