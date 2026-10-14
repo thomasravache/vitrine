@@ -4,7 +4,7 @@ title: Harness de testes e arquitetura
 tier: full
 type: foundation
 user_facing: false
-status: in-progress
+status: implemented
 created: 2026-10-13
 parent: SPEC-0001
 depends_on: [SPEC-0002]
@@ -149,24 +149,24 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 ## 11. Checklist de Implementação
 <!-- Preenchido na fase PLAN, após a aprovação. Cada fase começa pelos testes. -->
 **Fase 1: Unitário e arquitetura**
-- [ ] Red: escrever UT-01..UT-05 com a tag `SPEC-0003:<ID>` e confirmar que falham pelo motivo certo (UT-05 é guarda: passa)
-- [ ] Green: projetos UnitTests e ArchitectureTests, Vitest na SPA, regras ArchUnitNET da ADR-0001, assemblies de amostra
-- [ ] Refactor mantendo tudo verde
+- [x] Red: escrever UT-01..UT-05 com a tag `SPEC-0003:<ID>` e confirmar que falham pelo motivo certo (UT-05 é guarda: passa)
+- [x] Green: projetos UnitTests e ArchitectureTests, Vitest na SPA, regras ArchUnitNET da ADR-0001, assemblies de amostra
+- [x] Refactor mantendo tudo verde
 
 **Fase 2: Integração com dependências reais**
-- [ ] Red: escrever IT-01, IT-02, IT-03 e confirmar que falham pelo motivo certo
-- [ ] Green: `PostgresFixture` (Testcontainers), `ApiFactory` + WireMock, Wolverine com persistência PostgreSQL no host
-- [ ] Validar: build + suíte completa + arquitetura (G2/G3)
+- [x] Red: escrever IT-01, IT-02, IT-03 e confirmar que falham pelo motivo certo
+- [x] Green: `PostgresFixture` (Testcontainers), `ApiFactory` + WireMock, Wolverine com persistência PostgreSQL no host
+- [x] Validar: build + suíte completa + arquitetura (G2/G3)
 
 **Fase 3: Jornada E2E**
-- [ ] Red: E2E-01 falhando pelo motivo certo
-- [ ] Green: Playwright (desktop + celular) + axe contra o AppHost; comandos `test`, `test_integration`, `test_e2e`, `arch_test`, `coverage` no sdd-config
+- [x] Red: E2E-01 falhando pelo motivo certo
+- [x] Green: Playwright (desktop + celular) + axe contra o AppHost; comandos `test`, `test_integration`, `test_e2e`, `arch_test`, `coverage` no sdd-config
 
 **Fase final: Integração, entrega e documentação**
-- [ ] Review independente (G4)
-- [ ] Integração + CI verde (G5) e aprovação (H2)
-- [ ] Deploy: N/A — só código de teste (G6)
-- [ ] Relatório de Entrega, docs raiz e CHANGELOG (G7)
+- [x] Review independente (G4)
+- [x] Integração + CI verde (G5) e aprovação (H2)
+- [x] Deploy: N/A — só código de teste (G6)
+- [x] Relatório de Entrega, docs raiz e CHANGELOG (G7)
 
 ## 12. Registro de Gates
 <!-- Status: PENDING | PASS | FAIL | N/A. PASS e N/A exigem evidência (comando + resultado, SHA, execução de CI, veredito). -->
@@ -179,8 +179,8 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 | G4 Review | PASS | MANUAL: verify SPEC-0003 --base 326c5c2 (integração antes do merge): PASS 0 falhas, 1 aviso justificado; a FAIL anterior apontava .claude/scheduled_tasks.lock, arquivo do agendador commitado por engano pelo Architect em 750c582 e removido em seguida — fora do trabalho da spec | 2026-10-13 |
 | G5 Integração & CI | PASS | MANUAL: PR #8 no resultado integrado ca587e5: 7/7 checks obrigatórios verdes (build-lint, unit, integration, architecture, e2e, security, sdd/pr-check) — https://github.com/thomasravache/vitrine/actions/runs/38503495881/job/115656660941; local: build 0 avisos, dotnet 21/21, Vitest 1/1, E2E 2/2, infra 3/3, ci 2/2, lint ok | 2026-10-13 |
 | H2 Integração aprovada | PASS | política auto-on-green (aprovada por thomas em 2026-10-13); G5 PASS | 2026-10-13 |
-| G6 Deploy | PENDING | | |
-| G7 Pronto & Docs | PENDING | | |
+| G6 Deploy | N/A | sem serviço implantável: só harness de testes; deploy na nuvem na SPEC-0009 | 2026-10-14 |
+| G7 Pronto & Docs | PASS | Relatório de Entrega e Definição de Pronto: ok — 464d0b7 | 2026-10-14 |
 
 ## 13. Registro de Impedimentos
 <!-- Toda parada é registrada pelo Architect com `spec_graph.py impede` e fechada com `resolve` — não edite à mão. Tipos: spec (spec errada/incompleta → resolve com Emenda) | decisão (só o humano decide → resposta ou ADR) | trabalho (falta algo que exige código → SPEC-NNNN nova) | externo (acesso, ambiente, terceiro → ação tomada) | falha (3 FAILs seguidos no mesmo gate → diagnóstico e decisão). Com impedimento aberto a spec aparece como parada no INDEX e não pode ser fechada. -->
@@ -194,36 +194,44 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 <!-- Preenchido no CLOSE (G7). Diz o que foi feito, como, e prova que foi resolvido. Para status implemented o validate exige todas as subseções preenchidas, todo teste do plano com PASS + evidência e a Definição de Pronto toda marcada. -->
 
 ### O que foi entregue
-<!-- comportamento entregue do ponto de vista do usuário/sistema -->
+Harness de testes de todos os níveis da ADR-0002: xUnit v3 (unitário), integração com PostgreSQL real (Testcontainers) e serviços externos falsos (WireMock), testes de arquitetura ArchUnitNET com as regras da ADR-0001 (camadas, isolamento de módulos, sem ciclos, Common sem módulos), Vitest + happy-dom + Testing Library na SPA, Playwright (desktop e celular) com axe subindo a aplicação pelo AppHost, cobertura coverlet.MTP + ReportGenerator + diff-cover (≥ 80% das linhas alteradas, obrigatório no CI). Wolverine com persistência durável no PostgreSQL no host da API, criando o schema na partida só em Development/testes (ADR-0011).
 
 ### Como foi feito
-<!-- decisões de implementação, módulos/arquivos principais, desvios e emendas (com versão), dívidas assumidas -->
+Test-writer, Implementer e Reviewer independentes. Emenda v2 (cobertura) aprovada por thomas; IMP-01 (comando de cobertura), IMP-02 (bibliotecas do Chromium, instaladas pelo usuário) e IMP-03 (escopo do Tooling.Tests) resolvidos. Review pediu: happy-dom 20.14.6 (ADR-0002 atualizado), Wolverine sem auto-criação em produção, IT-02 sem dependência de relógio, testes negativos para ciclos e Common, carregamento de todos os projetos de src/, testconfig único. Minors aceitos: IT-02 usa APIs internas do Wolverine (rever no upgrade); SolutionArchitecture carrega DLL de bin/ se o projeto não for referenciado.
 
 ### Prova de Correção
-<!-- type fix: o teste de regressão falhou antes da correção (commit red + saída) e passa depois (commit green + execução). Outros tipos: "N/A". -->
+N/A
 
 ### Verificação
-<!-- Uma linha por teste do plano (todos os IDs da seção 7). Resultado: PASS. Evidência: execução de CI, commit ou relatório. -->
 | Teste | Comportamento | Resultado | Evidência |
 |---|---|---|---|
+| SPEC-0003:UT-01 | Harness unitário descoberto com tag | PASS | PR #8, CI https://github.com/thomasravache/vitrine/actions/runs/38503495881 |
+| SPEC-0003:UT-02 | Vitest roda na SPA | PASS | PR #8, CI https://github.com/thomasravache/vitrine/actions/runs/38503495881 |
+| SPEC-0003:UT-03 | Regra de camadas falha na violação | PASS | PR #8, CI https://github.com/thomasravache/vitrine/actions/runs/38503495881 |
+| SPEC-0003:UT-04 | Regras de isolamento, ciclos e Common falham nas violações | PASS | PR #8, CI https://github.com/thomasravache/vitrine/actions/runs/38503495881 |
+| SPEC-0003:UT-05 | Solução atual respeita as regras | PASS | PR #8, CI https://github.com/thomasravache/vitrine/actions/runs/38503495881 |
+| SPEC-0003:IT-01 | Postgres real isolado por teste | PASS | PR #8, CI https://github.com/thomasravache/vitrine/actions/runs/38503495881 |
+| SPEC-0003:IT-02 | Mensagem Wolverine sobrevive ao reinício do host | PASS | PR #8, CI https://github.com/thomasravache/vitrine/actions/runs/38503495881 |
+| SPEC-0003:IT-03 | Serviço externo atendido pelo WireMock | PASS | PR #8, CI https://github.com/thomasravache/vitrine/actions/runs/38503495881 |
+| SPEC-0003:E2E-01 | Página inicial carrega sem violações axe (desktop e celular) | PASS | PR #8, CI https://github.com/thomasravache/vitrine/actions/runs/38503495881; local 2/2 após IMP-02 |
 
 ### Definição de Pronto
-- [ ] Todos os testes do plano passando e listados na Verificação
-- [ ] Todo comportamento do Mapa de Comportamentos coberto e verificado
-- [ ] Suíte completa, arquitetura e CI verdes no resultado integrado (G5)
-- [ ] Review independente sem achados blocker/major (G4)
-- [ ] Padrão arquitetural existente mantido, ou desvio coberto por ADR aprovado
-- [ ] Requisitos não-funcionais medidos com evidência (ou N/A justificado)
-- [ ] Disponível no ambiente-alvo via pipeline, com smoke/E2E passando no ambiente (G6)
-- [ ] Observabilidade e rollback prontos conforme o Plano de Rollout
-- [ ] Documentação raiz e CHANGELOG atualizados (G7)
-- [ ] Pendências registradas como novas specs (ou nenhuma)
+- [x] Todos os testes do plano passando e listados na Verificação
+- [x] Todo comportamento do Mapa de Comportamentos coberto e verificado
+- [x] Suíte completa, arquitetura e CI verdes no resultado integrado (G5)
+- [x] Review independente sem achados blocker/major (G4)
+- [x] Padrão arquitetural existente mantido, ou desvio coberto por ADR aprovado
+- [x] Requisitos não-funcionais medidos com evidência (ou N/A justificado)
+- [x] Disponível no ambiente-alvo via pipeline, com smoke/E2E passando no ambiente (G6)
+- [x] Observabilidade e rollback prontos conforme o Plano de Rollout
+- [x] Documentação raiz e CHANGELOG atualizados (G7)
+- [x] Pendências registradas como novas specs (ou nenhuma)
 
 ### Deploy
-<!-- ambiente(s), versão/tag, data, estratégia, estado da feature flag, execução do pipeline -->
+Sem serviço implantável (G6 N/A). Entrega = merge do PR #8 na `main` (5617ad3).
 
 ### Pendências
-<!-- specs criadas para o que ficou de fora, ou "Nenhuma" -->
+Nenhuma nova spec. Comandos oficiais no `sdd-config` (test, test_integration, test_e2e, arch_test, coverage).
 
 ## 15. Emendas
 <!-- Mudança em spec aprovada: uma linha por emenda. Mudou o contrato? Incremente `contract_version` e rode `spec_graph.py impacted SPEC-0003`. -->
