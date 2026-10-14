@@ -22,6 +22,9 @@ public sealed class Workspace
     /// <summary>Eventos de domínio gerados e ainda não publicados.</summary>
     public IReadOnlyCollection<IDomainEvent> DomainEvents => _domainEvents.AsReadOnly();
 
+    /// <summary>Descarta os eventos de domínio depois de publicados (cada evento sai uma única vez).</summary>
+    public void ClearDomainEvents() => _domainEvents.Clear();
+
     /// <summary>Cria o workspace de um usuário recém-cadastrado, com ele como único membro <see cref="WorkspaceRole.Owner"/>.</summary>
     public static Workspace CreateFor(RegisteredUser user, DateTimeOffset createdAt)
     {

@@ -42,6 +42,8 @@ public sealed class RegisterCommandHandler(
             await unitOfWork.PublishAsync(new WorkspaceCreated(created.WorkspaceId, created.OwnerUserId, created.CreatedAt));
         }
 
+        workspace.ClearDomainEvents();
+
         await transaction.CommitAsync(cancellationToken);
         return new RegisterResult.Registered(userId, workspace.Id);
     }

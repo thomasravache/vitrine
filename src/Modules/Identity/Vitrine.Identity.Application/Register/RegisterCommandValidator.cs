@@ -3,7 +3,7 @@ using System.Text.RegularExpressions;
 namespace Vitrine.Identity.Application.Register;
 
 /// <summary>
-/// Regras de entrada do cadastro (contrato da SPEC-0006): nome 2..100, e-mail válido, senha com 10+ caracteres.
+/// Regras de entrada do cadastro (contrato da SPEC-0006): nome 2..100, e-mail válido, senha de 10 a 128 caracteres.
 /// </summary>
 public static partial class RegisterCommandValidator
 {
@@ -11,6 +11,7 @@ public static partial class RegisterCommandValidator
     public const int NameMaxLength = 100;
     public const int EmailMaxLength = 254;
     public const int PasswordMinLength = 10;
+    public const int PasswordMaxLength = 128;
 
     /// <summary>
     /// Valida o comando e devolve os erros por campo (<c>name</c>, <c>email</c>, <c>password</c>);
@@ -34,9 +35,10 @@ public static partial class RegisterCommandValidator
             errors["email"] = ["Informe um e-mail válido."];
         }
 
-        if ((command.Password ?? string.Empty).Length < PasswordMinLength)
+        var passwordLength = (command.Password ?? string.Empty).Length;
+        if (passwordLength is < PasswordMinLength or > PasswordMaxLength)
         {
-            errors["password"] = [$"A senha precisa ter pelo menos {PasswordMinLength} caracteres."];
+            errors["password"] = [$"A senha precisa ter de {PasswordMinLength} a {PasswordMaxLength} caracteres."];
         }
 
         return errors;
