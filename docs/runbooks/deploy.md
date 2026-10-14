@@ -55,6 +55,8 @@ docker compose -p vitrine down
 | `DEPLOY_HEALTH_INSECURE` | `true` só onde o certificado não é público (local) |
 | `DEPLOY_HEALTH_TIMEOUT` | segundos de espera do health (≤ 120) |
 | `DEPLOY_COMPOSE_BASE` | base do Compose alternativa (ex.: `docker-compose.yaml` do `compose-bundle`) |
+| `FEATURES_SIGNUP_OPEN` | cadastro público (`Features__SignupOpen`): `true` no local prod-like e em staging; **`false` em produção até o lançamento** (padrão `false` se ausente; com `false`, `POST /api/v1/auth/register` responde 404) |
+| `ASPNETCORE_ENVIRONMENT` | sempre `Production` fora do desenvolvimento local: `Development` aplica migrações na subida da API e nunca é usado em servidor |
 
 ## Pendências para a SPEC-0009
 - **Versão do PostgreSQL gerenciado:** `postgres_version` está em `17` (padrão em `infra/variables.tf`); confirmar a maior versão oferecida pelo DigitalOcean (ADR-0011: ≥ 17, preferir 18 como no ambiente local) antes do provisionamento.
