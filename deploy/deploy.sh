@@ -22,7 +22,7 @@ STATE_DIR="$DEPLOY_DIR/.state"
 DOTENV="$DEPLOY_DIR/.env"
 
 say() { printf 'deploy: %s\n' "$*"; }
-die() { printf 'deploy: ERRO: %s\n' "$*" >&2; exit "${2:-1}"; }
+die() { printf 'deploy: ERRO: %s\n' "$1" >&2; exit "${2:-1}"; }
 
 usage() { die "uso: deploy/deploy.sh <tag> [--env-file <arquivo>]" 2; }
 
@@ -151,8 +151,7 @@ fi
 
 # --- Troca de versão + health ---------------------------------------------------
 t0=$SECONDS
-compose up -d --remove-orphans
-if wait_health; then
+if compose up -d --remove-orphans && wait_health; then
   printf '%s\n' "$tag" >"$STATE_DIR/current.tmp" && mv -f "$STATE_DIR/current.tmp" "$STATE_DIR/current"
   if [[ -n "$current" && "$current" != "$tag" ]]; then
     printf '%s\n' "$current" >"$STATE_DIR/previous.tmp" && mv -f "$STATE_DIR/previous.tmp" "$STATE_DIR/previous"
@@ -161,12 +160,12 @@ if wait_health; then
   exit 0
 fi
 
-say "health check de ${tag} falhou (limite: ${health_timeout} s)"
+# `up -d` falhou ou o health check não ficou 200: mesma volta automática para a versão anterior.
+say "troca para ${tag} falhou (compose up ou health check; limite: ${health_timeout} s)"
 if [[ -n "$current" && "$current" != "$tag" ]]; then
   say "voltando para ${current}"
   write_dotenv "$current"
-  compose up -d --remove-orphans
-  if wait_health; then
+  if compose up -d --remove-orphans && wait_health; then
     die "deploy de ${tag} revertido; ${current} no ar"
   fi
   die "deploy de ${tag} revertido, mas ${current} também não respondeu ao health check"
