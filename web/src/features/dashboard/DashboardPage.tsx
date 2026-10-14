@@ -1,5 +1,5 @@
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
+import { Navigate, useNavigate } from "@tanstack/react-router";
 import { useId, useState } from "react";
 import { logout } from "../../api/generated/vitrine.ts";
 import { meQuery } from "../../api/session.ts";
@@ -20,16 +20,18 @@ export function DashboardPage() {
   const comingSoonId = useId();
 
   if (!me) {
-    return null; // a rota redireciona para /entrar antes de chegar aqui
+    // Sessão acabou (expirou ou foi encerrada em outra aba): volta para o login.
+    return <Navigate to="/entrar" replace />;
   }
 
-  // Só sai da tela quando o servidor confirmou (204); se falhar, avisa e revalida a sessão em vez de fingir.
+  // Sai da tela quando o servidor confirmou (204) ou já não havia sessão (401); em outra falha, avisa e revalida
+  // a sessão em vez de fingir — se ela tiver acabado, o painel leva para /entrar.
   async function signOut() {
     setSigningOut(true);
     setSignOutError(undefined);
     try {
       const response = await logout();
-      if (response.status === 204) {
+      if (response.status === 204 || response.status === 401) {
         queryClient.setQueryData(meQuery.queryKey, null);
         await navigate({ to: "/entrar" });
         return;

@@ -37,7 +37,8 @@ public static class IdentityEndpoints
             .ProducesProblem(StatusCodes.Status423Locked);
         auth.MapPost("/logout", Logout).WithName("Logout")
             .AddEndpointFilter<AntiforgeryFilter>()
-            .ProducesProblem(StatusCodes.Status400BadRequest);
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status401Unauthorized);
 
         endpoints.MapGet("/api/v1/me", GetMe).WithName("GetMe").WithTags("Me")
             .ProducesProblem(StatusCodes.Status401Unauthorized);

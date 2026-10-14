@@ -244,10 +244,15 @@ export type logoutResponse400 = {
   status: 400;
 };
 
+export type logoutResponse401 = {
+  data: ProblemDetails;
+  status: 401;
+};
+
 export type logoutResponseSuccess = logoutResponse204 & {
   headers: Headers;
 };
-export type logoutResponseError = logoutResponse400 & {
+export type logoutResponseError = (logoutResponse400 | logoutResponse401) & {
   headers: Headers;
 };
 
