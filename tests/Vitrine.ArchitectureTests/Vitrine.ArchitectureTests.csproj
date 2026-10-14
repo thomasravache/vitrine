@@ -38,6 +38,11 @@
     <ProjectReference Include="Samples\Sample.Infrastructure\Sample.Infrastructure.csproj" />
   </ItemGroup>
 
+  <!-- Configuração de cobertura única (coverlet.MTP), mantida em Vitrine.UnitTests/testconfig.json. -->
+  <ItemGroup>
+    <None Include="..\Vitrine.UnitTests\testconfig.json" Link="$(AssemblyName).testconfig.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
   <ItemGroup>
     <Using Include="Xunit" />
   </ItemGroup>

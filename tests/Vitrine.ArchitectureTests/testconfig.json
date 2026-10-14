@@ -1,9 +1,0 @@
-{
-  "platformOptions": {
-    "Coverlet": {
-      "include": "[Vitrine.*]*",
-      "exclude": "[Vitrine.*Tests]*",
-      "excludeByAttribute": "ExcludeFromCodeCoverage,ExcludeFromCodeCoverageAttribute,GeneratedCodeAttribute,CompilerGeneratedAttribute"
-    }
-  }
-}
