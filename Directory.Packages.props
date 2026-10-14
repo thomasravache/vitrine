@@ -5,6 +5,7 @@
   </PropertyGroup>
   <!-- Aspire.Hosting.AppHost não entra aqui: a versão vem do Aspire.AppHost.Sdk (NU1009). -->
   <ItemGroup Label="Aspire">
+    <PackageVersion Include="Aspire.Hosting.Docker" Version="13.6.1" />
     <PackageVersion Include="Aspire.Hosting.JavaScript" Version="13.6.1" />
     <PackageVersion Include="Aspire.Hosting.PostgreSQL" Version="13.6.1" />
     <PackageVersion Include="Aspire.Hosting.Testing" Version="13.6.1" />
