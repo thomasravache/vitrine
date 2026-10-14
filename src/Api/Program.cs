@@ -20,7 +20,9 @@ var builder = WebApplication.CreateBuilder(args.Where(arg => arg != MigrateArgum
 builder.AddServiceDefaults();
 
 // Borda HTTP: erros em application/problem+json, documento OpenAPI (fonte do cliente da SPA — ADR-0013).
-builder.Services.AddProblemDetails();
+builder.Services.AddProblemDetails(options => options.CustomizeProblemDetails = context =>
+    // Todo erro tem "code" (contrato da API); os erros dos módulos já trazem o seu, os do framework ganham um genérico.
+    context.ProblemDetails.Extensions.TryAdd("code", ProblemCodes.For(context.ProblemDetails.Status ?? context.HttpContext.Response.StatusCode)));
 builder.Services.AddOpenApi();
 
 // Acesso (ADR-0007): autorização negada por padrão; endpoints públicos usam AllowAnonymous. Os health checks
@@ -77,7 +79,13 @@ if (migrateOnly)
     return await MigrateAsync(app);
 }
 
-app.UseExceptionHandler();
+app.UseExceptionHandler(new ExceptionHandlerOptions
+{
+    // Requisição malformada (JSON inválido, corpo ausente...) é 400, não 500, em qualquer ambiente.
+    StatusCodeSelector = exception => exception is BadHttpRequestException badRequest
+        ? badRequest.StatusCode
+        : StatusCodes.Status500InternalServerError,
+});
 app.UseStatusCodePages();
 
 // SPA estática (web/dist em wwwroot, só na imagem publicada — ADR-0013), pública e antes da autenticação.
@@ -96,8 +104,9 @@ app.MapIdentityEndpoints();
 
 if (hasSpa)
 {
-    // Rotas da SPA (/cadastro, /painel, ...) caem no index.html; /api desconhecida continua 404.
+    // Rotas da SPA (/cadastro, /painel, ...) caem no index.html; /api e /health desconhecidas continuam 404.
     app.MapFallback("/api/{**path}", () => Results.NotFound()).AllowAnonymous();
+    app.MapFallback("/health/{**path}", () => Results.NotFound()).AllowAnonymous();
     app.MapFallbackToFile("index.html").AllowAnonymous();
 }
 
@@ -138,6 +147,22 @@ internal static partial class MigrationLog
 
     [LoggerMessage(EventId = 3, Level = LogLevel.Critical, Message = "Migração falhou.")]
     public static partial void Failed(ILogger logger, Exception exception);
+}
+
+/// <summary>Código genérico (<c>code</c>) dos problemas gerados pelo framework, por status HTTP.</summary>
+internal static class ProblemCodes
+{
+    public static string For(int status) => status switch
+    {
+        StatusCodes.Status400BadRequest => "BAD_REQUEST",
+        StatusCodes.Status401Unauthorized => "UNAUTHORIZED",
+        StatusCodes.Status403Forbidden => "FORBIDDEN",
+        StatusCodes.Status404NotFound => "NOT_FOUND",
+        StatusCodes.Status405MethodNotAllowed => "METHOD_NOT_ALLOWED",
+        StatusCodes.Status415UnsupportedMediaType => "UNSUPPORTED_MEDIA_TYPE",
+        >= 500 => "INTERNAL_ERROR",
+        _ => $"HTTP_{status}",
+    };
 }
 
 /// <summary>Exposto para <c>WebApplicationFactory&lt;Program&gt;</c> nos testes de integração (SPEC-0003).</summary>
