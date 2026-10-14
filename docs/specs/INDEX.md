@@ -4,8 +4,8 @@
 
 ## Saúde
 
-- Validação (G0): **0 erro(s), 8 aviso(s)** — rode `spec_graph.py validate`
-- Specs: approved 4, implemented 4
+- Validação (G0): **0 erro(s), 5 aviso(s)** — rode `spec_graph.py validate`
+- Specs: approved 3, in-progress 1, implemented 4
 - Impedimentos: **0 aberto(s)**, 4 resolvido(s)
 
 ## Cobertura de Pilares
@@ -35,13 +35,13 @@ Perfil: **padrao**
 
 ## Plano de Execução
 
-**Em andamento:** —  
+**Em andamento:** SPEC-0006  
 **Paradas por impedimento:** —  
-**Próximo lote:** SPEC-0006
+**Próximo lote:** —
 
 | Onda | Spec | Título | Tier/Tam. | Status | Prontidão | Observação |
 |---|---|---|---|---|---|---|
-| 1 | SPEC-0006 | Walking skeleton: cadastro, login e painel vazio | full/M | approved | ✅ pronta |  |
+| 1 | SPEC-0006 | Walking skeleton: cadastro, login e painel vazio | full/M | in-progress | 🔄 em andamento |  |
 | 2 | SPEC-0007 | Observabilidade de base | full/M | approved | ⛔ aguarda implementação de SPEC-0006 |  |
 | 3 | SPEC-0008 | Segurança de base | full/M | approved | ⛔ aguarda implementação de SPEC-0006 | saiu da onda 2: arquivos em comum com SPEC-0007 |
 | 4 | SPEC-0009 | Provisionamento na nuvem e go-live | full/M | approved | ⛔ aguarda implementação de SPEC-0006; aguarda implementação de SPEC-0007; aguarda implementação de SPEC-0008 |  |
@@ -62,7 +62,7 @@ flowchart LR
     S0003["SPEC-0003<br/>Harness de testes e arquitetura"]:::implemented
     S0004["SPEC-0004<br/>Pipeline de CI"]:::implemented
     S0005["SPEC-0005<br/>Ambientes, IaC e deploy em VPS"]:::implemented
-    S0006["SPEC-0006<br/>Walking skeleton: cadastro, login e pai…"]:::approved
+    S0006["SPEC-0006<br/>Walking skeleton: cadastro, login e pai…"]:::inprogress
     S0007["SPEC-0007<br/>Observabilidade de base"]:::approved
     S0008["SPEC-0008<br/>Segurança de base"]:::approved
     S0009["SPEC-0009<br/>Provisionamento na nuvem e go-live"]:::approved
@@ -95,7 +95,7 @@ flowchart LR
 | [SPEC-0003](SPEC-0003-harness-de-testes-e-arquitetura.md) | Harness de testes e arquitetura | full | foundation | implemented | 2026-10-13 | SPEC-0001 | SPEC-0002 | — |
 | [SPEC-0004](SPEC-0004-pipeline-de-ci.md) | Pipeline de CI | full | foundation | implemented | 2026-10-13 | SPEC-0001 | SPEC-0002 | — |
 | [SPEC-0005](SPEC-0005-ambientes-iac-e-deploy-em-vps.md) | Ambientes, IaC e deploy em VPS | full | foundation | implemented | 2026-10-13 | SPEC-0001 | SPEC-0002 | SPEC-0004@2 |
-| [SPEC-0006](SPEC-0006-walking-skeleton-cadastro-login-e-painel-vazio.md) | Walking skeleton: cadastro, login e painel vazio | full | foundation | approved | 2026-10-13 | SPEC-0001 | SPEC-0003, SPEC-0004, SPEC-0005 | — |
+| [SPEC-0006](SPEC-0006-walking-skeleton-cadastro-login-e-painel-vazio.md) | Walking skeleton: cadastro, login e painel vazio | full | foundation | in-progress | 2026-10-13 | SPEC-0001 | SPEC-0003, SPEC-0004, SPEC-0005 | — |
 | [SPEC-0007](SPEC-0007-observabilidade-de-base.md) | Observabilidade de base | full | foundation | approved | 2026-10-13 | SPEC-0001 | SPEC-0006 | SPEC-0006@1 |
 | [SPEC-0008](SPEC-0008-seguranca-de-base.md) | Segurança de base | full | foundation | approved | 2026-10-13 | SPEC-0001 | SPEC-0006 | SPEC-0006@1 |
 | [SPEC-0009](SPEC-0009-provisionamento-na-nuvem-e-go-live.md) | Provisionamento na nuvem e go-live | full | foundation | approved | 2026-10-13 | SPEC-0001 | SPEC-0005, SPEC-0006, SPEC-0007, SPEC-0008 | — |
