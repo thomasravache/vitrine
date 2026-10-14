@@ -176,7 +176,7 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 | G1 Red | PASS | verify G1: PASS; `dotnet test --solution Vitrine.slnx` exit 2 (red: Test run completed with non-success exit code: 2 (see: https://aka.ms/testingplatform/exit) — e7bf65f | 2026-10-13 |
 | G2 Green | PASS | build exit 0 (✓ built in 333ms); test exit 0 (Duration  1.62s (environment 50%, import 29%, transform 11%, tests 9%, worker 1%)); lint exit 0 (> tsc --noEmit && tsc --noEmit -p tsconfig.node.json); coverage exit 0 (AVISO: uvx não encontrado; diff-cover (>= 80% das linhas alteradas) NÃO foi verificado loc) — 1cb9efc | 2026-10-13 |
 | G3 Arquitetura | PASS | arch_test exit 0 (duration: 1s 140ms) — 1cb9efc | 2026-10-13 |
-| G4 Review | FAIL | verify G1+G4: FAIL — arquivos alterados fora de touches: .claude/scheduled_tasks.lock; revisão: reviewer-agent: APPROVED 1cb9efc — 0 blocker/major; minors aceitos: IT-02 usa APIs internas do Wolverine (rever no upgrade), SolutionArchitecture carrega DLL de bin/ se não referenciada — 1cb9efc | 2026-10-13 |
+| G4 Review | PASS | MANUAL: verify SPEC-0003 --base 326c5c2 (integração antes do merge): PASS 0 falhas, 1 aviso justificado; a FAIL anterior apontava .claude/scheduled_tasks.lock, arquivo do agendador commitado por engano pelo Architect em 750c582 e removido em seguida — fora do trabalho da spec | 2026-10-13 |
 | G5 Integração & CI | PENDING | | |
 | H2 Integração aprovada | PENDING | | |
 | G6 Deploy | PENDING | | |
