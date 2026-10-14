@@ -6,6 +6,7 @@ public sealed class Workspace
     private readonly List<WorkspaceMember> _members = [];
     private readonly List<IDomainEvent> _domainEvents = [];
 
+    // Materialização pelo EF Core.
     private Workspace()
     {
     }
@@ -22,6 +23,19 @@ public sealed class Workspace
     public IReadOnlyCollection<IDomainEvent> DomainEvents => _domainEvents.AsReadOnly();
 
     /// <summary>Cria o workspace de um usuário recém-cadastrado, com ele como único membro <see cref="WorkspaceRole.Owner"/>.</summary>
-    public static Workspace CreateFor(RegisteredUser user, DateTimeOffset createdAt) =>
-        throw new NotImplementedException("SPEC-0006: Workspace.CreateFor ainda não implementado.");
+    public static Workspace CreateFor(RegisteredUser user, DateTimeOffset createdAt)
+    {
+        ArgumentNullException.ThrowIfNull(user);
+        ArgumentException.ThrowIfNullOrWhiteSpace(user.Name);
+
+        var workspace = new Workspace
+        {
+            Id = Guid.CreateVersion7(createdAt),
+            Name = user.Name.Trim(),
+            CreatedAt = createdAt,
+        };
+        workspace._members.Add(new WorkspaceMember(workspace.Id, user.Id, WorkspaceRole.Owner));
+        workspace._domainEvents.Add(new WorkspaceCreatedDomainEvent(workspace.Id, user.Id, createdAt));
+        return workspace;
+    }
 }

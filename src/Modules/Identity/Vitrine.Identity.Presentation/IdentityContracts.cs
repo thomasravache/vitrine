@@ -22,4 +22,5 @@ public static class IdentityErrorCodes
     public const string EmailTaken = "EMAIL_TAKEN";
     public const string InvalidCredentials = "INVALID_CREDENTIALS";
     public const string LockedOut = "LOCKED_OUT";
+    public const string AntiforgeryInvalid = "ANTIFORGERY_INVALID";
 }
