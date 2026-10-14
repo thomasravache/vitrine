@@ -19,9 +19,11 @@
     <PackageReference Include="xunit.v3" />
   </ItemGroup>
 
-  <!-- Assemblies reais: o host compõe a solução e referencia ServiceDefaults, Common e módulos. -->
+  <!-- Assemblies reais (todo projeto de src/ é carregado por SolutionArchitecture): o host traz ServiceDefaults,
+       Common e módulos; o AppHost só precisa estar compilado (sem referenciar o assembly). -->
   <ItemGroup>
     <ProjectReference Include="..\..\src\Api\Vitrine.Api.csproj" />
+    <ProjectReference Include="..\..\src\AppHost\Vitrine.AppHost.csproj" ReferenceOutputAssembly="false" />
   </ItemGroup>
 
   <ItemGroup>
