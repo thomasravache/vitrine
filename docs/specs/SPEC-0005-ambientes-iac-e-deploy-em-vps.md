@@ -92,7 +92,7 @@ deploy.yml (desligado até SPEC-0009): on workflow_run(CI, main, success) e work
   executa somente se vars.DEPLOY_ENABLED == 'true'; chama deploy/deploy.sh no servidor via SSH
 sdd-config (até a SPEC-0009):
   deploy_staging:    "deploy/deploy.sh <sha> --env-file deploy/local/.env"   # ambiente local prod-like
-  smoke_test:        "curl -fsSk $BASE_URL/health/live && BASE_URL=$BASE_URL npm --prefix web run e2e -- --grep @smoke"
+  smoke_test:        "curl -fsSk --resolve vitrine.localhost:443:127.0.0.1 $BASE_URL/health/live && BASE_URL=$BASE_URL npm --prefix web run e2e -- --grep @smoke --pass-with-no-tests"
   deploy_production: "" (SPEC-0009)
 ```
 
@@ -241,3 +241,4 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 | Versão do contrato | Data | Mudança | Motivo | Specs impactadas | Aprovado por |
 |---|---|---|---|---|---|
 | v2 | 2026-10-13 | Contrato fixa o modo `--migrate` da imagem, o serviço `migrate` do Compose, `deploy/resolve-release.sh` e os dublês `proof-*` (IMP-01); IT-07 novo. Escopo passa a ser IaC validada + deploy por script testado em ambiente local prod-like; `deploy.yml` desligado (`DEPLOY_ENABLED`); provisionamento real, PITR, certificado público e aprovação de produção movidos para a SPEC-0009; plano de testes refeito (UT-03, IT-01..06 locais) | Usuário: nada que gere custo até tudo rodar localmente e ele testar | SPEC-0009 (nova), SPEC-0001 (critérios de aceite) | thomas (2026-10-13) |
+| v2 (esclarecimento, sem mudança de comportamento) | 2026-10-13 | `smoke_test` resolve `vitrine.localhost` explicitamente e aceita ausência de testes @smoke | Máquina não resolve *.localhost; ainda não há testes @smoke (chegam na SPEC-0006) | — | Architect (editorial) |
