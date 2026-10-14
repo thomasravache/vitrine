@@ -33,6 +33,7 @@ approved_at: 2026-10-13
 - Telemetria de produção: exportação OTLP para Grafana Cloud, Sentry, alertas (sintético, saturação, 5xx) com destino e-mail (SPEC-0007 entrega o código; aqui só configuração e prova).
 - Restauração PITR ensaiada; usuário de prova em produção; smoke/E2E `@smoke` em staging e produção.
 - `deploy_staging`, `deploy_production`, `smoke_test`, `staging_url`, `production_url` do sdd-config apontando para a nuvem.
+- Pendências herdadas da SPEC-0005: PostgreSQL gerenciado na mesma versão maior usada localmente (18, se a DigitalOcean oferecer); deploy passa a usar o `compose-bundle` gerado pelo Aspire (`DEPLOY_COMPOSE_BASE`) em vez do Compose escrito à mão, revisando o serviço de dashboard que o Aspire inclui; `GRANT CREATE` (ou ownership) do banco `vitrine` para `vitrine_app` antes do primeiro `--migrate`; bucket de estado do OpenTofu, domínio real e usuário de deploy revistos.
 
 **Não-objetivos (fora do escopo):**
 - Abrir o cadastro público (`Features:SignupOpen` segue desligado em produção até o lançamento).
@@ -198,3 +199,4 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 <!-- Mudança em spec aprovada: uma linha por emenda. Mudou o contrato? Incremente `contract_version` e rode `spec_graph.py impacted SPEC-0009`. -->
 | Versão do contrato | Data | Mudança | Motivo | Specs impactadas | Aprovado por |
 |---|---|---|---|---|---|
+| v1 (escopo) | 2026-10-13 | Inclui as pendências herdadas da SPEC-0005 (versão do Postgres, compose-bundle do Aspire, permissão do `vitrine_app`, revisão de defaults da infra) | Achados das reviews da SPEC-0005 deixados para o go-live | — | thomas (2026-10-13) |
