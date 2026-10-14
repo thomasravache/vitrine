@@ -1,0 +1,15 @@
+# SPEC-0005 — base do Compose da aplicação (equivalente ao `docker-compose.yaml` gerado por
+# `aspire publish`). Até o artefato `compose-bundle` do CI (SPEC-0004) ser usado no servidor
+# (SPEC-0009), este arquivo é a base; deploy/deploy.sh aceita outra base em DEPLOY_COMPOSE_BASE.
+# Variáveis vêm do deploy/.env gravado por deploy/deploy.sh (permissão 600, nunca versionado).
+name: vitrine
+
+services:
+  api:
+    image: ${IMAGE_REPO:-vitrine-api}:${IMAGE_TAG:?IMAGE_TAG não definido (deploy/deploy.sh grava no .env)}
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
+      ConnectionStrings__vitrine: ${DB_CONNECTION_STRING:?DB_CONNECTION_STRING não definido}
+    expose:
+      - "8080"

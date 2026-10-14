@@ -1,0 +1,58 @@
+# SPEC-0005 — overrides do Compose da aplicação, iguais no servidor e no ambiente local prod-like.
+#   migrate  : one-shot da mesma imagem com `--migrate` (ADR-0011); roda só via `docker compose run`.
+#   caddy    : HTTPS na frente da API (Let's Encrypt no servidor; CA interna para *.localhost).
+#   postgres : só no ambiente local (perfil `local`); no servidor o banco é o PostgreSQL gerenciado.
+services:
+  api:
+    depends_on:
+      postgres:
+        condition: service_healthy
+        required: false
+
+  migrate:
+    image: ${IMAGE_REPO:-vitrine-api}:${IMAGE_TAG:?IMAGE_TAG não definido (deploy/deploy.sh grava no .env)}
+    command: ["--migrate"]
+    restart: "no"
+    profiles: ["migrate"]
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
+      ConnectionStrings__vitrine: ${DB_CONNECTION_STRING:?DB_CONNECTION_STRING não definido}
+    depends_on:
+      postgres:
+        condition: service_healthy
+        required: false
+
+  caddy:
+    image: caddy:2.11.7-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:?SITE_ADDRESS não definido}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+  postgres:
+    image: postgres:18.6-alpine
+    restart: unless-stopped
+    profiles: ["local"]
+    environment:
+      POSTGRES_DB: vitrine
+      POSTGRES_USER: vitrine
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD não definido}
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vitrine -d vitrine"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+volumes:
+  caddy_data:
+  caddy_config:
+  postgres_data:

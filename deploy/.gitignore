@@ -1,0 +1,4 @@
+# SPEC-0005 — gerados por deploy/deploy.sh; nunca versionar (ADR-0006).
+.env
+.state/
+local/.env
