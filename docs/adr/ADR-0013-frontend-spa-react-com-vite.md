@@ -37,6 +37,7 @@ O vendedor usa o Vitrine principalmente pelo celular (não haverá app nas lojas
 - O cliente HTTP TypeScript é gerado a partir do documento OpenAPI da API (`Microsoft.AspNetCore.OpenApi`); o CI falha se o cliente versionado divergir do OpenAPI atual.
 - Mobile-first: toda jornada E2E roda também em viewport de celular (Playwright, perfil de dispositivo móvel).
 - Nenhum token ou segredo no código da SPA; autenticação apenas por cookie HttpOnly.
+- Ferramentas do cliente e da SPA *(adicionadas em 2026-10-14, aprovação pendente)*: geração do documento OpenAPI no build com Microsoft.Extensions.ApiDescription.Server 10.0.13 (MIT); cliente TypeScript gerado por **orval 8.37.0** (MIT; openapi-typescript e @hey-api/openapi-ts não funcionam com TypeScript 7); fontes Inter e Plus Jakarta Sans auto-hospedadas via @fontsource-variable 5.3.0 (OFL-1.1), sem Google Fonts (compatível com a CSP da SPEC-0008).
 
 ### Consequências
 - **Boa**, porque produção tem um único container e uma única origem; desenvolvimento tem HMR sob o Aspire.
