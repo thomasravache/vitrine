@@ -1,0 +1,54 @@
+# Dependabot (ADR-0008): atualizações semanais e agrupadas por ecossistema, revisadas por PR.
+# Título dos PRs: "build(deps) [no-spec]: ..." — Conventional Commits e sem spec (o job sdd só avisa).
+# Alertas/atualizações de segurança continuam individuais (fora dos grupos), assim que publicados.
+version: 2
+updates:
+  - package-ecosystem: nuget
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+    commit-message:
+      prefix: "build(deps) [no-spec]"
+    groups:
+      nuget:
+        applies-to: version-updates
+        patterns: ["*"]
+
+  - package-ecosystem: npm
+    directory: "/web"
+    schedule:
+      interval: weekly
+      day: monday
+    commit-message:
+      prefix: "build(deps) [no-spec]"
+    groups:
+      npm:
+        applies-to: version-updates
+        patterns: ["*"]
+
+  # Imagens Docker: Dockerfile/Compose versionados (a imagem da API usa a base do SDK, ContainerFamily no
+  # Vitrine.Api.csproj; o compose do deploy vem da SPEC-0005).
+  - package-ecosystem: docker
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+    commit-message:
+      prefix: "build(deps) [no-spec]"
+    groups:
+      docker:
+        applies-to: version-updates
+        patterns: ["*"]
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+    commit-message:
+      prefix: "ci(deps) [no-spec]"
+    groups:
+      github-actions:
+        applies-to: version-updates
+        patterns: ["*"]

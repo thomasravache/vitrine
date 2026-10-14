@@ -1,5 +1,18 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
+  <!-- Imagem única vitrine-api (API + SPA estática), gerada no CI com
+       `dotnet publish src/Api -c Release -t:PublishContainer -p:PublishSpa=true` (ADR-0004, SPEC-0004). -->
+  <PropertyGroup Label="Container">
+    <ContainerRepository>thomasravache/vitrine-api</ContainerRepository>
+    <!-- Ubuntu chiseled: sem shell nem gerenciador de pacotes (menos superfície para o Trivy); "extra" traz ICU e tzdata. -->
+    <ContainerFamily>noble-chiseled-extra</ContainerFamily>
+  </PropertyGroup>
+  <ItemGroup Label="Container">
+    <!-- Liga o pacote do GHCR ao repositório; a revisão vem do CI (-p:ImageRevision=<sha>). -->
+    <ContainerLabel Include="org.opencontainers.image.source" Value="https://github.com/thomasravache/vitrine" />
+    <ContainerLabel Include="org.opencontainers.image.revision" Value="$(ImageRevision)" Condition="'$(ImageRevision)' != ''" />
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="WolverineFx.Postgresql" />
     <PackageReference Include="WolverineFx.RuntimeCompilation" />
@@ -8,5 +21,17 @@
   <ItemGroup>
     <ProjectReference Include="..\ServiceDefaults\Vitrine.ServiceDefaults.csproj" />
   </ItemGroup>
+
+  <!-- SPA estática: a saída do build da SPA (web/dist) vai para wwwroot da publicação. -->
+  <PropertyGroup>
+    <SpaDistDir>$(MSBuildThisFileDirectory)..\..\web\dist\</SpaDistDir>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(PublishSpa)' == 'true'">
+    <None Include="$(SpaDistDir)**" LinkBase="wwwroot" CopyToPublishDirectory="PreserveNewest" CopyToOutputDirectory="Never" />
+  </ItemGroup>
+  <Target Name="RequireSpaDist" BeforeTargets="PrepareForPublish" Condition="'$(PublishSpa)' == 'true'">
+    <Error Condition="!Exists('$(SpaDistDir)index.html')"
+           Text="PublishSpa=true exige web/dist/index.html: rode `npm --prefix web ci &amp;&amp; npm --prefix web run build` antes." />
+  </Target>
 
 </Project>
