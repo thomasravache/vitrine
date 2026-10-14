@@ -9,11 +9,17 @@
 
   <ItemGroup>
     <PackageReference Include="Aspire.Hosting.Testing" />
+    <PackageReference Include="coverlet.MTP" />
     <PackageReference Include="xunit.v3" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\AppHost\Vitrine.AppHost.csproj" />
+  </ItemGroup>
+
+  <!-- Configuração de cobertura única (coverlet.MTP), mantida em Vitrine.UnitTests/testconfig.json. -->
+  <ItemGroup>
+    <None Include="..\Vitrine.UnitTests\testconfig.json" Link="$(AssemblyName).testconfig.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>
