@@ -33,7 +33,8 @@ Liga a telemetria que o Aspire já produz (OpenTelemetry via ServiceDefaults) a 
 - Sentry no backend (`Sentry.AspNetCore`) e na SPA, com release = SHA e PII desligada.
 - Métricas da jornada de acesso: `vitrine.auth.signups`, `vitrine.auth.logins{result}`, `vitrine.auth.lockouts`.
 - Coleta de métricas do host (CPU, memória, disco) por Grafana Alloy em container no Compose.
-- Alertas: verificação sintética de `/health/ready` e da página `/entrar` a cada 1 min (falha 3x seguidas), disco > 80%, memória > 90%, taxa de erro 5xx > 5% em 5 min; destino e-mail do responsável.
+- Regras de alerta versionadas no repositório (verificação sintética de `/health/ready` e de `/entrar` a cada 1 min, falha 3x; disco > 80%; memória > 90%; 5xx > 5% em 5 min; destino e-mail do responsável), aplicadas no Grafana Cloud pela SPEC-0009.
+- Exportação para Grafana Cloud e Sentry **opcional por configuração**: sem as variáveis, a telemetria vai só para o dashboard do Aspire (ambiente local).
 - SLO inicial: disponibilidade ≥ 99,5% mensal da jornada `acesso` (painel de SLO no Grafana).
 - Runbooks em `docs/runbooks/` para cada alerta.
 
@@ -43,7 +44,7 @@ Liga a telemetria que o Aspire já produz (OpenTelemetry via ServiceDefaults) a 
 ## 3. Dependências
 - **Implementações necessárias:** SPEC-0006 — os testes de integração exercitam os endpoints de autenticação reais.
 - **Contratos consumidos:** SPEC-0006@1 — endpoints de auth (para métricas e para a verificação sintética de `/entrar`) e a jornada `acesso`.
-- **Pré-requisitos externos:** conta Grafana Cloud (plano gratuito) e projeto Sentry criados pelo usuário; credenciais guardadas como secrets dos Environments do GitHub.
+- **Pré-requisitos externos:** N/A nesta versão — contas Grafana Cloud e Sentry ficam para a SPEC-0009.
 
 ## 4. Decisão Arquitetural
 **Contexto:** Projeto novo. Padrão definido em ADR-0009 (OpenTelemetry → Grafana Cloud + Sentry), ADR-0006 (nada sensível em telemetria), ADR-0004 (Compose no droplet).
@@ -95,8 +96,7 @@ Alertas (Grafana): synthetic-ready, synthetic-login-page, disk-80, memory-90, ht
 | Destino de telemetria fora | endpoint OTLP inacessível | requisições seguem normais | IT-04 |
 | Métricas de login | logins ok/falha/bloqueio | contadores com a tag `result` correta | IT-05 |
 | Contrato de auth | login de prova via API | métricas e trace com spans de HTTP e banco | CT-01 |
-| Alerta da jornada | `/health/ready` em produção falha 3x | alerta disparado e recebido | IT-06 |
-| Telemetria em produção | requisição em produção | trace visível no Grafana com env e SHA; erro de prova visível no Sentry | IT-07 |
+| Exportação opcional | variáveis OTLP/Sentry ausentes | aplicação sobe e exporta só para o dashboard do Aspire | IT-06 |
 
 ## 7. Artefato B — Plano de Testes (TDD)
 
@@ -112,8 +112,8 @@ Alertas (Grafana): synthetic-ready, synthetic-login-page, disk-80, memory-90, ht
 - **IT-03** — Dado o provedor de logs capturado em memória, quando um login com e-mail e senha falha, então nenhum registro emitido contém o e-mail nem a senha.
 - **IT-04** — Dado `OTEL_EXPORTER_OTLP_ENDPOINT` apontando para porta fechada, quando 50 requisições são feitas, então todas respondem com sucesso e latência p95 dentro de +10% da linha de base.
 - **IT-05** — Dado um `MeterListener` de teste, quando ocorrem um login bem-sucedido, um falho e um bloqueio, então `vitrine.auth.logins` registra `success`, `failure` e `locked` e `vitrine.auth.lockouts` incrementa.
-- **IT-06** — Dado produção (antes de clientes), quando o health check é forçado a falhar por janela controlada (flag de manutenção de prova), então o alerta `synthetic-ready` chega ao e-mail do responsável (evidência: horário do disparo e do recebimento).
-- **IT-07** — Dado staging, quando uma requisição e um erro de prova são gerados, então o trace aparece no Grafana com `deployment.environment=staging` e `service.version=<sha>` e o erro aparece no Sentry com a release correta.
+- **IT-06** — Dado o host sem `OTEL_EXPORTER_OTLP_ENDPOINT` nem `Sentry__Dsn`, quando a API sobe e atende requisições, então nenhum erro de configuração ocorre e o exportador do Aspire (`DOTNET_DASHBOARD_OTLP_ENDPOINT_URL`) recebe os traces.
+- Alerta em produção e telemetria em staging: provados na SPEC-0009 (IT-06, IT-07).
 
 ### 7.4 Testes de Contrato
 - **CT-01** — Dado o contrato SPEC-0006@1, quando um login de prova é feito via `POST /api/v1/auth/login`, então o trace exportado (exportador em memória) contém span HTTP da rota e span de banco filhos do mesmo `trace_id`, e a métrica `vitrine.auth.logins{result=success}` incrementa.
@@ -126,7 +126,7 @@ Alertas (Grafana): synthetic-ready, synthetic-login-page, disk-80, memory-90, ht
 
 **Dublês e dados de teste:** exportadores OTel em memória; `MeterListener`; logger capturador; Postgres real (Testcontainers).
 
-**Ambiente de execução:** IT-01..05 e CT-01 local + CI; IT-06 em produção sem clientes; IT-07 em staging.
+**Ambiente de execução:** local + CI.
 
 ## 8. Plano de Rollout
 - **Estratégia:** deploy direto — só telemetria e endpoints de health.
@@ -154,14 +154,13 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 - [ ] Green: exportação OTLP com atributos de ambiente/versão, métricas `vitrine.auth.*`, Sentry backend e SPA, Alloy no Compose
 - [ ] Validar: build + suíte completa + arquitetura (G2/G3)
 
-**Fase 3: Produção**
-- [ ] Pré-requisitos externos: contas Grafana Cloud e Sentry + secrets
-- [ ] IT-06 (alerta em produção) e IT-07 (staging) com evidência; alertas e runbooks configurados
+**Fase 3: Exportação opcional e alertas como código**
+- [ ] Red→Green: IT-06; regras de alerta e runbooks versionados (aplicação no Grafana na SPEC-0009)
 
 **Fase final: Integração, entrega e documentação**
 - [ ] Review independente (G4)
 - [ ] Integração + CI verde (G5) e aprovação (H2)
-- [ ] Deploy via pipeline com smoke no ambiente (G6)
+- [ ] Deploy no ambiente local prod-like (SPEC-0005) com smoke; nuvem na SPEC-0009 (G6)
 - [ ] Relatório de Entrega, docs raiz e CHANGELOG (G7)
 
 ## 12. Registro de Gates
@@ -222,3 +221,4 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 <!-- Mudança em spec aprovada: uma linha por emenda. Mudou o contrato? Incremente `contract_version` e rode `spec_graph.py impacted SPEC-0007`. -->
 | Versão do contrato | Data | Mudança | Motivo | Specs impactadas | Aprovado por |
 |---|---|---|---|---|---|
+| v1 (sem mudança de contrato) | 2026-10-13 | IT-06/IT-07 de produção/staging movidos para a SPEC-0009; novo IT-06 (exportação opcional); alertas como código, aplicados na SPEC-0009 | Usuário: nada que gere custo até tudo rodar localmente | SPEC-0009 | thomas (2026-10-13) |

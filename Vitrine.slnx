@@ -10,6 +10,9 @@
     <Project Path="src/ServiceDefaults/Vitrine.ServiceDefaults.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/Vitrine.ArchitectureTests/Vitrine.ArchitectureTests.csproj" />
+    <Project Path="tests/Vitrine.IntegrationTests/Vitrine.IntegrationTests.csproj" />
     <Project Path="tests/Vitrine.Tooling.Tests/Vitrine.Tooling.Tests.csproj" />
+    <Project Path="tests/Vitrine.UnitTests/Vitrine.UnitTests.csproj" />
   </Folder>
 </Solution>

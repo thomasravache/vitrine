@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Assembly de amostra (fixture de teste de arquitetura, SPEC-0003). Não é código de produção. -->
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <!-- Ciclo proposital (UT-04): C usa o contrato público de D e D usa o de C. -->
+  <ItemGroup>
+    <ProjectReference Include="..\ModuleD.IntegrationEvents\ModuleD.IntegrationEvents.csproj" />
+  </ItemGroup>
+
+</Project>

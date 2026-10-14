@@ -4,13 +4,13 @@ title: Harness de testes e arquitetura
 tier: full
 type: foundation
 user_facing: false
-status: approved
+status: in-progress
 created: 2026-10-13
 parent: SPEC-0001
 depends_on: [SPEC-0002]
 consumes_contract: []
-contract_version: 1
-touches: [tests/Vitrine.UnitTests/**, tests/Vitrine.IntegrationTests/**, tests/Vitrine.ArchitectureTests/**, tests/README.md, web/e2e/**, web/playwright.config.ts, web/vitest.config.ts, web/package.json, web/package-lock.json, web/src/**/*.test.tsx, Directory.Packages.props, Vitrine.slnx, src/Api/Program.cs]
+contract_version: 2
+touches: [web/biome.json, tests/Vitrine.Tooling.Tests/Vitrine.Tooling.Tests.csproj, tests/Vitrine.Tooling.Tests/packages.lock.json, tests/Vitrine.Tooling.Tests/testconfig.json, tests/Vitrine.UnitTests/**, tests/Vitrine.IntegrationTests/**, tests/Vitrine.ArchitectureTests/**, tests/README.md, web/e2e/**, web/playwright.config.ts, web/vitest.config.ts, web/package.json, web/package-lock.json, web/tsconfig*.json, web/src/**/*.test.tsx, Directory.Packages.props, Vitrine.slnx, src/Api/Program.cs, src/Api/Vitrine.Api.csproj, src/Api/packages.lock.json, src/AppHost/packages.lock.json]
 adrs: [ADR-0002, ADR-0001, ADR-0014]
 external: []
 size: M
@@ -73,7 +73,9 @@ sdd-config.yml:
   test_integration: "dotnet test tests/Vitrine.IntegrationTests"
   test_e2e:         "npm --prefix web run e2e"            # Playwright; BASE_URL opcional (staging)
   arch_test:        "dotnet test tests/Vitrine.ArchitectureTests"
-  coverage:         "dotnet test --collect:'XPlat Code Coverage' + reportgenerator (linhas alteradas)"
+  coverage:         comando de `coverage` do sdd-config: limpa TestResults/coverage; dotnet test --solution com --coverlet (cobertura);
+                    ReportGenerator 5.5.11 via dnx (Cobertura + TextSummary); diff-cover 10.6.0 via uvx contra origin/main com --fail-under=80;
+                    sem uvx: aviso local, erro quando CI=true (coletor coverlet.MTP — MIT; ReportGenerator — Apache-2.0; diff-cover — Apache-2.0)
 Tag de teste:
   C#: [Trait("spec", "SPEC-NNNN:UT-01")]     TS: test("SPEC-NNNN:E2E-01 — <descrição>", ...)
 Fixtures públicas:
@@ -171,12 +173,12 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 | Gate | Status | Evidência | Data |
 |---|---|---|---|
 | G0 Spec | PASS | validate: 0 erro(s) — 4602cbe (árvore suja) | 2026-10-13 |
-| G1 Red | PENDING | | |
-| G2 Green | PENDING | | |
-| G3 Arquitetura | PENDING | | |
-| G4 Review | PENDING | | |
-| G5 Integração & CI | PENDING | | |
-| H2 Integração aprovada | PENDING | | |
+| G1 Red | PASS | verify G1: PASS; `dotnet test --solution Vitrine.slnx` exit 2 (red: Test run completed with non-success exit code: 2 (see: https://aka.ms/testingplatform/exit) — e7bf65f | 2026-10-13 |
+| G2 Green | PASS | build exit 0 (✓ built in 333ms); test exit 0 (Duration  1.62s (environment 50%, import 29%, transform 11%, tests 9%, worker 1%)); lint exit 0 (> tsc --noEmit && tsc --noEmit -p tsconfig.node.json); coverage exit 0 (AVISO: uvx não encontrado; diff-cover (>= 80% das linhas alteradas) NÃO foi verificado loc) — 1cb9efc | 2026-10-13 |
+| G3 Arquitetura | PASS | arch_test exit 0 (duration: 1s 140ms) — 1cb9efc | 2026-10-13 |
+| G4 Review | PASS | MANUAL: verify SPEC-0003 --base 326c5c2 (integração antes do merge): PASS 0 falhas, 1 aviso justificado; a FAIL anterior apontava .claude/scheduled_tasks.lock, arquivo do agendador commitado por engano pelo Architect em 750c582 e removido em seguida — fora do trabalho da spec | 2026-10-13 |
+| G5 Integração & CI | PASS | MANUAL: PR #8 no resultado integrado ca587e5: 7/7 checks obrigatórios verdes (build-lint, unit, integration, architecture, e2e, security, sdd/pr-check) — https://github.com/thomasravache/vitrine/actions/runs/38503495881/job/115656660941; local: build 0 avisos, dotnet 21/21, Vitest 1/1, E2E 2/2, infra 3/3, ci 2/2, lint ok | 2026-10-13 |
+| H2 Integração aprovada | PASS | política auto-on-green (aprovada por thomas em 2026-10-13); G5 PASS | 2026-10-13 |
 | G6 Deploy | PENDING | | |
 | G7 Pronto & Docs | PENDING | | |
 
@@ -184,6 +186,9 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 <!-- Toda parada é registrada pelo Architect com `spec_graph.py impede` e fechada com `resolve` — não edite à mão. Tipos: spec (spec errada/incompleta → resolve com Emenda) | decisão (só o humano decide → resposta ou ADR) | trabalho (falta algo que exige código → SPEC-NNNN nova) | externo (acesso, ambiente, terceiro → ação tomada) | falha (3 FAILs seguidos no mesmo gate → diagnóstico e decisão). Com impedimento aberto a spec aparece como parada no INDEX e não pode ser fechada. -->
 | ID | Aberto em | Fase/Gate | Tipo | Descrição | Tentativas | Responsável | Resolução | Fechado em |
 |---|---|---|---|---|---|---|---|---|
+| IMP-01 | 2026-10-13 | G2 | spec | Comando coverage do contrato (--collect XPlat + reportgenerator) não existe sob Microsoft Testing Platform e nenhum ADR define ferramenta de cobertura de linhas alteradas | MTP sem --collect; coverlet.MTP 10.1.0 + ReportGenerator 5.5.11 funcionou em teste descartável; diff-cover indisponível localmente | Architect + thomas (emenda) | Emenda v2 — coverage com coverlet.MTP + ReportGenerator + diff-cover (≥80% linhas alteradas, obrigatório no CI); ADR-0002 atualizado; aprovada por thomas em 2026-10-13 | 2026-10-13 |
+| IMP-02 | 2026-10-13 | G5 | externo | Chromium do Playwright não abre: faltam bibliotecas de sistema (libatk); E2E-01 não executado localmente | Instalação sem sudo não é possível; fixture do AppHost e baseURL validados com teste de request descartável | thomas: rodar 'cd web && sudo npx playwright install-deps chromium' | thomas instalou as dependências do Chromium; npm --prefix web run e2e → E2E-01 2/2 PASS (desktop + mobile, axe sem violações sérias/críticas) em 5da9752, 2026-10-13 | 2026-10-13 |
+| IMP-03 | 2026-10-13 | G2 | spec | Comando coverage roda em todos os projetos de teste, mas tests/Vitrine.Tooling.Tests (fora dos touches) não tem coverlet.MTP e rejeita --coverlet | Ajuste temporário no csproj do Tooling.Tests fez o comando passar (100% diff coverage); revertido | Architect (ajuste de escopo) | Ajuste de escopo dentro da Emenda v2 (sem mudança de contrato): touches incluem csproj, lockfile e testconfig do Vitrine.Tooling.Tests | 2026-10-13 |
 
 ## 14. Relatório de Entrega
 <!-- Preenchido no CLOSE (G7). Diz o que foi feito, como, e prova que foi resolvido. Para status implemented o validate exige todas as subseções preenchidas, todo teste do plano com PASS + evidência e a Definição de Pronto toda marcada. -->
@@ -224,3 +229,4 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 <!-- Mudança em spec aprovada: uma linha por emenda. Mudou o contrato? Incremente `contract_version` e rode `spec_graph.py impacted SPEC-0003`. -->
 | Versão do contrato | Data | Mudança | Motivo | Specs impactadas | Aprovado por |
 |---|---|---|---|---|---|
+| v2 | 2026-10-13 | Comando `coverage` passa a usar coverlet.MTP + ReportGenerator + diff-cover (≥ 80% nas linhas alteradas, obrigatório no CI); `web/biome.json` entra nos touches para ignorar `packages.lock.json`; csproj/lockfile/testconfig do `Vitrine.Tooling.Tests` entram nos touches para aceitar `--coverlet` (ajuste de escopo, IMP-03) | IMP-01: `--collect` não existe no Microsoft Testing Platform e não havia ferramenta de linhas alteradas definida | SPEC-0004 (roda o diff-cover no CI) | thomas (2026-10-13) |

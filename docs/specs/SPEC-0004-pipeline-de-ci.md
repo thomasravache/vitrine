@@ -4,13 +4,13 @@ title: Pipeline de CI
 tier: full
 type: foundation
 user_facing: false
-status: approved
+status: in-progress
 created: 2026-10-13
 parent: SPEC-0001
 depends_on: [SPEC-0002]
 consumes_contract: []
-contract_version: 1
-touches: [.github/workflows/ci.yml, .github/dependabot.yml, .github/codeql/**, tests/ci/**, src/Api/Api.csproj, src/AppHost/AppHost.csproj, src/AppHost/Program.cs]
+contract_version: 2
+touches: [.github/workflows/ci.yml, .github/dependabot.yml, .github/codeql/**, tests/ci/**, Directory.Packages.props, src/Api/Vitrine.Api.csproj, src/Api/packages.lock.json, src/AppHost/Vitrine.AppHost.csproj, src/AppHost/AppHost.cs, src/AppHost/packages.lock.json, tests/Vitrine.Tooling.Tests/packages.lock.json, web/e2e/support/packages.lock.json, .github/workflows/deploy.yml, deploy/resolve-release.sh]
 adrs: [ADR-0004, ADR-0005, ADR-0008, ADR-0003, ADR-0006]
 external: []
 size: M
@@ -75,7 +75,7 @@ Saída na main (após todos os checks): imagem ghcr.io/thomasravache/vitrine-api
                                       artefato "compose-bundle" (saída do `aspire publish`: docker-compose.yaml + .env.template)
 Falhas: qualquer job vermelho bloqueia o merge; job `security` falha em vulnerabilidade alta/crítica ou segredo encontrado
 Evento para deploy: workflow_run "CI" concluído com sucesso na main -> consumido por deploy.yml (SPEC-0005)
-sdd-config: security_scan: "dotnet list package --vulnerable --include-transitive && npm --prefix web audit --audit-level=high && gitleaks detect --no-banner"
+sdd-config: security_scan: "dotnet restore Vitrine.slnx -p:TreatWarningsAsErrors=false && ! dotnet list Vitrine.slnx package --vulnerable --include-transitive --no-restore | tee /dev/stderr | grep -qE '^ +>.* (High|Critical) ' && npm --prefix web audit --audit-level=high && gitleaks git --log-opts=HEAD --no-banner --redact"
             ci: "gh pr checks --watch"
 ```
 
@@ -162,12 +162,12 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 | Gate | Status | Evidência | Data |
 |---|---|---|---|
 | G0 Spec | PASS | validate: 0 erro(s) — 4602cbe (árvore suja) | 2026-10-13 |
-| G1 Red | PENDING | | |
-| G2 Green | PENDING | | |
-| G3 Arquitetura | PENDING | | |
-| G4 Review | PENDING | | |
-| G5 Integração & CI | PENDING | | |
-| H2 Integração aprovada | PENDING | | |
+| G1 Red | PASS | MANUAL: verify G1 PASS (9/9 tags, a4cbee3); testes são scripts em tests/ci (fora do comando test): run.sh → UT-01/UT-02 FAIL 'ci.yml does not exist'; IT-01..05, CT-01, CT-02 falham por ci.yml ausente/variáveis de prova ausentes — a4cbee3 | 2026-10-13 |
+| G2 Green | PASS | build exit 0 (✓ built in 436ms); test exit 0 (Duration  418ms (environment 59%, import 22%, transform 11%, tests 7%, worker 1%)); lint exit 0 (> tsc --noEmit && tsc --noEmit -p tsconfig.node.json); coverage exit 0 (AVISO: uvx não encontrado; diff-cover (>= 80% das linhas alteradas) NÃO foi verificado loc) — be40dce | 2026-10-13 |
+| G3 Arquitetura | PASS | arch_test exit 0 (duration: 1s 999ms) — be40dce | 2026-10-13 |
+| G4 Review | PASS | MANUAL: verify SPEC-0004 --base sdd/SPEC-0001: PASS 0 falhas, 1 aviso justificado (lockfile); tests/ci 2/2; provas PR #2..#7 (IT-01 recheck run 38502052493 7/7 verde) | 2026-10-13 |
+| G5 Integração & CI | PASS | MANUAL: PR #8 no resultado integrado ca587e5: 7/7 checks obrigatórios verdes (build-lint, unit, integration, architecture, e2e, security, sdd/pr-check) — https://github.com/thomasravache/vitrine/actions/runs/38503495881/job/115656660941; local: build 0 avisos, dotnet 21/21, Vitest 1/1, E2E 2/2, infra 3/3, ci 2/2, lint ok | 2026-10-13 |
+| H2 Integração aprovada | PASS | política auto-on-green (aprovada por thomas em 2026-10-13); G5 PASS | 2026-10-13 |
 | G6 Deploy | PENDING | | |
 | G7 Pronto & Docs | PENDING | | |
 
@@ -215,3 +215,5 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 <!-- Mudança em spec aprovada: uma linha por emenda. Mudou o contrato? Incremente `contract_version` e rode `spec_graph.py impacted SPEC-0004`. -->
 | Versão do contrato | Data | Mudança | Motivo | Specs impactadas | Aprovado por |
 |---|---|---|---|---|---|
+| (rastreabilidade, sem mudança de contrato) | 2026-10-13 | touches incluem `.github/workflows/deploy.yml`, `deploy/resolve-release.sh` | O pr-check atribui à spec todo commit que cita o ID; o commit 660ca2a da SPEC-0005 menciona "CI da SPEC-0004" no corpo. Os arquivos são da SPEC-0005. | — | Architect |
+| v2 | 2026-10-13 | `security_scan` falha de fato em pacote NuGet High/Critical (`dotnet list` sempre sai 0) e o gitleaks varre só o histórico do HEAD; GHCR `vitrine-api` público (imagem de repositório público, deploy sem token de pull); touches incluem os lockfiles de Tooling.Tests e do fixture E2E (efeito do Aspire.Hosting.Docker) | Provas no GitHub mostraram que o comando aprovado não reprova vulnerabilidades e varre branches alheias | SPEC-0005 (deploy sem login no GHCR) | thomas (2026-10-13) |

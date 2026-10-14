@@ -1,0 +1,50 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <!-- Samples/ contém assemblies de amostra (fixtures de UT-03/UT-04), cada um com seu próprio .csproj. -->
+  <ItemGroup>
+    <Compile Remove="Samples\**" />
+    <EmbeddedResource Remove="Samples\**" />
+    <None Remove="Samples\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="TngTech.ArchUnitNET.xUnitV3" />
+    <PackageReference Include="coverlet.MTP" />
+    <PackageReference Include="xunit.v3" />
+  </ItemGroup>
+
+  <!-- Assemblies reais (todo projeto de src/ é carregado por SolutionArchitecture): o host traz ServiceDefaults,
+       Common e módulos; o AppHost só precisa estar compilado (sem referenciar o assembly). -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Api\Vitrine.Api.csproj" />
+    <ProjectReference Include="..\..\src\AppHost\Vitrine.AppHost.csproj" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="Samples\Common.Clock\Common.Clock.csproj" />
+    <ProjectReference Include="Samples\ModuleA.Application\ModuleA.Application.csproj" />
+    <ProjectReference Include="Samples\ModuleB.Application\ModuleB.Application.csproj" />
+    <ProjectReference Include="Samples\ModuleC.Application\ModuleC.Application.csproj" />
+    <ProjectReference Include="Samples\ModuleC.IntegrationEvents\ModuleC.IntegrationEvents.csproj" />
+    <ProjectReference Include="Samples\ModuleD.Application\ModuleD.Application.csproj" />
+    <ProjectReference Include="Samples\ModuleD.IntegrationEvents\ModuleD.IntegrationEvents.csproj" />
+    <ProjectReference Include="Samples\Sample.Domain\Sample.Domain.csproj" />
+    <ProjectReference Include="Samples\Sample.Infrastructure\Sample.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <!-- Configuração de cobertura única (coverlet.MTP), mantida em Vitrine.UnitTests/testconfig.json. -->
+  <ItemGroup>
+    <None Include="..\Vitrine.UnitTests\testconfig.json" Link="$(AssemblyName).testconfig.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+</Project>

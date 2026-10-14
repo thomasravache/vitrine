@@ -10,32 +10,32 @@ max_parallel: 3
 # Exemplos: "dotnet build" | "npm run build" | "./gradlew build" | "go build ./..."
 build: "dotnet build Vitrine.slnx -warnaserror && npm --prefix web ci && npm --prefix web run build"
 # Suíte completa. Exemplos: "dotnet test" | "npm test" | "pytest" | "go test ./..."
-test: "dotnet test --solution Vitrine.slnx"  # provisório até a SPEC-0003 separar unitário/integração
-test_integration: ""
+test: "dotnet test tests/Vitrine.UnitTests && npm --prefix web run test"
+test_integration: "dotnet test tests/Vitrine.IntegrationTests"
 # E2E da jornada do usuário. Exemplos: "npx playwright test" | "npx cypress run" | "maestro test flows/"
-test_e2e: ""
+test_e2e: "npm --prefix web run e2e"
 # Subconjunto rápido rodado após cada deploy (G6).
-smoke_test: ""
+smoke_test: "curl -fsSk --resolve vitrine.localhost:443:127.0.0.1 $BASE_URL/health/live && BASE_URL=$BASE_URL npm --prefix web run e2e -- --grep @smoke --pass-with-no-tests"
 lint: "dotnet format Vitrine.slnx --verify-no-changes && npm --prefix web run lint"
 # G2 — cobertura das linhas alteradas (ex: diff-cover, coverlet + reportgenerator). Opcional.
-coverage: ""
+coverage: 'rm -rf TestResults/coverage && dotnet test --solution Vitrine.slnx --coverlet --coverlet-output-format cobertura --results-directory TestResults/coverage && dnx -y dotnet-reportgenerator-globaltool@5.5.11 "-reports:TestResults/coverage/**/*.xml" -targetdir:TestResults/coverage/report "-reporttypes:Cobertura;TextSummary" && if command -v uvx >/dev/null 2>&1; then uvx diff-cover@10.6.0 TestResults/coverage/report/Cobertura.xml --compare-branch=origin/main --fail-under=80; elif [ "${CI:-}" = "true" ]; then echo "ERRO: uvx ausente no CI; diff-cover é obrigatório" >&2; exit 1; else echo "AVISO: uvx não encontrado; diff-cover (>= 80% das linhas alteradas) NÃO foi verificado localmente; no CI é obrigatório (SPEC-0004)" >&2; fi'
 coverage_min_changed_lines: 80
 # Opcional: mutation testing em código de domínio crítico (Stryker, PIT, mutmut).
 mutation: ""
 
 # --- Arquitetura e segurança (G3, G5) ---
 # Exemplos: "dotnet test --filter Category=Architecture" | "npx depcruise src" | "lint-imports"
-arch_test: ""
+arch_test: "dotnet test tests/Vitrine.ArchitectureTests"
 # Auditoria de dependências + segredos. Exemplos: "npm audit --audit-level=high" | "dotnet list package --vulnerable" | "gitleaks detect"
-security_scan: ""
+security_scan: "set -o pipefail; dotnet restore Vitrine.slnx -p:TreatWarningsAsErrors=false && dotnet list Vitrine.slnx package --vulnerable --include-transitive --no-restore > /tmp/vitrine-vuln.txt && cat /tmp/vitrine-vuln.txt && ! grep -qE '^ +>.* (High|Critical) ' /tmp/vitrine-vuln.txt && npm --prefix web audit --audit-level=high && gitleaks git --log-opts=HEAD --no-banner --redact"
 
 # --- CI/CD e ambientes (G5, G6) ---
 # Como conferir o pipeline da branch/PR. Exemplo: "gh pr checks --watch"
-ci: ""
+ci: "gh pr checks --watch"
 # Como o deploy acontece (preferencialmente pelo pipeline). Exemplos: "merge em main → pipeline" | "gh workflow run deploy.yml -f env=staging"
-deploy_staging: ""
+deploy_staging: "deploy/deploy.sh <sha> --env-file deploy/local/.env"  # ambiente local prod-like até a SPEC-0009
 deploy_production: ""
-staging_url: ""
+staging_url: "https://vitrine.localhost"  # local prod-like até a SPEC-0009
 production_url: ""
 
 # --- Worktrees ---
@@ -58,6 +58,7 @@ test_paths:
 scope_exempt:
   - "docs/specs/**"
   - "docs/adr/**"
+  - ".claude/**"   # estado local de ferramentas de agente (ex.: scheduled_tasks.lock commitado por engano em 750c582 e removido)
 # Mudança nesses arquivos sem ADR na spec gera alerta no G4 (lib/framework nova precisa de ADR).
 # Omitido = padrão da skill (package.json, *.csproj, pyproject.toml, go.mod, pom.xml, ...).
 dependency_manifests: []

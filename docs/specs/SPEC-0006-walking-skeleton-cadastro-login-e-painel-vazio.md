@@ -134,7 +134,7 @@ Evento de integração (contrato público do módulo Identity): WorkspaceCreated
 - **CT-01** — Dado um cadastro concluído, quando o handler de teste assinante de `WorkspaceCreated` recebe a mensagem, então o payload valida contra o schema v1 publicado em `Identity.IntegrationEvents` (`workspaceId`, `ownerUserId`, `createdAt`).
 
 ### 7.5 Testes E2E
-- **E2E-01** — Dado o navegador em viewport de celular, quando o vendedor se cadastra em `/cadastro`, vê o painel com seu nome e o cartão "Conectar conta do Mercado Livre (em breve)", sai, e entra de novo em `/entrar`, então volta ao painel; axe sem violações sérias/críticas nas três telas [jornada: acesso] @smoke (em produção usa o usuário de prova, pulando o cadastro).
+- **E2E-01** — Dado o navegador em viewport de celular, quando o vendedor se cadastra em `/cadastro`, vê o painel com seu nome e o cartão "Conectar conta do Mercado Livre (em breve)", sai, e entra de novo em `/entrar`, então volta ao painel; axe sem violações sérias/críticas nas três telas [jornada: acesso] @smoke (no ambiente local prod-like da SPEC-0005; em produção a jornada é provada pela SPEC-0009:E2E-01).
 - **E2E-02** — Dado nenhuma sessão, quando o usuário abre `/painel`, então é redirecionado para `/entrar`.
 
 ### 7.6 Outros
@@ -177,7 +177,7 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 **Fase final: Integração, entrega e documentação**
 - [ ] Review independente (G4)
 - [ ] Integração + CI verde (G5) e aprovação (H2)
-- [ ] Deploy via pipeline com smoke/E2E no ambiente; usuário de prova em produção (G6)
+- [ ] Deploy no ambiente local prod-like (SPEC-0005) com smoke/E2E; nuvem e usuário de prova na SPEC-0009 (G6)
 - [ ] Relatório de Entrega, docs raiz e CHANGELOG (G7)
 
 ## 12. Registro de Gates
@@ -238,3 +238,4 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 <!-- Mudança em spec aprovada: uma linha por emenda. Mudou o contrato? Incremente `contract_version` e rode `spec_graph.py impacted SPEC-0006`. -->
 | Versão do contrato | Data | Mudança | Motivo | Specs impactadas | Aprovado por |
 |---|---|---|---|---|---|
+| v1 (sem mudança de contrato) | 2026-10-13 | Smoke de produção e usuário de prova movidos para a SPEC-0009; G6 no ambiente local prod-like | Usuário: nada que gere custo até tudo rodar localmente | SPEC-0009 | thomas (2026-10-13) |
