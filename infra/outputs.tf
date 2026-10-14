@@ -13,10 +13,17 @@ output "production_database_private_host" {
   value       = digitalocean_database_cluster.production.private_host
 }
 
-output "production_database_uri" {
-  description = "URI privada do banco de produção (vai para o GitHub Environment secret, nunca para logs)."
-  value       = digitalocean_database_cluster.production.private_uri
-  sensitive   = true
+output "production_database_connection_string" {
+  description = "Connection string Npgsql (chave=valor) do usuário de aplicação vitrine_app no banco vitrine, pela VPC e com TLS — valor de DB_CONNECTION_STRING no GitHub Environment production; nunca o doadmin, nunca em logs."
+  value = join(";", [
+    "Host=${digitalocean_database_cluster.production.private_host}",
+    "Port=${digitalocean_database_cluster.production.port}",
+    "Database=${digitalocean_database_db.vitrine.name}",
+    "Username=${digitalocean_database_user.app.name}",
+    "Password=${digitalocean_database_user.app.password}",
+    "SSL Mode=Require",
+  ])
+  sensitive = true
 }
 
 output "artifacts_bucket" {

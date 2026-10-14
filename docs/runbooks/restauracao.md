@@ -8,7 +8,7 @@
 2. Painel DigitalOcean → Databases → `vitrine-production-pg` → *Backups* → *Restore from point in time* (ou `doctl databases fork vitrine-production-pg-restore --restore-from-cluster-id <id> --restore-from-timestamp <ISO-8601>`). A restauração cria um **cluster novo**; o original fica intacto.
 3. Confira o cluster restaurado (contagens das tabelas críticas, `wolverine.wolverine_incoming_envelopes`) com um usuário de leitura.
 4. Coloque a aplicação em manutenção (pare a API: `docker compose -p vitrine stop api`) para não gravar no banco antigo.
-5. Aponte `DB_CONNECTION_STRING` do Environment `production` para o cluster restaurado e rode o deploy da tag atual (o `migrate` alinha o schema, se preciso).
+5. Recrie o usuário `vitrine_app` no cluster restaurado se necessário e aponte `DB_CONNECTION_STRING` do Environment `production` (formato de `tofu output -raw production_database_connection_string`, com o host do cluster restaurado — nunca o `doadmin`) para ele e rode o deploy da tag atual (o `migrate` alinha o schema, se preciso).
 6. Atualize o OpenTofu (`tofu import` do cluster novo ou troca de nome) para o estado refletir o banco em uso; remova o cluster antigo só depois de 7 dias.
 7. Registre: instante alvo, início/fim, RPO e RTO medidos, quem executou.
 
