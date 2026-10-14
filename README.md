@@ -48,7 +48,14 @@ Todos na raiz do repositório.
 | Build (sem avisos) | `dotnet build Vitrine.slnx -warnaserror && npm --prefix web ci && npm --prefix web run build` |
 | Lint / formatação (verificação) | `dotnet format Vitrine.slnx --verify-no-changes && npm --prefix web run lint` |
 | Corrigir formatação | `dotnet format Vitrine.slnx` e `npm --prefix web run lint:fix` |
-| Testes | `dotnet test --solution Vitrine.slnx` (Docker necessário para os de integração) |
+| Testes unitários | `dotnet test tests/Vitrine.UnitTests && npm --prefix web run test` |
+| Testes de integração (Docker) | `dotnet test tests/Vitrine.IntegrationTests` |
+| Testes de arquitetura | `dotnet test tests/Vitrine.ArchitectureTests` |
+| E2E (Playwright, sobe o AppHost) | `npm --prefix web run e2e` (com `BASE_URL` roda contra um ambiente) |
+| Suíte .NET completa | `dotnet test --solution Vitrine.slnx` |
+| Cobertura | comando `coverage` de `docs/specs/sdd-config.yml` (diff-cover ≥ 80% obrigatório no CI) |
+| Testes de infra e deploy | `bash tests/infra/run.sh` (portas 80/443 livres) |
+| Deploy local prod-like | `cp deploy/local/.env.example deploy/local/.env && deploy/deploy.sh <tag> --env-file deploy/local/.env` → `https://vitrine.localhost` (ver `docs/runbooks/deploy.md`) |
 | SPA isolada | `npm --prefix web run dev` |
 | Estado das specs | `python3 tools/sdd/spec_graph.py status` |
 

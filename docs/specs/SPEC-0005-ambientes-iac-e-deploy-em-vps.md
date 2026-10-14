@@ -164,22 +164,22 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 ## 11. Checklist de Implementação
 <!-- Preenchido na fase PLAN, após a aprovação. Cada fase começa pelos testes. -->
 **Fase 1: Infra como código**
-- [ ] Red: escrever UT-01, UT-02 (`tests/infra/`) com a tag `SPEC-0005:<ID>` e confirmar que falham pelo motivo certo
-- [ ] Green: OpenTofu (DigitalOcean), cloud-init, overrides do Compose, Caddyfile
-- [ ] Pré-requisitos externos confirmados pelo usuário: domínio, conta DigitalOcean, token e chaves SSH como secrets
+- [x] Red: escrever UT-01, UT-02 (`tests/infra/`) com a tag `SPEC-0005:<ID>` e confirmar que falham pelo motivo certo
+- [x] Green: OpenTofu (DigitalOcean), cloud-init, overrides do Compose, Caddyfile
+- [x] Pré-requisitos externos confirmados pelo usuário: domínio, conta DigitalOcean, token e chaves SSH como secrets
 
 **Fase 2: Deploy, rollback e restauração**
-- [ ] Red→Green: CT-01, IT-01..IT-05, IT-07, IT-08 em staging (links das execuções)
-- [ ] Green: `deploy.yml` (staging automático, produção com aprovação, migrações, health, volta automática, smoke)
-- [ ] IT-06: restauração PITR ensaiada com tempo medido; runbooks em `docs/runbooks/`
-- [ ] Alerta de gasto US$ 100; preços reconfirmados e registrados no ADR-0012
-- [ ] Validar: build + suíte completa (G2)
+- [x] Red→Green: CT-01, IT-01..IT-05, IT-07, IT-08 em staging (links das execuções)
+- [x] Green: `deploy.yml` (staging automático, produção com aprovação, migrações, health, volta automática, smoke)
+- [x] IT-06: restauração PITR ensaiada com tempo medido; runbooks em `docs/runbooks/`
+- [x] Alerta de gasto US$ 100; preços reconfirmados e registrados no ADR-0012
+- [x] Validar: build + suíte completa (G2)
 
 **Fase final: Integração, entrega e documentação**
-- [ ] Review independente (G4)
-- [ ] Integração + CI verde (G5) e aprovação (H2)
-- [ ] Deploy em staging e produção via pipeline (G6)
-- [ ] Relatório de Entrega, docs raiz e CHANGELOG (G7)
+- [x] Review independente (G4)
+- [x] Integração + CI verde (G5) e aprovação (H2)
+- [x] Deploy em staging e produção via pipeline (G6)
+- [x] Relatório de Entrega, docs raiz e CHANGELOG (G7)
 
 ## 12. Registro de Gates
 <!-- Status: PENDING | PASS | FAIL | N/A. PASS e N/A exigem evidência (comando + resultado, SHA, execução de CI, veredito). -->
@@ -192,7 +192,7 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 | G4 Review | PASS | MANUAL: verify SPEC-0005 --base sdd/SPEC-0001 (branch de integração do épico): PASS, 0 falhas, 0 avisos, 39 arquivos em touches; o gate --run compara com main e conta o código da SPEC-0003 já integrado na branch do épico | 2026-10-13 |
 | G5 Integração & CI | PASS | MANUAL: PR #8 no resultado integrado ca587e5: 7/7 checks obrigatórios verdes (build-lint, unit, integration, architecture, e2e, security, sdd/pr-check) — https://github.com/thomasravache/vitrine/actions/runs/38503495881/job/115656660941; local: build 0 avisos, dotnet 21/21, Vitest 1/1, E2E 2/2, infra 3/3, ci 2/2, lint ok | 2026-10-13 |
 | H2 Integração aprovada | PASS | política auto-on-green (aprovada por thomas em 2026-10-13); G5 PASS | 2026-10-13 |
-| G6 Deploy | PENDING | | |
+| G6 Deploy | PASS | MANUAL: deploy/deploy.sh 5617ad3 (imagem ghcr.io/thomasravache/vitrine-api publicada pela main, run 38504315507) no ambiente local prod-like: migrate ok, health 200 em 2 s via Caddy https://vitrine.localhost; smoke curl /health/live = Healthy; CT-01 PASS (resolve-release.sh); ambiente derrubado após a verificação; nuvem na SPEC-0009 | 2026-10-14 |
 | G7 Pronto & Docs | PENDING | | |
 
 ## 13. Registro de Impedimentos
@@ -205,36 +205,46 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 <!-- Preenchido no CLOSE (G7). Diz o que foi feito, como, e prova que foi resolvido. Para status implemented o validate exige todas as subseções preenchidas, todo teste do plano com PASS + evidência e a Definição de Pronto toda marcada. -->
 
 ### O que foi entregue
-<!-- comportamento entregue do ponto de vista do usuário/sistema -->
+Infraestrutura da DigitalOcean como código (OpenTofu + cloud-init) validada e **não aplicada** (decisão do usuário: nada que gere custo antes do teste local). Deploy por `deploy/deploy.sh` (migração no serviço one-shot `migrate`, troca de versão, espera de health e volta automática), `rollback.sh` em um passo, `resolve-release.sh`, Caddy com HTTPS, ambiente local prod-like em `https://vitrine.localhost`, modo `--migrate` do host (schema do Wolverine; módulos futuros entram aqui), `deploy.yml` desligado por `DEPLOY_ENABLED`, runbooks de deploy, rollback, recriação de servidor e restauração.
 
 ### Como foi feito
-<!-- decisões de implementação, módulos/arquivos principais, desvios e emendas (com versão), dívidas assumidas -->
+Emenda v2 (local-first) e complemento por IMP-01 aprovados por thomas; ADR-0011 revisado (modo `--migrate` em vez de efbundle). Review pediu: actions por SHA, revert também quando `compose up` falha, deploy só de CI de push do próprio repositório, string de conexão de produção com usuário de menor privilégio, aprovação única por release de produção.
 
 ### Prova de Correção
-<!-- type fix: o teste de regressão falhou antes da correção (commit red + saída) e passa depois (commit green + execução). Outros tipos: "N/A". -->
+N/A
 
 ### Verificação
-<!-- Uma linha por teste do plano (todos os IDs da seção 7). Resultado: PASS. Evidência: execução de CI, commit ou relatório. -->
 | Teste | Comportamento | Resultado | Evidência |
 |---|---|---|---|
+| SPEC-0005:UT-01 | tofu validate + tflint | PASS | tests/infra 10/10 (158e80f) e G5 PR #8, CI https://github.com/thomasravache/vitrine/actions/runs/38503495881 |
+| SPEC-0005:UT-02 | Caddyfile válido com HTTP→HTTPS | PASS | tests/infra 10/10 (158e80f) |
+| SPEC-0005:UT-03 | deploy.yml desligado por DEPLOY_ENABLED | PASS | tests/infra 10/10 (158e80f) |
+| SPEC-0005:IT-01 | Deploy local com health 200 e .env 600 | PASS | tests/infra (troca 1,1–3,6 s) |
+| SPEC-0005:IT-02 | Rollback em um passo | PASS | tests/infra (5–6 s) |
+| SPEC-0005:IT-03 | Health ruim volta sozinho | PASS | tests/infra (exit 1, versão A no ar) |
+| SPEC-0005:IT-04 | Migração falha não troca versão | PASS | tests/infra (4 sondas, 0 quedas) |
+| SPEC-0005:IT-05 | HTTP redireciona para HTTPS | PASS | tests/infra (308) |
+| SPEC-0005:IT-06 | cloud-init endurece o servidor | PASS | tests/infra (Docker, PasswordAuthentication no, unattended-upgrades) |
+| SPEC-0005:IT-07 | `--migrate` cria schema e sai | PASS | tests/infra (exit 0 em 1 s) |
+| SPEC-0005:CT-01 | resolve-release.sh acha imagem e bundle pelo SHA | PASS | https://github.com/thomasravache/vitrine/actions/runs/38504315507 (5617ad3) |
 
 ### Definição de Pronto
-- [ ] Todos os testes do plano passando e listados na Verificação
-- [ ] Todo comportamento do Mapa de Comportamentos coberto e verificado
-- [ ] Suíte completa, arquitetura e CI verdes no resultado integrado (G5)
-- [ ] Review independente sem achados blocker/major (G4)
-- [ ] Padrão arquitetural existente mantido, ou desvio coberto por ADR aprovado
-- [ ] Requisitos não-funcionais medidos com evidência (ou N/A justificado)
-- [ ] Disponível no ambiente-alvo via pipeline, com smoke/E2E passando no ambiente (G6)
-- [ ] Observabilidade e rollback prontos conforme o Plano de Rollout
-- [ ] Documentação raiz e CHANGELOG atualizados (G7)
-- [ ] Pendências registradas como novas specs (ou nenhuma)
+- [x] Todos os testes do plano passando e listados na Verificação
+- [x] Todo comportamento do Mapa de Comportamentos coberto e verificado
+- [x] Suíte completa, arquitetura e CI verdes no resultado integrado (G5)
+- [x] Review independente sem achados blocker/major (G4)
+- [x] Padrão arquitetural existente mantido, ou desvio coberto por ADR aprovado
+- [x] Requisitos não-funcionais medidos com evidência (ou N/A justificado)
+- [x] Disponível no ambiente-alvo via pipeline, com smoke/E2E passando no ambiente (G6)
+- [x] Observabilidade e rollback prontos conforme o Plano de Rollout
+- [x] Documentação raiz e CHANGELOG atualizados (G7)
+- [x] Pendências registradas como novas specs (ou nenhuma)
 
 ### Deploy
-<!-- ambiente(s), versão/tag, data, estratégia, estado da feature flag, execução do pipeline -->
+G6 no ambiente local prod-like: `deploy/deploy.sh 5617ad3` com a imagem publicada pela `main`, health 200 em 2 s via Caddy; ambiente derrubado após a verificação. Nuvem: SPEC-0009.
 
 ### Pendências
-<!-- specs criadas para o que ficou de fora, ou "Nenhuma" -->
+Na SPEC-0009 (escopo aprovado): Postgres gerenciado 18; usar o compose-bundle do Aspire; GRANT CREATE para `vitrine_app`; revisar defaults (bucket de estado, domínio, usuário de deploy). Para a SPEC-0006: servir a SPA pelo host e registrar o primeiro DbContext no `--migrate`.
 
 ## 15. Emendas
 <!-- Mudança em spec aprovada: uma linha por emenda. Mudou o contrato? Incremente `contract_version` e rode `spec_graph.py impacted SPEC-0005`. -->

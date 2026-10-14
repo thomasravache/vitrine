@@ -142,20 +142,20 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 ## 11. Checklist de Implementação
 <!-- Preenchido na fase PLAN, após a aprovação. Cada fase começa pelos testes. -->
 **Fase 1: Workflow**
-- [ ] Red: escrever UT-01, UT-02 (`tests/ci/`) com a tag `SPEC-0004:<ID>` e confirmar que falham pelo motivo certo
-- [ ] Green: `ci.yml` com os 7 jobs, permissões mínimas, actions fixadas por SHA, cache, `dependabot.yml`, CodeQL, `AddDockerComposeEnvironment` no AppHost, imagem no GHCR
-- [ ] Refactor mantendo tudo verde
+- [x] Red: escrever UT-01, UT-02 (`tests/ci/`) com a tag `SPEC-0004:<ID>` e confirmar que falham pelo motivo certo
+- [x] Green: `ci.yml` com os 7 jobs, permissões mínimas, actions fixadas por SHA, cache, `dependabot.yml`, CodeQL, `AddDockerComposeEnvironment` no AppHost, imagem no GHCR
+- [x] Refactor mantendo tudo verde
 
 **Fase 2: Provas no GitHub**
-- [ ] Red→Green: IT-01..IT-05 e CT-01, CT-02 com PRs/branches de prova `ci-proof/*` (link das execuções)
-- [ ] Checks obrigatórios na proteção da `main`; `security_scan` e `ci` no sdd-config
-- [ ] Validar: build + suíte completa (G2)
+- [x] Red→Green: IT-01..IT-05 e CT-01, CT-02 com PRs/branches de prova `ci-proof/*` (link das execuções)
+- [x] Checks obrigatórios na proteção da `main`; `security_scan` e `ci` no sdd-config
+- [x] Validar: build + suíte completa (G2)
 
 **Fase final: Integração, entrega e documentação**
-- [ ] Review independente (G4)
-- [ ] Integração + CI verde (G5) e aprovação (H2)
-- [ ] Deploy: N/A — workflow ativo no merge (G6)
-- [ ] Relatório de Entrega, docs raiz e CHANGELOG (G7)
+- [x] Review independente (G4)
+- [x] Integração + CI verde (G5) e aprovação (H2)
+- [x] Deploy: N/A — workflow ativo no merge (G6)
+- [x] Relatório de Entrega, docs raiz e CHANGELOG (G7)
 
 ## 12. Registro de Gates
 <!-- Status: PENDING | PASS | FAIL | N/A. PASS e N/A exigem evidência (comando + resultado, SHA, execução de CI, veredito). -->
@@ -168,7 +168,7 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 | G4 Review | PASS | MANUAL: verify SPEC-0004 --base sdd/SPEC-0001: PASS 0 falhas, 1 aviso justificado (lockfile); tests/ci 2/2; provas PR #2..#7 (IT-01 recheck run 38502052493 7/7 verde) | 2026-10-13 |
 | G5 Integração & CI | PASS | MANUAL: PR #8 no resultado integrado ca587e5: 7/7 checks obrigatórios verdes (build-lint, unit, integration, architecture, e2e, security, sdd/pr-check) — https://github.com/thomasravache/vitrine/actions/runs/38503495881/job/115656660941; local: build 0 avisos, dotnet 21/21, Vitest 1/1, E2E 2/2, infra 3/3, ci 2/2, lint ok | 2026-10-13 |
 | H2 Integração aprovada | PASS | política auto-on-green (aprovada por thomas em 2026-10-13); G5 PASS | 2026-10-13 |
-| G6 Deploy | PENDING | | |
+| G6 Deploy | N/A | workflow ativo desde o merge (PR #8); primeira execução na main 38504315507 publicou imagem e compose-bundle (IT-05, CT-02 PASS); deploy na nuvem na SPEC-0009 | 2026-10-14 |
 | G7 Pronto & Docs | PENDING | | |
 
 ## 13. Registro de Impedimentos
@@ -180,36 +180,44 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 <!-- Preenchido no CLOSE (G7). Diz o que foi feito, como, e prova que foi resolvido. Para status implemented o validate exige todas as subseções preenchidas, todo teste do plano com PASS + evidência e a Definição de Pronto toda marcada. -->
 
 ### O que foi entregue
-<!-- comportamento entregue do ponto de vista do usuário/sistema -->
+Pipeline de CI no GitHub Actions com os 7 checks obrigatórios (build-lint, unit, integration, architecture, e2e, security, sdd) em todo PR e push na `main`; varreduras NuGet/npm/gitleaks/Trivy/CodeQL que reprovam alta/crítica; job `sdd` com validate + pr-check; publicação da imagem `ghcr.io/thomasravache/vitrine-api:<sha>` (+ `:main`) e do artefato `compose-bundle` só na `main` com tudo verde; Dependabot semanal; ambiente Docker Compose no AppHost (Aspire.Hosting.Docker). Proteção da `main` com os 7 checks obrigatórios.
 
 ### Como foi feito
-<!-- decisões de implementação, módulos/arquivos principais, desvios e emendas (com versão), dívidas assumidas -->
+Provas reais por PRs `ci-proof/*` fechados sem merge (#2 a #7). Emenda v2 aprovada (security_scan que reprova de fato; GHCR público). Review: varredura NuGet fail-closed, concorrência por SHA na `main`, SDK lido do `global.json`. Minors aceitos: job `sdd` mantém `packages: write` em PRs (separar exigiria um 8º job); Trivy com `--ignore-unfixed`; dashboard nightly do Aspire no bundle (SPEC-0009); Dependabot docker ainda sem arquivos. Na estreia, o job `sdd` barrou o PR #8 por rastreabilidade (commits citando outra spec e arquivo de ferramenta) — corrigido com touches e `scope_exempt: .claude/**`.
 
 ### Prova de Correção
-<!-- type fix: o teste de regressão falhou antes da correção (commit red + saída) e passa depois (commit green + execução). Outros tipos: "N/A". -->
+N/A
 
 ### Verificação
-<!-- Uma linha por teste do plano (todos os IDs da seção 7). Resultado: PASS. Evidência: execução de CI, commit ou relatório. -->
 | Teste | Comportamento | Resultado | Evidência |
 |---|---|---|---|
+| SPEC-0004:UT-01 | actionlint limpo e actions fixadas por SHA | PASS | tests/ci local 2/2; job build-lint PR #8, CI https://github.com/thomasravache/vitrine/actions/runs/38503495881 |
+| SPEC-0004:UT-02 | 7 jobs estáveis com permissions | PASS | tests/ci local 2/2 |
+| SPEC-0004:IT-01 | PR saudável com 7 checks verdes | PASS | PR #2 run 38494594472; recheck PR #7 run 38502052493 |
+| SPEC-0004:IT-02 | Teste quebrado bloqueia o merge | PASS | PR #3 (unit vermelho, BLOCKED) |
+| SPEC-0004:IT-03 | Segredo bloqueado pelo gitleaks | PASS | PR #5 (leaks found: 1) |
+| SPEC-0004:IT-04 | Dependência vulnerável bloqueada | PASS | PR #6 (Newtonsoft.Json 12.0.1, High) |
+| SPEC-0004:IT-05 | Push na main publica imagem e compose-bundle | PASS | https://github.com/thomasravache/vitrine/actions/runs/38504315507 |
+| SPEC-0004:CT-01 | Spec sem gates reprova o job sdd | PASS | PR #4 (anotação [gates]) |
+| SPEC-0004:CT-02 | Imagem e bundle resolvidos pelo head_sha | PASS | https://github.com/thomasravache/vitrine/actions/runs/38504315507 (digest sha256:34bb1c29…) |
 
 ### Definição de Pronto
-- [ ] Todos os testes do plano passando e listados na Verificação
-- [ ] Todo comportamento do Mapa de Comportamentos coberto e verificado
-- [ ] Suíte completa, arquitetura e CI verdes no resultado integrado (G5)
-- [ ] Review independente sem achados blocker/major (G4)
-- [ ] Padrão arquitetural existente mantido, ou desvio coberto por ADR aprovado
-- [ ] Requisitos não-funcionais medidos com evidência (ou N/A justificado)
-- [ ] Disponível no ambiente-alvo via pipeline, com smoke/E2E passando no ambiente (G6)
-- [ ] Observabilidade e rollback prontos conforme o Plano de Rollout
-- [ ] Documentação raiz e CHANGELOG atualizados (G7)
-- [ ] Pendências registradas como novas specs (ou nenhuma)
+- [x] Todos os testes do plano passando e listados na Verificação
+- [x] Todo comportamento do Mapa de Comportamentos coberto e verificado
+- [x] Suíte completa, arquitetura e CI verdes no resultado integrado (G5)
+- [x] Review independente sem achados blocker/major (G4)
+- [x] Padrão arquitetural existente mantido, ou desvio coberto por ADR aprovado
+- [x] Requisitos não-funcionais medidos com evidência (ou N/A justificado)
+- [x] Disponível no ambiente-alvo via pipeline, com smoke/E2E passando no ambiente (G6)
+- [x] Observabilidade e rollback prontos conforme o Plano de Rollout
+- [x] Documentação raiz e CHANGELOG atualizados (G7)
+- [x] Pendências registradas como novas specs (ou nenhuma)
 
 ### Deploy
-<!-- ambiente(s), versão/tag, data, estratégia, estado da feature flag, execução do pipeline -->
+Workflow ativo desde o merge do PR #8; primeira execução na `main`: https://github.com/thomasravache/vitrine/actions/runs/38504315507 (G6 N/A — deploy na nuvem na SPEC-0009).
 
 ### Pendências
-<!-- specs criadas para o que ficou de fora, ou "Nenhuma" -->
+Nenhuma nova spec. Itens para a SPEC-0009: dashboard nightly do Aspire no bundle.
 
 ## 15. Emendas
 <!-- Mudança em spec aprovada: uma linha por emenda. Mudou o contrato? Incremente `contract_version` e rode `spec_graph.py impacted SPEC-0004`. -->
