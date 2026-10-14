@@ -230,9 +230,9 @@ jobs:
       - name: Vulnerable NuGet packages (dotnet list package --vulnerable)
         if: ${{ !cancelled() }}
         run: |
-          # NuGetAudit desligado só nesta restauração: o achado sai no relatório abaixo, não como erro de restore.
-          dotnet restore Vitrine.slnx -p:NuGetAudit=false
-          dotnet list Vitrine.slnx package --vulnerable --include-transitive 2>&1 | tee "$RUNNER_TEMP/nuget-vulnerable.txt"
+          # Aviso de auditoria (NU190x) não vira erro nesta restauração: o achado sai no relatório abaixo.
+          dotnet restore Vitrine.slnx -p:TreatWarningsAsErrors=false
+          dotnet list Vitrine.slnx package --vulnerable --include-transitive --no-restore 2>&1 | tee "$RUNNER_TEMP/nuget-vulnerable.txt"
           # `dotnet list` sai com 0 mesmo com achados: alta/crítica bloqueia o merge (ADR-0008).
           if grep -qE '^[[:space:]]+>.*[[:space:]](High|Critical)[[:space:]]' "$RUNNER_TEMP/nuget-vulnerable.txt"; then
             echo "::error title=security::NuGet package(s) with high/critical vulnerability (see the report above)"
