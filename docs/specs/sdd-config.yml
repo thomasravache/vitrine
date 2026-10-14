@@ -31,7 +31,7 @@ security_scan: ""
 
 # --- CI/CD e ambientes (G5, G6) ---
 # Como conferir o pipeline da branch/PR. Exemplo: "gh pr checks --watch"
-ci: ""
+ci: "gh pr checks --watch"
 # Como o deploy acontece (preferencialmente pelo pipeline). Exemplos: "merge em main → pipeline" | "gh workflow run deploy.yml -f env=staging"
 deploy_staging: "deploy/deploy.sh <sha> --env-file deploy/local/.env"  # ambiente local prod-like até a SPEC-0009
 deploy_production: ""

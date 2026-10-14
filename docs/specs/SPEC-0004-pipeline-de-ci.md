@@ -9,8 +9,8 @@ created: 2026-10-13
 parent: SPEC-0001
 depends_on: [SPEC-0002]
 consumes_contract: []
-contract_version: 1
-touches: [.github/workflows/ci.yml, .github/dependabot.yml, .github/codeql/**, tests/ci/**, Directory.Packages.props, src/Api/Vitrine.Api.csproj, src/Api/packages.lock.json, src/AppHost/Vitrine.AppHost.csproj, src/AppHost/AppHost.cs, src/AppHost/packages.lock.json]
+contract_version: 2
+touches: [.github/workflows/ci.yml, .github/dependabot.yml, .github/codeql/**, tests/ci/**, Directory.Packages.props, src/Api/Vitrine.Api.csproj, src/Api/packages.lock.json, src/AppHost/Vitrine.AppHost.csproj, src/AppHost/AppHost.cs, src/AppHost/packages.lock.json, tests/Vitrine.Tooling.Tests/packages.lock.json, web/e2e/support/packages.lock.json]
 adrs: [ADR-0004, ADR-0005, ADR-0008, ADR-0003, ADR-0006]
 external: []
 size: M
@@ -75,7 +75,7 @@ Saída na main (após todos os checks): imagem ghcr.io/thomasravache/vitrine-api
                                       artefato "compose-bundle" (saída do `aspire publish`: docker-compose.yaml + .env.template)
 Falhas: qualquer job vermelho bloqueia o merge; job `security` falha em vulnerabilidade alta/crítica ou segredo encontrado
 Evento para deploy: workflow_run "CI" concluído com sucesso na main -> consumido por deploy.yml (SPEC-0005)
-sdd-config: security_scan: "dotnet list package --vulnerable --include-transitive && npm --prefix web audit --audit-level=high && gitleaks detect --no-banner"
+sdd-config: security_scan: "dotnet restore Vitrine.slnx -p:TreatWarningsAsErrors=false && ! dotnet list Vitrine.slnx package --vulnerable --include-transitive --no-restore | tee /dev/stderr | grep -qE '^ +>.* (High|Critical) ' && npm --prefix web audit --audit-level=high && gitleaks git --log-opts=HEAD --no-banner --redact"
             ci: "gh pr checks --watch"
 ```
 
@@ -215,3 +215,4 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 <!-- Mudança em spec aprovada: uma linha por emenda. Mudou o contrato? Incremente `contract_version` e rode `spec_graph.py impacted SPEC-0004`. -->
 | Versão do contrato | Data | Mudança | Motivo | Specs impactadas | Aprovado por |
 |---|---|---|---|---|---|
+| v2 | 2026-10-13 | `security_scan` falha de fato em pacote NuGet High/Critical (`dotnet list` sempre sai 0) e o gitleaks varre só o histórico do HEAD; GHCR `vitrine-api` público (imagem de repositório público, deploy sem token de pull); touches incluem os lockfiles de Tooling.Tests e do fixture E2E (efeito do Aspire.Hosting.Docker) | Provas no GitHub mostraram que o comando aprovado não reprova vulnerabilidades e varre branches alheias | SPEC-0005 (deploy sem login no GHCR) | (pendente) |
