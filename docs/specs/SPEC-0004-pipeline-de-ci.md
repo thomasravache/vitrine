@@ -165,7 +165,7 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 | G1 Red | PASS | MANUAL: verify G1 PASS (9/9 tags, a4cbee3); testes são scripts em tests/ci (fora do comando test): run.sh → UT-01/UT-02 FAIL 'ci.yml does not exist'; IT-01..05, CT-01, CT-02 falham por ci.yml ausente/variáveis de prova ausentes — a4cbee3 | 2026-10-13 |
 | G2 Green | PASS | build exit 0 (✓ built in 436ms); test exit 0 (Duration  418ms (environment 59%, import 22%, transform 11%, tests 7%, worker 1%)); lint exit 0 (> tsc --noEmit && tsc --noEmit -p tsconfig.node.json); coverage exit 0 (AVISO: uvx não encontrado; diff-cover (>= 80% das linhas alteradas) NÃO foi verificado loc) — be40dce | 2026-10-13 |
 | G3 Arquitetura | PASS | arch_test exit 0 (duration: 1s 999ms) — be40dce | 2026-10-13 |
-| G4 Review | PENDING | | |
+| G4 Review | PASS | MANUAL: verify SPEC-0004 --base sdd/SPEC-0001: PASS 0 falhas, 1 aviso justificado (lockfile); tests/ci 2/2; provas PR #2..#7 (IT-01 recheck run 38502052493 7/7 verde) | 2026-10-13 |
 | G5 Integração & CI | PENDING | | |
 | H2 Integração aprovada | PENDING | | |
 | G6 Deploy | PENDING | | |
