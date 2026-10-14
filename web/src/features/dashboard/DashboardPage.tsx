@@ -65,10 +65,14 @@ export function DashboardPage() {
 
       <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:gap-6">
         <Feature icon={<SparklesIcon className="size-6" />} title="Anúncios melhores">
-          Sugestões claras de títulos, fotos e atributos para aumentar suas vendas.
+          Sugestões de título, descrição e ficha técnica para seus anúncios aparecerem mais na
+          busca.
         </Feature>
-        <Feature icon={<ChatIcon className="size-6" />} title="Respostas em 2 min">
-          Responda compradores com rapidez e nunca perca uma venda por demora.
+        <Feature
+          icon={<ChatIcon className="size-6" />}
+          title="Perguntas respondidas em até 2 minutos"
+        >
+          Respostas rápidas, a qualquer hora, sem inventar o que não está no anúncio.
         </Feature>
       </div>
     </AppShell>

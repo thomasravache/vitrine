@@ -5,7 +5,7 @@ import { register } from "../../api/generated/vitrine.ts";
 import { meQuery, type Problem } from "../../api/session.ts";
 import { ErrorAlert } from "../../ui/Alert.tsx";
 import { Button } from "../../ui/Button.tsx";
-import { ArrowRightIcon, BoltIcon } from "../../ui/icons.tsx";
+import { ArrowRightIcon } from "../../ui/icons.tsx";
 import { TextField } from "../../ui/TextField.tsx";
 import { useDocumentTitle } from "../../ui/useDocumentTitle.ts";
 import { AuthLayout, footerLinkClass } from "./AuthLayout.tsx";
@@ -69,10 +69,6 @@ export function SignupPage() {
         </>
       }
     >
-      <p className="mb-4 inline-flex items-center gap-2 rounded-full bg-primary-soft px-3 py-1.5 text-sm font-semibold text-primary">
-        <BoltIcon className="size-4" />
-        Configuração em menos de 1 minuto
-      </p>
       <h1 className="text-3xl font-bold tracking-tight lg:text-[1.75rem]">Crie sua conta</h1>
       <p className="mt-2 text-lg text-muted lg:text-base">
         Seus anúncios melhores e perguntas respondidas, a qualquer hora.

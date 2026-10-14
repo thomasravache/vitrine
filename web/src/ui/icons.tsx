@@ -26,12 +26,6 @@ export const ArrowRightIcon = (props: SVGProps<SVGSVGElement>) => (
   </Icon>
 );
 
-export const BoltIcon = (props: SVGProps<SVGSVGElement>) => (
-  <Icon {...props}>
-    <path d="M13 2 4 14h7l-1 8 9-12h-7z" />
-  </Icon>
-);
-
 export const AlertIcon = (props: SVGProps<SVGSVGElement>) => (
   <Icon {...props}>
     <circle cx="12" cy="12" r="9" />
