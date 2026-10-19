@@ -983,7 +983,8 @@
           "Aspire.Hosting.Docker": "[13.6.1, )",
           "Aspire.Hosting.JavaScript": "[13.6.1, )",
           "Aspire.Hosting.Orchestration.linux-x64": "[13.6.1, )",
-          "Aspire.Hosting.PostgreSQL": "[13.6.1, )"
+          "Aspire.Hosting.PostgreSQL": "[13.6.1, )",
+          "Npgsql": "[10.0.3, )"
         }
       },
       "Aspire.Hosting.Docker": {
@@ -1117,11 +1118,11 @@
       },
       "Npgsql": {
         "type": "CentralTransitive",
-        "requested": "[9.0.4, )",
-        "resolved": "8.0.3",
-        "contentHash": "6WEmzsQJCZAlUG1pThKg/RmeF6V+I0DmBBBE/8YzpRtEzhyZzKcK7ulMANDm5CkxrALBEC8H+5plxHWtIL7xnA==",
+        "requested": "[10.0.3, )",
+        "resolved": "10.0.3",
+        "contentHash": "7nb5YzXuvWWJxB0J8DiyL3we+X4FOctZrt0fIBnucOIaIevFEEwGQVZKtiu9olXdlNAK1eNgqSral6r/jlhI4w==",
         "dependencies": {
-          "Microsoft.Extensions.Logging.Abstractions": "8.0.0"
+          "Microsoft.Extensions.Logging.Abstractions": "10.0.0"
         }
       },
       "OpenTelemetry.Exporter.OpenTelemetryProtocol": {
