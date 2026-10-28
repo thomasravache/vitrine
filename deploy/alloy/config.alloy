@@ -1,0 +1,55 @@
+// SPEC-0007 — Grafana Alloy: métricas do host (CPU, memória, disco, rede) para o Grafana Cloud (ADR-0009).
+// Único agente no droplet; sobe só com o perfil `observability` do Compose (deploy/compose.override.yaml).
+// Credenciais por variável de ambiente (secrets do Environment, gravadas no deploy/.env 600 — ADR-0006):
+//   GRAFANA_CLOUD_PROMETHEUS_URL       endpoint de remote_write (…/api/prom/push)
+//   GRAFANA_CLOUD_PROMETHEUS_USER      ID numérico da instância Prometheus
+//   GRAFANA_CLOUD_API_KEY              token de acesso (escopo metrics:write)
+//   DEPLOY_ENVIRONMENT                 local | staging | production (rótulo deployment_environment)
+// A telemetria da aplicação (logs, traces, métricas OTLP) vai direto da Api ao Grafana Cloud.
+
+prometheus.exporter.unix "host" {
+  // O container monta o / do host em /host (somente leitura).
+  procfs_path = "/host/proc"
+  sysfs_path  = "/host/sys"
+  rootfs_path = "/host/root"
+
+  // Só o necessário aos painéis e alertas (disk-80, memory-90): mantém as séries no plano gratuito.
+  set_collectors = ["cpu", "meminfo", "filesystem", "loadavg", "diskstats", "netdev", "uname"]
+
+  filesystem {
+    fs_types_exclude     = "^(autofs|binfmt_misc|bpf|cgroup2?|configfs|debugfs|devpts|devtmpfs|fusectl|hugetlbfs|iso9660|mqueue|nsfs|overlay|proc|procfs|pstore|rpc_pipefs|securityfs|selinuxfs|squashfs|sysfs|tmpfs|tracefs)$"
+    mount_points_exclude = "^/(dev|proc|run|sys|var/lib/docker/.+)($|/)"
+  }
+}
+
+prometheus.scrape "host" {
+  targets         = prometheus.exporter.unix.host.targets
+  forward_to      = [prometheus.relabel.host.receiver]
+  scrape_interval = "60s"
+  job_name        = "integrations/node_exporter"
+}
+
+prometheus.relabel "host" {
+  forward_to = [prometheus.remote_write.grafana_cloud.receiver]
+
+  rule {
+    target_label = "instance"
+    replacement  = constants.hostname
+  }
+
+  rule {
+    target_label = "deployment_environment"
+    replacement  = sys.env("DEPLOY_ENVIRONMENT")
+  }
+}
+
+prometheus.remote_write "grafana_cloud" {
+  endpoint {
+    url = sys.env("GRAFANA_CLOUD_PROMETHEUS_URL")
+
+    basic_auth {
+      username = sys.env("GRAFANA_CLOUD_PROMETHEUS_USER")
+      password = sys.env("GRAFANA_CLOUD_API_KEY")
+    }
+  }
+}
