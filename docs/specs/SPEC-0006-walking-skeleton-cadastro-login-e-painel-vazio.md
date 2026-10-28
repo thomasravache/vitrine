@@ -10,7 +10,7 @@ parent: SPEC-0001
 depends_on: [SPEC-0003, SPEC-0004, SPEC-0005]
 consumes_contract: []
 contract_version: 1
-touches: [src/Modules/Identity/**, src/Api/**, web/src/**, web/e2e/**, web/package.json, web/package-lock.json, web/index.html, web/vite.config.ts, tests/README.md, deploy/compose.yaml, deploy/local/.env.example, docs/runbooks/deploy.md, tests/Vitrine.UnitTests/**, tests/Vitrine.IntegrationTests/**, tests/Vitrine.ArchitectureTests/**, tests/Vitrine.Tooling.Tests/packages.lock.json, src/AppHost/packages.lock.json, web/e2e/support/packages.lock.json, Vitrine.slnx, Directory.Packages.props, .gitleaksignore]
+touches: [src/Modules/Identity/**, src/Api/**, web/src/**, web/e2e/**, web/package.json, web/package-lock.json, web/index.html, web/vite.config.ts, tests/README.md, deploy/compose.yaml, deploy/local/.env.example, docs/runbooks/deploy.md, tests/Vitrine.UnitTests/**, tests/Vitrine.IntegrationTests/**, tests/Vitrine.ArchitectureTests/**, tests/Vitrine.Tooling.Tests/packages.lock.json, src/AppHost/packages.lock.json, web/e2e/support/packages.lock.json, Vitrine.slnx, Directory.Packages.props, .gitleaksignore, web/playwright.config.ts]
 adrs: [ADR-0001, ADR-0007, ADR-0011, ADR-0013, ADR-0014]
 external: []
 size: M
@@ -119,6 +119,7 @@ Evento de integração (contrato público do módulo Identity): WorkspaceCreated
 - **UT-02** — Dado comandos de cadastro com nome vazio, e-mail inválido ou senha com 9 caracteres, quando validados, então cada campo inválido gera seu erro.
 - **UT-03** — Dado a configuração de Identity, quando lida, então `MaxFailedAccessAttempts=5` e `DefaultLockoutTimeSpan=15 min`.
 - **UT-04** — Dado os assemblies do módulo Identity, quando as regras de arquitetura rodam, então passam (camadas, isolamento, schema próprio).
+- **UT-05** — Dado o `BASE_URL` do E2E, quando a configuração do Playwright decide se aceita certificado não confiável, então só aceita para `localhost` e hosts `*.localhost` (CA interna do Caddy local); para staging/produção (ex.: `https://staging.vitrine.app`), hosts parecidos (`vitrine.localhost.evil.com`) ou sem `BASE_URL`, o certificado continua validado.
 
 ### 7.3 Testes de Integração
 - **IT-01** — Dado Postgres real, quando `POST /register` com dados válidos, então 201, usuário, workspace e membro Owner persistidos, cookie de sessão emitido e mensagem `WorkspaceCreated` registrada no outbox na mesma transação.
@@ -191,7 +192,7 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 | G4 Review | PASS | verify G1+G4: PASS; revisão: reviewer-agent: APPROVED 858646b — sem blocker/major; minor: guarda de /health desconhecido não exercita o fallback da SPA (host de teste sem index.html) → levado à SPEC-0008 — 858646b | 2026-10-14 |
 | G5 Integração & CI | PASS | MANUAL: PR #13 (sdd/SPEC-0001 @ 65176c8): CI 7/7 verde + CodeQL — https://github.com/thomasravache/vitrine/actions/runs/38636314099; local: build/lint OK, dotnet 71/71, vitest 1/1, e2e 6/6, pr-check PASS, gitleaks 0, npm audit 0 | 2026-10-14 |
 | H2 Integração aprovada | PASS | política auto-on-green (aprovada por thomas em 2026-10-13); G5 PASS | 2026-10-28 |
-| G6 Deploy | PENDING | | |
+| G6 Deploy | FAIL | smoke_test exit 1 ([mobile] › e2e/acesso.spec.ts:41:1 › SPEC-0006:E2E-01 — vendedor se cadastra, vê o painel ) — 4770819 | 2026-10-28 |
 | G7 Pronto & Docs | PENDING | | |
 
 ## 13. Registro de Impedimentos
@@ -244,3 +245,4 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 | Emenda v1.1 (correção de teste, sem mudança de contrato) | 2026-10-14 | Helper do IT-01 busca o workspaceId nos bytes do corpo binário do envelope do Wolverine; `web/vite.config.ts` nos touches (proxy /api no desenvolvimento) | IMP-01 (TEST_DEFECT) e necessidade do proxy para a SPA alcançar a API na mesma origem sob o AppHost | — | Architect (sem mudança de contrato) |
 | v1 (sem mudança de contrato) | 2026-10-13 | Smoke de produção e usuário de prova movidos para a SPEC-0009; G6 no ambiente local prod-like | Usuário: nada que gere custo até tudo rodar localmente | SPEC-0009 | thomas (2026-10-13) |
 | v1.4 (escopo, sem mudança de contrato) | 2026-10-14 | `touches` ganha `.gitleaksignore` com os 3 fingerprints exatos das senhas fixas de teste (regra generic-api-key) | CI do PR #13: gitleaks acusou falsos positivos em `acesso.spec.ts`, `TestUser.cs` e `RegisterCommandValidatorTests.cs` | — | thomas (2026-10-28, opção A: exceção por fingerprint) |
+| v1.5 (escopo, sem mudança de contrato) | 2026-10-28 | `touches` ganha `web/playwright.config.ts`: `ignoreHTTPSErrors` só quando o host do `BASE_URL` termina em `.localhost` (CA interna do Caddy local); staging e produção seguem validando o certificado; guarda UT-05 | G6 FAIL: smoke @smoke contra https://vitrine.localhost deu `ERR_CERT_AUTHORITY_INVALID` (primeiro E2E contra ambiente implantado) | — | thomas (2026-10-28, piloto automático) |
