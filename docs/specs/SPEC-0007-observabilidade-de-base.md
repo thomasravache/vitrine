@@ -93,6 +93,7 @@ Alertas (Grafana): synthetic-ready, synthetic-login-page, disk-80, memory-90, ht
 | Pronto com banco | GET /health/ready, banco ok | 200 Healthy | IT-01 |
 | Banco fora | GET /health/ready, banco parado | 503 Unhealthy sem detalhes internos | IT-02 |
 | Mascaramento | log com e-mail, senha, token, cookie | valores mascarados no JSON emitido | UT-01, IT-03 |
+| Mascaramento no Sentry | evento/breadcrumb com e-mail, cabeçalhos, cookies, query e corpo | mascarados ou removidos antes do envio; sem DSN, Sentry desligado | UT-02 |
 | Destino de telemetria fora | endpoint OTLP inacessível | requisições seguem normais | IT-04 |
 | Métricas de login | logins ok/falha/bloqueio | contadores com a tag `result` correta | IT-05 |
 | Contrato de auth | login de prova via API | métricas e trace com spans de HTTP e banco | CT-01 |
@@ -105,6 +106,7 @@ Alertas (Grafana): synthetic-ready, synthetic-login-page, disk-80, memory-90, ht
 
 ### 7.2 Testes Unitários
 - **UT-01** — Dado o enriquecedor de mascaramento, quando recebe propriedades com e-mail, `password`, `access_token`, `Authorization` e `Cookie`, então emite os valores mascarados (`***`) e mantém os demais campos.
+- **UT-02** — Dado a configuração do Sentry do backend com DSN definido, quando um evento traz e-mail na mensagem e na exceção, cabeçalhos `Authorization`/`Cookie`, cookies, query string com token e corpo da requisição, e um breadcrumb com e-mail, então o evento enviado tem esses valores mascarados ou removidos, `SendDefaultPii=false`, e release/ambiente vêm da configuração; sem DSN, o Sentry não é registrado.
 
 ### 7.3 Testes de Integração
 - **IT-01** — Dado a API com Postgres real, quando `GET /health/live` e `GET /health/ready`, então ambos 200 e o corpo não contém host, connection string nem stack trace.
@@ -168,8 +170,8 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 | Gate | Status | Evidência | Data |
 |---|---|---|---|
 | G0 Spec | PASS | validate: 0 erro(s) — 4602cbe (árvore suja) | 2026-10-13 |
-| G1 Red | FAIL | verify G1: FAIL — commits test(...) alteram arquivos fora de test_paths: Directory.Packa — 26e88c5 | 2026-10-28 |
-| G2 Green | PENDING | | |
+| G1 Red | PASS | verify G1: PASS; `dotnet test tests/Vitrine.UnitTests && npm --prefix web run test` exit 2 (red: Test run completed with non-success exit code: 2 (see: https://aka.ms/testingplatform/exit) — 889eea8 | 2026-10-28 |
+| G2 Green | FAIL | build exit 0 (npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts a); test exit 0 (Duration  340ms (environment 60%, import 24%, transform 9%, tests 7%, worker 1%)); lint exit 0 (> tsc --noEmit && tsc --noEmit -p tsconfig.node.json); coverage exit 1 (Failure. Coverage is below 80%.) — 387784c | 2026-10-28 |
 | G3 Arquitetura | PENDING | | |
 | G4 Review | PENDING | | |
 | G5 Integração & CI | PENDING | | |
@@ -221,6 +223,7 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 <!-- Mudança em spec aprovada: uma linha por emenda. Mudou o contrato? Incremente `contract_version` e rode `spec_graph.py impacted SPEC-0007`. -->
 | Versão do contrato | Data | Mudança | Motivo | Specs impactadas | Aprovado por |
 |---|---|---|---|---|---|
+| v1.3 (plano de testes, sem mudança de contrato) | 2026-10-28 | Inclui UT-02: mascaramento do Sentry do backend (`BeforeSend`/`BeforeBreadcrumb`) e registro só com DSN | G2: cobertura das linhas alteradas 79% (< 80%), com a configuração do Sentry em `ObservabilityExtensions.cs` sem teste — proteção de dados pessoais (ADR-0006) precisa de prova | — | thomas (2026-10-28, piloto automático) |
 | v1.2 (escopo, sem mudança de contrato) | 2026-10-28 | `touches` ganha os csproj de `Vitrine.UnitTests` e `Vitrine.IntegrationTests` (pacote InMemory e referência ao ServiceDefaults); seção 7 deixa de citar IDs de testes de outras specs | `verify` do G1: arquivos fora do escopo e IDs de outras specs lidos como do plano | — | thomas (2026-10-28, piloto automático) |
 | v1.1 (escopo, sem mudança de contrato) | 2026-10-28 | `touches` alinhado ao código real: projetos `Vitrine.Identity.Infrastructure`/`Presentation` (o login fica em `IdentityEndpoints` e `CookieSessions`), suporte de testes de integração, `appsettings`, csproj da API, `web/package.json`/`main.tsx` (Sentry na SPA), `deploy/compose.yaml` e `.env.example` (variáveis opcionais), lockfiles. Versões: Sentry.AspNetCore 6.12.1, @sentry/react 11.7.0, grafana/alloy v1.20.1, OpenTelemetry.Exporter.InMemory 1.19.1 (testes), Npgsql.OpenTelemetry 10.0.3 — registradas no ADR-0009 | A spec foi escrita antes do módulo Identity existir; o caminho `src/Modules/Identity/Infrastructure/Metrics/**` não corresponde à estrutura criada na SPEC-0006 | — | thomas (2026-10-28, piloto automático) |
 | v1 (sem mudança de contrato) | 2026-10-13 | IT-06/IT-07 de produção/staging movidos para a SPEC-0009; novo IT-06 (exportação opcional); alertas como código, aplicados na SPEC-0009 | Usuário: nada que gere custo até tudo rodar localmente | SPEC-0009 | thomas (2026-10-13) |
