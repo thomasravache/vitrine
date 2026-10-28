@@ -4,13 +4,13 @@ title: Observabilidade de base
 tier: full
 type: foundation
 user_facing: false
-status: approved
+status: in-progress
 created: 2026-10-13
 parent: SPEC-0001
 depends_on: [SPEC-0006]
 consumes_contract: [SPEC-0006@1]
 contract_version: 1
-touches: [src/ServiceDefaults/**, src/Api/Observability/**, src/Api/Program.cs, src/Modules/Identity/Infrastructure/Metrics/**, web/src/observability/**, deploy/alloy/**, deploy/compose.override.yaml, docs/runbooks/**, tests/Vitrine.IntegrationTests/Observability/**, tests/Vitrine.UnitTests/Observability/**, Directory.Packages.props]
+touches: [src/ServiceDefaults/**, src/Api/Observability/**, src/Api/Program.cs, src/Api/appsettings*.json, src/Api/Vitrine.Api.csproj, src/Modules/Identity/Vitrine.Identity.Infrastructure/**, src/Modules/Identity/Vitrine.Identity.Presentation/**, web/src/observability/**, web/src/main.tsx, web/src/vite-env.d.ts, web/package.json, web/package-lock.json, deploy/alloy/**, deploy/compose.yaml, deploy/compose.override.yaml, deploy/local/.env.example, docs/runbooks/**, tests/Vitrine.IntegrationTests/Observability/**, tests/Vitrine.IntegrationTests/Support/**, tests/Vitrine.UnitTests/Observability/**, Directory.Packages.props, "**/packages.lock.json"]
 adrs: [ADR-0009, ADR-0006, ADR-0004]
 external: []
 size: M
@@ -221,4 +221,5 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 <!-- Mudança em spec aprovada: uma linha por emenda. Mudou o contrato? Incremente `contract_version` e rode `spec_graph.py impacted SPEC-0007`. -->
 | Versão do contrato | Data | Mudança | Motivo | Specs impactadas | Aprovado por |
 |---|---|---|---|---|---|
+| v1.1 (escopo, sem mudança de contrato) | 2026-10-28 | `touches` alinhado ao código real: projetos `Vitrine.Identity.Infrastructure`/`Presentation` (o login fica em `IdentityEndpoints` e `CookieSessions`), suporte de testes de integração, `appsettings`, csproj da API, `web/package.json`/`main.tsx` (Sentry na SPA), `deploy/compose.yaml` e `.env.example` (variáveis opcionais), lockfiles. Versões: Sentry.AspNetCore 6.12.1, @sentry/react 11.7.0, grafana/alloy v1.20.1, OpenTelemetry.Exporter.InMemory 1.19.1 (testes), Npgsql.OpenTelemetry 10.0.3 — registradas no ADR-0009 | A spec foi escrita antes do módulo Identity existir; o caminho `src/Modules/Identity/Infrastructure/Metrics/**` não corresponde à estrutura criada na SPEC-0006 | — | thomas (2026-10-28, piloto automático) |
 | v1 (sem mudança de contrato) | 2026-10-13 | IT-06/IT-07 de produção/staging movidos para a SPEC-0009; novo IT-06 (exportação opcional); alertas como código, aplicados na SPEC-0009 | Usuário: nada que gere custo até tudo rodar localmente | SPEC-0009 | thomas (2026-10-13) |
