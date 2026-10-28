@@ -4,7 +4,7 @@ title: Avisos de segurança novos em dependências quebram o build da main
 tier: lite
 type: fix
 user_facing: false
-status: approved
+status: implemented
 created: 2026-10-28
 parent: SPEC-0001
 depends_on: []
@@ -59,13 +59,13 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 
 ## 7. Checklist de Implementação
 <!-- Preenchido na fase PLAN, após a aprovação. -->
-- [ ] Red: UT-01 com a tag `SPEC-0010:UT-01`, falhando nos lockfiles atuais
-- [ ] Green: atualizar Aspire, undici e happy-dom; regenerar lockfiles
-- [ ] Validar: build -warnaserror, suíte completa, E2E, npm audit e scan de vulnerabilidades NuGet (G2/G3)
-- [ ] Review independente (G4)
-- [ ] Integração + CI verde (G5) e H2
-- [ ] Deploy local prod-like com smoke (G6)
-- [ ] CHANGELOG (G7)
+- [x] Red: UT-01 com a tag `SPEC-0010:UT-01`, falhando nos lockfiles atuais
+- [x] Green: atualizar Aspire, undici e happy-dom; regenerar lockfiles
+- [x] Validar: build -warnaserror, suíte completa, E2E, npm audit e scan de vulnerabilidades NuGet (G2/G3)
+- [x] Review independente (G4)
+- [x] Integração + CI verde (G5) e H2
+- [x] Deploy local prod-like com smoke (G6)
+- [x] CHANGELOG (G7)
 
 ## 8. Registro de Gates
 <!-- Status: PENDING | PASS | FAIL | N/A. PASS e N/A exigem evidência. -->
@@ -78,8 +78,8 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 | G4 Review | PASS | MANUAL: Review de fc3f2e9..a0ea53c: 0 blocker/major; minor (comparação textual de pré-release, sem efeito nas faixas atuais) e nits aceitos; verify --base sdd/SPEC-0001 PASS (1 aviso justificado: lockfile do restore); build -warnaserror 0 avisos; Tooling 13/13; npm audit high exit 0; dotnet list --vulnerable: nenhum; diff de lockfiles: só Aspire 13.6.4, MessagePack 2.5.307, undici 7.30.1, happy-dom 21.0.4 | 2026-10-28 |
 | G5 Integração & CI | PASS | MANUAL: PR #23 (sdd/SPEC-0001 @ 1152552): CI 7/7 verde + CodeQL — https://github.com/thomasravache/vitrine/actions/runs/40782044161; local: build -warnaserror 0 avisos, npm audit high 0; implementer: dotnet 72/72, e2e 6/6 | 2026-10-28 |
 | H2 Integração aprovada | PASS | política auto-on-green (aprovada por thomas em 2026-10-13); G5 PASS | 2026-10-28 |
-| G6 Deploy | PENDING | | |
-| G7 Pronto & Docs | PENDING | | |
+| G6 Deploy | PASS | smoke_test exit 0 (2 passed (2.4s)) — 80e611d (árvore suja) | 2026-10-28 |
+| G7 Pronto & Docs | PASS | Relatório de Entrega e Definição de Pronto: ok — 593df48 (árvore suja) | 2026-10-28 |
 
 ## 9. Registro de Impedimentos
 <!-- Toda parada é registrada pelo Architect com `spec_graph.py impede` e fechada com `resolve` — não edite à mão. Tipos: spec (spec errada/incompleta → resolve com Emenda) | decisão (só o humano decide → resposta ou ADR) | trabalho (falta algo que exige código → SPEC-NNNN nova) | externo (acesso, ambiente, terceiro → ação tomada) | falha (3 FAILs seguidos no mesmo gate → diagnóstico e decisão). Com impedimento aberto a spec aparece como parada no INDEX e não pode ser fechada. -->
@@ -90,28 +90,34 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 <!-- Preenchido no CLOSE (G7). Para status implemented o validate exige tudo preenchido, todo teste do plano com PASS + evidência e a Definição de Pronto marcada. -->
 
 ### O que foi entregue
+A `main` voltou a ficar verde: dependências com avisos de segurança publicados depois do PR #13 foram atualizadas (Aspire 13.6.4 → MessagePack 2.5.307; undici 7.30.1; happy-dom 21.0.4) e um teste passa a reprovar se os lockfiles voltarem a resolver essas versões.
 
 ### Como foi feito
+Aspire 13.6.1 → 13.6.4 em `Directory.Packages.props` e no SDK do AppHost; `overrides.undici` 7.29.1 → 7.30.1 e `happy-dom` 20.14.6 → 21.0.4 em `web/package.json`; lockfiles regenerados (DCP/dashboard seguem linux-x64). Teste UT-01 em `tests/Vitrine.Tooling.Tests/VulnerableDependencyTests.cs` lê os quatro lockfiles. Review: minor aceito (comparação textual de pré-release, sem efeito nas faixas atuais). Restante (fast-uri moderado e demais atualizações) segue nos PRs do Dependabot.
 
 ### Prova de Correção
 <!-- type fix: teste de regressão falhou antes (commit red + saída) e passa depois (commit green + execução). Outros tipos: "N/A". -->
+Red: `fc3f2e9` — UT-01 falhou com MessagePack 2.5.302 em 3 lockfiles, happy-dom 20.14.6 e undici 7.29.1; a `main` (run 40779730006) reprovava em build-lint, unit, architecture, e2e e security. Green: `f6e9e51` + `a0ea53c` — UT-01 passa, `dotnet build -warnaserror` sem avisos, `npm audit --audit-level=high` exit 0; PR #23 com CI 7/7 (run 40782044161) e `main` verde (run 40782701996).
 
 ### Verificação
 | Teste | Comportamento | Resultado | Evidência |
 |---|---|---|---|
+| UT-01 | Lockfiles sem MessagePack < 2.5.303, undici < 7.30.1, happy-dom ≤ 21.0.3 | PASS | CI PR #23 run 40782044161 (1152552); main run 40782701996 (94ac6ff) |
 
 ### Definição de Pronto
-- [ ] Teste de regressão falhou antes e passa depois da correção
-- [ ] Suíte completa, arquitetura e CI verdes (G2, G3, G5)
-- [ ] Review independente sem achados blocker/major (G4)
-- [ ] Padrão existente mantido
-- [ ] Disponível no ambiente-alvo via pipeline (G6)
-- [ ] Documentação/CHANGELOG atualizados quando aplicável (G7)
-- [ ] Outras ocorrências registradas como novas specs (ou nenhuma)
+- [x] Teste de regressão falhou antes e passa depois da correção
+- [x] Suíte completa, arquitetura e CI verdes (G2, G3, G5)
+- [x] Review independente sem achados blocker/major (G4)
+- [x] Padrão existente mantido
+- [x] Disponível no ambiente-alvo via pipeline (G6)
+- [x] Documentação/CHANGELOG atualizados quando aplicável (G7)
+- [x] Outras ocorrências registradas como novas specs (ou nenhuma)
 
 ### Deploy
+Ambiente local prod-like: `deploy/deploy.sh 80e611d00c98b58ae8467880eee53bff8026e6f0` (imagem da CI da `main`), health 200 em 2 s, smoke `@smoke` 2/2 em 2026-10-28.
 
 ### Pendências
+Nenhuma — avisos futuros são cobertos pela auditoria do CI e pelo Dependabot (ADR-0008).
 
 ## 11. Emendas
 <!-- Mudança em spec aprovada: uma linha por emenda, aprovada pelo humano. -->

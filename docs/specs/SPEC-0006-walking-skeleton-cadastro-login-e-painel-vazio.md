@@ -4,7 +4,7 @@ title: "Walking skeleton: cadastro, login e painel vazio"
 tier: full
 type: foundation
 user_facing: true
-status: in-progress
+status: implemented
 created: 2026-10-13
 parent: SPEC-0001
 depends_on: [SPEC-0003, SPEC-0004, SPEC-0005]
@@ -162,24 +162,24 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 ## 11. Checklist de Implementação
 <!-- Preenchido na fase PLAN, após a aprovação. Cada fase começa pelos testes. -->
 **Fase 1: Domínio e aplicação**
-- [ ] Red: escrever UT-01..UT-04 com a tag `SPEC-0006:<ID>` e confirmar que falham pelo motivo certo
-- [ ] Green: módulo `Identity` (Domain, Application, Infrastructure, Presentation, IntegrationEvents), `Workspace`/`WorkspaceMember`, validações, configuração de lockout
-- [ ] Refactor mantendo tudo verde
+- [x] Red: escrever UT-01..UT-04 com a tag `SPEC-0006:<ID>` e confirmar que falham pelo motivo certo
+- [x] Green: módulo `Identity` (Domain, Application, Infrastructure, Presentation, IntegrationEvents), `Workspace`/`WorkspaceMember`, validações, configuração de lockout
+- [x] Refactor mantendo tudo verde
 
 **Fase 2: API, persistência e evento**
-- [ ] Red: escrever IT-01..IT-08 e CT-01 e confirmar que falham pelo motivo certo
-- [ ] Green: endpoints `/api/v1/auth/*` e `/api/v1/me`, cookie, antiforgery, flag `Features:SignupOpen`, migração do schema `identity`, `WorkspaceCreated` via outbox
-- [ ] Validar: build + suíte completa + arquitetura (G2/G3)
+- [x] Red: escrever IT-01..IT-08 e CT-01 e confirmar que falham pelo motivo certo
+- [x] Green: endpoints `/api/v1/auth/*` e `/api/v1/me`, cookie, antiforgery, flag `Features:SignupOpen`, migração do schema `identity`, `WorkspaceCreated` via outbox
+- [x] Validar: build + suíte completa + arquitetura (G2/G3)
 
 **Fase 3: Jornada E2E**
-- [ ] Red: E2E-01, E2E-02 falhando pelo motivo certo
-- [ ] Green: telas `/cadastro`, `/entrar`, `/painel` conforme o Stitch (mobile e desktop) e as exclusões da seção Design; cliente gerado do OpenAPI; axe sem violações sérias
+- [x] Red: E2E-01, E2E-02 falhando pelo motivo certo
+- [x] Green: telas `/cadastro`, `/entrar`, `/painel` conforme o Stitch (mobile e desktop) e as exclusões da seção Design; cliente gerado do OpenAPI; axe sem violações sérias
 
 **Fase final: Integração, entrega e documentação**
-- [ ] Review independente (G4)
-- [ ] Integração + CI verde (G5) e aprovação (H2)
-- [ ] Deploy no ambiente local prod-like (SPEC-0005) com smoke/E2E; nuvem e usuário de prova na SPEC-0009 (G6)
-- [ ] Relatório de Entrega, docs raiz e CHANGELOG (G7)
+- [x] Review independente (G4)
+- [x] Integração + CI verde (G5) e aprovação (H2)
+- [x] Deploy no ambiente local prod-like (SPEC-0005) com smoke/E2E; nuvem e usuário de prova na SPEC-0009 (G6)
+- [x] Relatório de Entrega, docs raiz e CHANGELOG (G7)
 
 ## 12. Registro de Gates
 <!-- Status: PENDING | PASS | FAIL | N/A. PASS e N/A exigem evidência (comando + resultado, SHA, execução de CI, veredito). -->
@@ -192,8 +192,8 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 | G4 Review | PASS | verify G1+G4: PASS; revisão: reviewer-agent: APPROVED 858646b — sem blocker/major; minor: guarda de /health desconhecido não exercita o fallback da SPA (host de teste sem index.html) → levado à SPEC-0008 — 858646b | 2026-10-14 |
 | G5 Integração & CI | PASS | MANUAL: PR #13 (sdd/SPEC-0001 @ 65176c8): CI 7/7 verde + CodeQL — https://github.com/thomasravache/vitrine/actions/runs/38636314099; local: build/lint OK, dotnet 71/71, vitest 1/1, e2e 6/6, pr-check PASS, gitleaks 0, npm audit 0 | 2026-10-14 |
 | H2 Integração aprovada | PASS | política auto-on-green (aprovada por thomas em 2026-10-13); G5 PASS | 2026-10-28 |
-| G6 Deploy | FAIL | smoke_test exit 1 ([mobile] › e2e/acesso.spec.ts:41:1 › SPEC-0006:E2E-01 — vendedor se cadastra, vê o painel ) — 4770819 | 2026-10-28 |
-| G7 Pronto & Docs | PENDING | | |
+| G6 Deploy | PASS | smoke_test exit 0 (2 passed (3.7s)) — 80e611d | 2026-10-28 |
+| G7 Pronto & Docs | PASS | Relatório de Entrega e Definição de Pronto: ok — 593df48 | 2026-10-28 |
 
 ## 13. Registro de Impedimentos
 <!-- Toda parada é registrada pelo Architect com `spec_graph.py impede` e fechada com `resolve` — não edite à mão. Tipos: spec (spec errada/incompleta → resolve com Emenda) | decisão (só o humano decide → resposta ou ADR) | trabalho (falta algo que exige código → SPEC-NNNN nova) | externo (acesso, ambiente, terceiro → ação tomada) | falha (3 FAILs seguidos no mesmo gate → diagnóstico e decisão). Com impedimento aberto a spec aparece como parada no INDEX e não pode ser fechada. -->
@@ -206,35 +206,58 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 
 ### O que foi entregue
 <!-- comportamento entregue do ponto de vista do usuário/sistema -->
+Primeira jornada ponta a ponta do Vitrine, no celular e no desktop: o vendedor cria a conta (nome, e-mail, senha de 10 a 128 caracteres), cai no painel vazio com o nome dele e o workspace criado, sai e entra de novo. Sem sessão, qualquer rota protegida leva para `/entrar`. Cadastro controlado pela flag `Features:SignupOpen` por ambiente. Cada cadastro publica o evento `WorkspaceCreated` pela outbox, base para os próximos módulos.
 
 ### Como foi feito
 <!-- decisões de implementação, módulos/arquivos principais, desvios e emendas (com versão), dívidas assumidas -->
+Módulo `Identity` (Domain, Application, Infrastructure, Presentation, IntegrationEvents) no monólito modular (ADR-0001), ASP.NET Core Identity com cookie de sessão e antiforgery, schema `identity` no PostgreSQL com migração só via `--migrate`, Wolverine com outbox transacional para `WorkspaceCreated`. SPA React com rotas `/cadastro`, `/entrar`, `/painel`, cliente TypeScript gerado do OpenAPI pelo orval 8.37.0 e fontes auto-hospedadas (ADR-0013, aprovado em 2026-10-14), telas seguindo o Stitch. Emendas: v1.1 (helper de teste), v1.2 (touches + flag por ambiente), v1.3 (senha 10..128), v1.4 (`.gitleaksignore` por fingerprint para senhas fixas de teste), v1.5 (E2E aceita a CA interna do Caddy só em `*.localhost`, guardado pelo UT-05). Desvios aceitos no G4 e levados à SPEC-0008: forwarded headers/antiforgery `Secure=Always`, health anônimo por metadado e teste do fallback da SPA. Dívida: `undici` fixado por `overrides` (orval) — revisar quando o orval atualizar.
 
 ### Prova de Correção
 <!-- type fix: o teste de regressão falhou antes da correção (commit red + saída) e passa depois (commit green + execução). Outros tipos: "N/A". -->
+N/A — type foundation.
 
 ### Verificação
 <!-- Uma linha por teste do plano (todos os IDs da seção 7). Resultado: PASS. Evidência: execução de CI, commit ou relatório. -->
 | Teste | Comportamento | Resultado | Evidência |
 |---|---|---|---|
+| UT-01 | Workspace nasce com um único membro Owner e evento de criação | PASS | CI PR #13 run 38636314099 (65176c8) |
+| UT-02 | Validação de cadastro: nome, e-mail e senha 10..128 | PASS | CI PR #13 run 38636314099 (65176c8) |
+| UT-03 | Bloqueio após 5 falhas por 15 min configurado | PASS | CI PR #13 run 38636314099 (65176c8) |
+| UT-04 | Regras de arquitetura do módulo Identity | PASS | CI PR #13 run 38636314099 (65176c8); G3 858646b |
+| UT-05 | Certificado não confiável só aceito em hosts .localhost (24 casos) | PASS | CI PR #26 run 40784247371 + main run 40785554764 (80e611d) |
+| IT-01 | Cadastro 201 com usuário, workspace, Owner e outbox na mesma transação | PASS | CI PR #13 run 38636314099 (65176c8) |
+| IT-02 | Cadastro inválido ou e-mail repetido → 400 por campo | PASS | CI PR #13 run 38636314099 (65176c8) |
+| IT-03 | Login 204 + cookie HttpOnly/Secure/SameSite=Lax; erro genérico | PASS | CI PR #13 run 38636314099 (65176c8) |
+| IT-04 | 6º login após 5 falhas → 423 com retryAfterSeconds | PASS | CI PR #13 run 38636314099 (65176c8) |
+| IT-05 | POST de auth sem antiforgery → 400 | PASS | CI PR #13 run 38636314099 (65176c8) |
+| IT-06 | Cadastro fechado (SignupOpen=false) → 404 | PASS | CI PR #13 run 38636314099 (65176c8) |
+| IT-07 | Logout 204 e /me passa a 401 | PASS | CI PR #13 run 38636314099 (65176c8) |
+| IT-08 | /me isolado por workspace | PASS | CI PR #13 run 38636314099 (65176c8) |
+| CT-01 | Assinante recebe WorkspaceCreated com o contrato publicado | PASS | CI PR #13 run 38636314099 (65176c8) |
+| E2E-01 | Jornada cadastro → painel → sair → entrar, celular e desktop, axe sem violações sérias @smoke | PASS | CI PR #13 run 38636314099 (65176c8); G6 smoke em https://vitrine.localhost (80e611d) |
+| E2E-02 | Sem sessão, /painel redireciona para /entrar | PASS | CI PR #13 run 38636314099 (65176c8) |
 
 ### Definição de Pronto
-- [ ] Todos os testes do plano passando e listados na Verificação
-- [ ] Todo comportamento do Mapa de Comportamentos coberto e verificado
-- [ ] Suíte completa, arquitetura e CI verdes no resultado integrado (G5)
-- [ ] Review independente sem achados blocker/major (G4)
-- [ ] Padrão arquitetural existente mantido, ou desvio coberto por ADR aprovado
-- [ ] Requisitos não-funcionais medidos com evidência (ou N/A justificado)
-- [ ] Disponível no ambiente-alvo via pipeline, com smoke/E2E passando no ambiente (G6)
-- [ ] Observabilidade e rollback prontos conforme o Plano de Rollout
-- [ ] Documentação raiz e CHANGELOG atualizados (G7)
-- [ ] Pendências registradas como novas specs (ou nenhuma)
+- [x] Todos os testes do plano passando e listados na Verificação
+- [x] Todo comportamento do Mapa de Comportamentos coberto e verificado
+- [x] Suíte completa, arquitetura e CI verdes no resultado integrado (G5)
+- [x] Review independente sem achados blocker/major (G4)
+- [x] Padrão arquitetural existente mantido, ou desvio coberto por ADR aprovado
+- [x] Requisitos não-funcionais medidos com evidência (ou N/A justificado) — segurança (UT-02, IT-03..05), transação (IT-01), acessibilidade axe (E2E-01); p95 de auth e e-mail fora dos logs: medidos na SPEC-0007, como o plano define (antes disso, jornada E2E ~4–6 s com hash de senha)
+- [x] Disponível no ambiente-alvo via pipeline, com smoke/E2E passando no ambiente (G6)
+- [x] Observabilidade e rollback prontos conforme o Plano de Rollout — rollback = redeploy da tag anterior (ensaiado pelo IT-01 da SPEC-0005); métricas de auth são entregues pela SPEC-0007, como o plano define
+- [x] Documentação raiz e CHANGELOG atualizados (G7)
+- [x] Pendências registradas como novas specs (ou nenhuma)
 
 ### Deploy
 <!-- ambiente(s), versão/tag, data, estratégia, estado da feature flag, execução do pipeline -->
+Ambiente local prod-like (staging até a SPEC-0009): `deploy/deploy.sh 80e611d00c98b58ae8467880eee53bff8026e6f0 --env-file deploy/local/.env`, imagem `ghcr.io/thomasravache/vitrine-api` publicada pela CI da `main` (run 40785554764), Caddy + PostgreSQL via Docker Compose, health 200 em 2 s, `FEATURES_SIGNUP_OPEN=true`; smoke `@smoke` 2/2 (desktop e mobile) em 2026-10-28. Produção: SPEC-0009, com a flag desligada até o lançamento.
 
 ### Pendências
 <!-- specs criadas para o que ficou de fora, ou "Nenhuma" -->
+- SPEC-0011 — checagem de drift do cliente OpenAPI no CI.
+- SPEC-0008 — forwarded headers, antiforgery `Secure=Always`, health anônimo por metadado e teste do fallback da SPA (escopo já aprovado).
+- SPEC-0007 — métricas de auth, p95 e mascaramento de e-mail nos logs.
 
 ## 15. Emendas
 <!-- Mudança em spec aprovada: uma linha por emenda. Mudou o contrato? Incremente `contract_version` e rode `spec_graph.py impacted SPEC-0006`. -->

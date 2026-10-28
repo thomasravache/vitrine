@@ -3,19 +3,21 @@
 from __future__ import annotations
 
 import argparse
-import difflib
 import datetime as dt
+import difflib
 import heapq
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
+import tempfile
 import unicodedata
 from collections import Counter, defaultdict, deque
 from pathlib import Path
 
-SDD_TOOL_VERSION = "2026.09.11"
+SDD_TOOL_VERSION = "2026.10.13"
 SKILL_DIR = Path(__file__).resolve().parent.parent
 TEMPLATES_DIR = SKILL_DIR / "references"
 ASSETS_DIR = SKILL_DIR / "assets"
@@ -29,11 +31,11 @@ TEST_ID_RE = re.compile(r"\b(?:CH|UT|IT|CT|E2E)-\d{2,}\b")
 TEST_DEF_RE = re.compile(r"\*\*((?:CH|UT|IT|CT|E2E)-\d{2,})\*\*")
 TEST_TAG_RE = re.compile(r"\b(SPEC-\d{4,}):((?:CH|UT|IT|CT|E2E)-\d{2,})\b")
 PLACEHOLDER_RE = re.compile(r"\{\{[^{}]*\}\}")
-COMMENT_RE = re.compile(r"<!--.*?-->", re.S)
+COMMENT_RE = re.compile(r"<!--.*?-->", re.DOTALL)
 CONVENTIONAL_RE = re.compile(r"^(\w+)(?:\([^)]*\))?!?:")
 WILDCARD_RE = re.compile(r"[*?]")
-CHECKBOX_RE = re.compile(r"^\s*[-*] \[( |x|X)\]", re.M)
-UNCHECKED_RE = re.compile(r"^\s*[-*] \[ \]", re.M)
+CHECKBOX_RE = re.compile(r"^\s*[-*] \[( |x|X)\]", re.MULTILINE)
+UNCHECKED_RE = re.compile(r"^\s*[-*] \[ \]", re.MULTILINE)
 
 STATUSES = ("proposed", "approved", "in-progress", "implemented", "deprecated")
 OPEN = {"proposed", "approved", "in-progress"}
@@ -89,7 +91,7 @@ PILLARS = {
     "acessibilidade-conformidade": ("Acessibilidade e conformidade", "Quais normas (acessibilidade, legais, do setor) se aplicam?", "rigoroso"),
 }
 NA_RECURRENT_THRESHOLD = 3
-JOURNEY_TAG_RE = re.compile(r"\[jornada:\s*([\w-]+)\]", re.I)
+JOURNEY_TAG_RE = re.compile(r"\[jornada:\s*([\w-]+)\]", re.IGNORECASE)
 PHASES = ("DISCOVER", "SPEC (G0)", "APPROVAL (H1)", "PLAN (waves)", "EXECUTE (G1–G4)",
           "INTEGRATE (G5 + H2)", "DEPLOY (G6)", "CLOSE (G7)")
 H1_QUESTION = ("Os contratos e os cenários de teste estão adequados e seguem o padrão atual? "
@@ -327,8 +329,7 @@ def md_cell(text: str) -> str:
 
 def glob_regex(pattern: str):
     pattern = pattern.strip()
-    if pattern.startswith("./"):
-        pattern = pattern[2:]
+    pattern = pattern.removeprefix("./")
     if not WILDCARD_RE.search(pattern):
         return re.compile("^" + re.escape(pattern.rstrip("/")) + "(?:/.*)?$")
     out, i = [], 0
@@ -457,11 +458,88 @@ def plan_test_ids(doc: Doc):
     return sorted(set(TEST_ID_RE.findall(plan)), key=test_sort_key)
 
 
+PRIVATE_BANNER = "MODO PRIVADO"
+# Comandos que gravam registros: em modo privado, cada um termina com um commit no git do spec_root.
+RECORD_COMMANDS = {"new", "new-adr", "set", "gate", "impede", "resolve", "index", "upgrade", "living-docs",
+                   "whats-new"}
+
+
+def normalize_remote(url: str) -> str:
+    """Chave do registro do modo privado: host/caminho do remoto, sem protocolo, usuário, porta e .git."""
+    url = url.strip()
+    m = (re.match(r"^[\w+.-]+://(?:[^@/]+@)?([^/:]+)(?::\d+)?/(.+)$", url)
+         or re.match(r"^(?:[^@/]+@)?([^/:]+):(?!//)(.+)$", url))
+    if not m:
+        return url.rstrip("/")
+    path = m.group(2).strip("/")
+    path = path.removesuffix(".git")
+    return f"{m.group(1).lower()}/{path}"
+
+
+def registry_path() -> Path:
+    if os.environ.get("SDD_CONFIG_HOME"):
+        return Path(os.environ["SDD_CONFIG_HOME"]) / "projects.json"
+    base = Path(os.environ["XDG_CONFIG_HOME"]) if os.environ.get("XDG_CONFIG_HOME") else Path.home() / ".config"
+    return base / "sdd" / "projects.json"
+
+
+def load_registry() -> dict:
+    path = registry_path()
+    if not path.exists():
+        return {"projects": {}}
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (ValueError, OSError) as e:
+        die(f"registro inválido: {path}: {e}")
+    if not isinstance(data, dict) or not isinstance(data.get("projects", {}), dict):
+        die(f"registro inválido: {path}: esperado um objeto com \"projects\"")
+    data.setdefault("projects", {})
+    return data
+
+
+def save_registry(data: dict):
+    path = registry_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+
+
+def repo_keys(root: Path):
+    """Chaves possíveis do repositório no registro: remoto normalizado e caminho da worktree principal."""
+    keys = []
+    code, out, _ = run_git(root, "remote", "get-url", "origin")
+    if code == 0 and out.strip():
+        keys.append(normalize_remote(out))
+    code, out, _ = run_git(root, "rev-parse", "--git-common-dir")
+    main = (root / out.strip()).resolve().parent if code == 0 and out.strip() else root.resolve()
+    keys.append(str(main))
+    return keys
+
+
+def resolve_mode(root: Path):
+    """Entrada do registro do usuário para o repositório em root, ou None (modo completo)."""
+    if not registry_path().exists():
+        return None
+    projects = load_registry()["projects"]
+    for key in repo_keys(root):
+        entry = projects.get(key)
+        if isinstance(entry, dict) and entry.get("mode") == "private" and entry.get("spec_root"):
+            return {"key": key, "mode": "private", "spec_root": Path(entry["spec_root"]).expanduser(),
+                    "sync": entry.get("sync") or "none"}
+    return None
+
+
 class Project:
     def __init__(self, root: Path):
         self.root = root
-        self.specs_dir = root / "docs" / "specs"
-        self.adr_dir = root / "docs" / "adr"
+        mode = resolve_mode(root)
+        self.private = mode is not None
+        self.mode_key = mode["key"] if mode else None
+        self.spec_root = mode["spec_root"] if mode else None
+        self.sync = mode["sync"] if mode else "none"
+        base = self.spec_root if mode else root / "docs"
+        self.specs_dir = base / "specs"
+        self.adr_dir = base / "adr"
+        self.config_path = (self.spec_root if mode else self.specs_dir) / "sdd-config.yml"
         self.config = self._load_config()
         self.specs = {}
         self.adrs = {}
@@ -469,7 +547,7 @@ class Project:
         self._load()
 
     def _load_config(self) -> dict:
-        path = self.specs_dir / "sdd-config.yml"
+        path = self.config_path
         return parse_yaml_subset(path.read_text(encoding="utf-8")) if path.exists() else {}
 
     def cfg(self, key: str, default: str = "") -> str:
@@ -502,15 +580,17 @@ class Project:
             "labels": labels,
         }
 
-    def external_ref(self, doc: "Doc"):
+    def external_ref(self, doc: Doc):
         provider = self.tracker()["provider"]
         if provider == "none":
             return ""
         return next((e for e in doc.list("external") if e.startswith(provider + ":")), "")
 
     def scope_exempt(self):
-        """Paths never out of scope: configured exemptions plus root docs and changelog updated at G7."""
+        """Paths never out of scope: configured exemptions plus root docs, changelog and living docs updated at G7."""
         docs = self.cfg_list("root_docs", DEFAULT_ROOT_DOCS) + [self.cfg("changelog", "CHANGELOG.md")]
+        if not self.private:
+            docs += [v.strip() for v in self.cfg_map("living_docs").values() if isinstance(v, str)]
         return self.cfg_list("scope_exempt", DEFAULT_SCOPE_EXEMPT) + [d for d in docs if d]
 
     def max_parallel(self) -> int:
@@ -579,6 +659,276 @@ def find_root(start: Path) -> Path:
     return start
 
 
+def commit_spec_root(spec_root: Path, sync: str, message: str):
+    """Commit de tudo o que mudou no spec_root; push quando sync = push e há remoto. Falhas viram aviso."""
+    run_git(spec_root, "add", "-A")
+    if run_git(spec_root, "diff", "--cached", "--quiet")[0] == 0:
+        return
+    code, _, err = run_git(spec_root, "commit", "-q", "-m", message)
+    if code != 0:
+        print(f"aviso: commit no spec_root falhou ({spec_root}): {err.strip()}", file=sys.stderr)
+        return
+    remote = run_git(spec_root, "remote")[1].split()
+    if sync == "push" and remote:
+        code, _, err = run_git(spec_root, "push", "-q", remote[0], "HEAD")
+        if code != 0:
+            print(f"aviso: push do spec_root falhou ({remote[0]}): {err.strip()}", file=sys.stderr)
+
+
+def commit_records(project: Project, message: str):
+    """Modo privado: commit dos registros no git do spec_root (e push com sync: push)."""
+    if project.private:
+        commit_spec_root(project.spec_root, project.sync, message)
+
+
+def spec_root_pending(spec_root: Path, sync: str):
+    """Avisos sobre o spec_root: mudanças sem commit e commits sem push."""
+    out = []
+    changed = run_git(spec_root, "status", "--porcelain")[1].splitlines()
+    if changed:
+        out.append(f"spec_root com {len(changed)} mudança(s) sem commit em {spec_root}")
+    if sync == "push":
+        code, ahead, _ = run_git(spec_root, "rev-list", "--count", "@{u}..HEAD")
+        if code == 0 and ahead.strip() not in ("", "0"):
+            out.append(f"spec_root com {ahead.strip()} commit(s) sem push")
+    return out
+
+
+def cmd_private(project: Project, action: str, spec_root, sync):
+    root = project.root
+    registry = load_registry()
+    projects = registry["projects"]
+    if action == "status":
+        if not project.private:
+            print(f"modo completo: nenhuma entrada para este repositório em {registry_path()}")
+            return 0
+        print(f"modo privado: {project.mode_key}\n  spec_root: {project.spec_root}\n  sync: {project.sync}")
+        for warning in spec_root_pending(project.spec_root, project.sync):
+            print(f"⚠ {warning}")
+        return 0
+    if action == "detect":
+        if not project.private:
+            die("private detect: este repositório não está em modo privado (rode `private init`)")
+        conv = team_conventions(project)
+        write_team_block(project.config_path, conv)
+        commit_records(project, "sdd: private detect")
+        print(describe_team(conv))
+        return 0
+    if action == "off":
+        key = next((k for k in repo_keys(root) if k in projects), None)
+        if key is None:
+            print("nada a desligar: este repositório não está no registro")
+            return 0
+        entry = projects.pop(key)
+        save_registry(registry)
+        print(f"modo privado desligado para {key}; o spec_root continua em {entry.get('spec_root')}")
+        return 0
+    if run_git(root, "rev-parse", "--is-inside-work-tree")[0] != 0:
+        die("private init roda dentro de um repositório git")
+    if run_git(root, "ls-files", "docs/specs")[1].strip():
+        die("este repositório usa o SDD versionado (modo completo) em docs/specs; o modo privado é para "
+            "repositórios onde o SDD não está no repositório")
+    keys = repo_keys(root)
+    key = keys[0]
+    current = next((projects[k] for k in keys if isinstance(projects.get(k), dict)), {})
+    if spec_root:
+        target = Path(spec_root).expanduser()
+    elif current.get("spec_root"):
+        target = Path(current["spec_root"]).expanduser()
+    else:
+        data_home = Path(os.environ["XDG_DATA_HOME"]) if os.environ.get("XDG_DATA_HOME") else Path.home() / ".local/share"
+        default_root = Path(registry["default_root"]).expanduser() if registry.get("default_root") else data_home / "sdd"
+        target = default_root.joinpath(*key.split("/")[-2:])
+    target = target.resolve()
+    repo = Path(keys[-1])
+    if target == repo or repo in target.parents:
+        die(f"spec_root {target} fica dentro do repositório {repo}: as specs ficariam no clone do time; "
+            "use uma pasta fora dele (padrão: <default_root>/<org>/<repo>)")
+    sync = sync or current.get("sync") or "none"
+    for k in keys:
+        projects.pop(k, None)
+    projects[key] = {"mode": "private", "spec_root": str(target), "sync": sync}
+    save_registry(registry)
+    (target / "specs").mkdir(parents=True, exist_ok=True)
+    (target / "adr").mkdir(exist_ok=True)
+    config = target / "sdd-config.yml"
+    if not config.exists():
+        config.write_text((TEMPLATES_DIR / "sdd-config.template.yml").read_text(encoding="utf-8"), encoding="utf-8")
+    if not (target / ".git").exists():
+        run_git(target, "init", "-q")
+    conv = team_conventions(Project(root))
+    write_team_block(config, conv)
+    commit_spec_root(target, sync, "sdd: private init")
+    print(f"modo privado ativado para {key}\n  spec_root: {target}\n  sync: {sync}")
+    print(describe_team(conv))
+    print(install_leak_hook(root))
+    return 0
+
+
+LEAK_SECTION_TITLES = ("Mapa de Comportamentos", "Registro de Gates", "Relatório de Entrega",
+                       "Registro de Impedimentos", "Questões em Aberto", "Definição de Pronto")
+TEAM_HOOK_MARKERS = ((".husky", "husky"), ("lefthook.yml", "lefthook"), (".lefthook.yml", "lefthook"),
+                     (".pre-commit-config.yaml", "pre-commit"))
+
+
+def spec_root_forms(spec_root):
+    """Formas conhecidas do mesmo spec_root, sem repetição: o caminho resolvido, a forma sob o HOME literal e
+    sob o resolvido (absoluta e ~/) e, no macOS, o caminho sem o prefixo /private quando aponta para a mesma pasta."""
+    root = Path(spec_root)
+    forms = [str(root)]
+    homes = []
+    for home in (Path.home(), Path.home().resolve()):
+        if home not in homes:
+            homes.append(home)
+    for base in homes:
+        try:
+            rel = root.relative_to(base)
+        except ValueError:
+            continue
+        for home in homes:
+            forms.append(str(home / rel))
+        forms.append("~/" + rel.as_posix())
+    if root.as_posix().startswith("/private/"):
+        bare = Path(root.as_posix()[len("/private"):])
+        if bare.resolve() == root.resolve():
+            forms.append(str(bare))
+    return list(dict.fromkeys(forms))
+
+
+def build_leak_patterns(spec_root, extra, adr_ids=()):
+    """Padrões do leak-check: [(rótulo, regex compilada)] — padrões padrão, caminho do spec_root e extras do usuário.
+
+    ADR-NNNN só é achado quando o ADR é do spec_root (adr_ids): ADRs do próprio time não são vazamento.
+    """
+    patterns = [("tag de teste", re.compile(r"\bSPEC-\d{4,}:[A-Z0-9]+-\d+\b")),
+                ("ID de spec", re.compile(r"\bSPEC-\d{4,}\b")),
+                ("sdd-config", re.compile(r"\bsdd-config\b"))]
+    if adr_ids:
+        patterns.append(("ID de ADR", re.compile(r"\b(?:" + "|".join(re.escape(a) for a in sorted(adr_ids)) + r")\b")))
+    patterns += [("seção do SDD", re.compile(re.escape(title))) for title in LEAK_SECTION_TITLES]
+    if spec_root:
+        patterns += [("caminho do spec_root", re.compile(re.escape(form))) for form in spec_root_forms(spec_root)]
+    for pattern in extra or []:
+        try:
+            patterns.append(("leak_patterns", re.compile(pattern)))
+        except re.error as e:
+            raise ValueError(f"leak_patterns: regex inválida '{pattern}': {e}") from e
+    return patterns
+
+
+def leak_findings(text: str, origin: str, patterns, allow, first_line: int = 1):
+    """Achados de vazamento em text: [(origem, linha, rótulo, trecho)]. leak_allow é testado contra o trecho."""
+    try:
+        allowed = [re.compile(a) for a in allow or []]
+    except re.error as e:
+        raise ValueError(f"leak_allow: regex inválida '{e.pattern}': {e}") from e
+    found = []
+    for number, line in enumerate(text.splitlines(), first_line):
+        snippet = line.strip()[:80]
+        labels = []
+        for label, rx in patterns:
+            if rx.search(line) and label not in labels:
+                labels.append(label)
+        if labels and not any(a.search(snippet) for a in allowed):
+            found.append((origin, number, ", ".join(labels), snippet))
+    return found
+
+
+def added_lines(diff: str):
+    """Linhas adicionadas num diff -U0: [(arquivo, linha, texto)]."""
+    out, path, number = [], None, 0
+    for line in diff.splitlines():
+        if line.startswith("+++ "):
+            path = line[6:] if line.startswith("+++ b/") else None
+        elif line.startswith("@@"):
+            m = re.match(r"@@ -\S+ \+(\d+)", line)
+            number = int(m.group(1)) if m else 0
+        elif line.startswith("+") and path:
+            out.append((path, number, line[1:]))
+            number += 1
+    return out
+
+
+def leak_rules(project: Project):
+    try:
+        patterns = build_leak_patterns(project.spec_root, project.cfg_list("leak_patterns", []), project.adrs)
+        allow = [re.compile(a) for a in project.cfg_list("leak_allow", [])]
+    except ValueError as e:
+        die(str(e))
+    except re.error as e:
+        die(f"leak_allow: regex inválida '{e.pattern}': {e}")
+    return patterns, allow
+
+
+def leak_scan(project: Project, root: Path, staged=False, rng=None, message=None, branch=None):
+    """Coleta as fontes (diff staged, commits do intervalo, mensagem, branch) e devolve os achados."""
+    patterns, allow = leak_rules(project)
+    found = []
+    if staged:
+        for path, number, text in added_lines(run_git(root, "diff", "--cached", "-U0", "--no-color")[1]):
+            found += leak_findings(text, path, patterns, allow, number)
+    if rng:
+        start, _, end = rng.partition("..")
+        if start.strip("0") == "":
+            code, out, err = run_git(root, "rev-list", end or "HEAD", "--not", "--remotes")
+        else:
+            code, out, err = run_git(root, "rev-list", rng)
+        if code != 0:
+            die(f"intervalo inválido '{rng}': {err.strip()}")
+        for sha in out.split():
+            found += leak_findings(run_git(root, "log", "-1", "--format=%B", sha)[1], f"commit {sha[:7]}", patterns, allow)
+            for path, number, text in added_lines(run_git(root, "show", "-U0", "--format=", "--no-color", sha)[1]):
+                found += leak_findings(text, f"{path} ({sha[:7]})", patterns, allow, number)
+    if message:
+        found += leak_findings(Path(message).read_text(encoding="utf-8"), "mensagem", patterns, allow)
+    if branch:
+        found += leak_findings(branch, "branch", patterns, allow)
+    return found
+
+
+def cmd_leak_check(project: Project, staged: bool, rng, message, branch):
+    if not project.private:
+        print("modo completo: nada a checar (o leak-check vale para repositórios em modo privado)")
+        return 0
+    root = project.root
+    if not (staged or rng or message or branch):
+        staged = True
+        branch = run_git(root, "rev-parse", "--abbrev-ref", "HEAD")[1].strip()
+        code, base, _ = run_git(root, "merge-base", project.cfg("base_branch", "main"), "HEAD")
+        rng = f"{base.strip()}..HEAD" if code == 0 else None
+    found = leak_scan(project, root, staged, rng, message, branch)
+    for origin, number, label, snippet in found:
+        where = "branch" if origin == "branch" else f"{origin}:{number}"
+        print(f"[LEAK] FAIL {where} — {label} — \"{snippet}\"")
+    print(f"Resultado: {'FAIL' if found else 'PASS'} — {len(found)} achado(s)")
+    return 1 if found else 0
+
+
+def team_hook_manager(root: Path):
+    code, out, _ = run_git(root, "config", "--get", "core.hooksPath")
+    if code == 0 and out.strip():
+        return "core.hooksPath"
+    return next((label for name, label in TEAM_HOOK_MARKERS if (root / name).exists()), None)
+
+
+def install_leak_hook(root: Path) -> str:
+    """Instala o pre-push do leak-check em .git/hooks quando é seguro; devolve a mensagem para o usuário."""
+    manager = team_hook_manager(root)
+    if manager:
+        return (f"⚠ hooks do time detectados ({manager}): o hook local não foi instalado; o leak-check roda dentro de "
+                "worktree/gate/pr — rode `leak-check` antes de cada push")
+    hooks = Path(run_git(root, "rev-parse", "--git-path", "hooks")[1].strip())
+    hook = (hooks if hooks.is_absolute() else root / hooks) / "pre-push"
+    if hook.exists():
+        return f"⚠ {hook} já existe: o hook do leak-check não foi instalado — rode `leak-check` antes de cada push"
+    text = (ASSETS_DIR / "hooks" / "pre-push-leak").read_text(encoding="utf-8")
+    hook.parent.mkdir(parents=True, exist_ok=True)
+    hook.write_text(text.replace("__PYTHON__", sys.executable).replace("__SDD_TOOL__", str(Path(__file__).resolve())),
+                    encoding="utf-8")
+    hook.chmod(0o755)
+    return f"hook pre-push do leak-check instalado em {hook} (local, não versionado)"
+
+
 def die(msg: str, code: int = 2):
     print(f"erro: {msg}", file=sys.stderr)
     sys.exit(code)
@@ -609,6 +959,7 @@ def validate(project: Project, only=None):
         validate_change_flow(project, add)
         validate_pillars(project, add)
         validate_journeys(project, add)
+        validate_living_docs(project, add)
         validate_worktrees(project, add)
         validate_test_tooling(project, add)
         seen = defaultdict(list)
@@ -708,7 +1059,7 @@ def validate_pillars(project: Project, add):
 
 
 def cmd_pillars(project: Project):
-    profile, waived, _ = pillar_settings(project)
+    profile, _waived, _ = pillar_settings(project)
     if profile not in PROFILES:
         print("pillars.profile não definido no sdd-config.yml (minimo | padrao | rigoroso). Catálogo:")
         for pid, (title, question, lvl) in PILLARS.items():
@@ -778,6 +1129,159 @@ def cmd_journeys(project: Project):
     return 0
 
 
+LIVING_DOCS = {"journeys": ("guia de jornadas", "template-journeys.md"),
+               "system_map": ("mapa do sistema", "template-system-map.md")}
+JOURNEY_BLOCK_RE = re.compile(r"<!-- jornada:inicio -->\n(.*?)<!-- jornada:fim -->\n", re.DOTALL)
+
+
+def living_docs_base(project: Project) -> Path:
+    """Base dos documentos vivos: spec_root no modo privado (SPEC-0003@1), raiz do repositório no completo."""
+    return project.spec_root if project.private else project.root
+
+
+def living_docs_paths(project: Project):
+    """{chave: caminho absoluto} dos documentos vivos ligados; caminho fora da base → ValueError."""
+    base = living_docs_base(project)
+    out = {}
+    for key, value in project.cfg_map("living_docs").items():
+        if key not in LIVING_DOCS or not isinstance(value, str) or not value.strip():
+            continue
+        rel = Path(value.strip())
+        norm_rel = os.path.normpath(rel.as_posix())
+        path = Path(os.path.normpath(base / rel))
+        outside = rel.is_absolute() or norm_rel.split("/")[0] == ".."
+        if not outside:
+            try:
+                path.resolve().relative_to(base.resolve())
+            except ValueError:
+                outside = True
+        if outside:
+            raise ValueError(f"living_docs.{key}: '{value.strip()}' sai da base ({base}) — use um caminho relativo dentro dela")
+        if norm_rel == "." or path.is_dir():
+            raise ValueError(f"living_docs.{key}: '{value.strip()}' é uma pasta — informe o arquivo Markdown do documento")
+        out[key] = path
+    return out
+
+
+def living_docs_findings(journeys, guide_text: str, adrs, map_text: str):
+    """Cobertura dos documentos vivos: jornadas críticas no guia e ADRs accepted no mapa."""
+    cited = set(JOURNEY_TAG_RE.findall(guide_text))
+    out = [("journey_missing", jid) for jid in journeys if jid not in cited]
+    out += [("journey_unknown", jid) for jid in sorted(cited) if jid not in journeys]
+    out += [("adr_uncited", aid) for aid, status in sorted(adrs.items())
+            if status == "accepted" and not re.search(rf"\b{re.escape(aid)}\b", map_text)]
+    return out
+
+
+def living_docs_inputs(project: Project, paths):
+    """Entradas de living_docs_findings só para os documentos que existem."""
+    guide, mapa = paths.get("journeys"), paths.get("system_map")
+    has_guide, has_map = bool(guide and guide.is_file()), bool(mapa and mapa.is_file())
+    journeys = project.cfg_map("critical_journeys") if has_guide else {}
+    adrs = {aid: doc.status for aid, doc in project.adrs.items()} if has_map else {}
+    return (journeys, guide.read_text(encoding="utf-8") if has_guide else "",
+            adrs, mapa.read_text(encoding="utf-8") if has_map else "")
+
+
+def validate_living_docs(project: Project, add):
+    try:
+        paths = living_docs_paths(project)
+    except ValueError as e:
+        add("ERROR", "sdd-config", str(e))
+        return
+    base = living_docs_base(project)
+    for key, path in paths.items():
+        if not path.is_file():
+            add("WARN", f"living_docs.{key}", f"{path.relative_to(base).as_posix()} não existe — rode living-docs --init")
+    messages = {
+        "journey_missing": ("journeys", "guia de jornadas sem a jornada crítica {0} — adicione a seção com [jornada: {0}]"),
+        "journey_unknown": ("journeys", "guia de jornadas cita [jornada: {0}], que não está em critical_journeys"),
+        "adr_uncited": ("system_map", "mapa do sistema não cita {0} (accepted) — diga onde a decisão aparece no sistema"),
+    }
+    for kind, value in living_docs_findings(*living_docs_inputs(project, paths)):
+        key, msg = messages[kind]
+        add("WARN", f"living_docs.{key}", msg.format(value))
+
+
+def journey_proof(project: Project, jid: str, sids) -> str:
+    """'SPEC-NNNN (E2E-xx)' da primeira spec implementada que prova a jornada."""
+    for sid in sids:
+        plan = COMMENT_RE.sub("", project.specs[sid].section("Plano de Testes") or "")
+        for line in plan.split("\n"):
+            if jid in JOURNEY_TAG_RE.findall(line):
+                e2e = next((t for t in TEST_ID_RE.findall(line) if t.startswith("E2E-")), "")
+                if e2e:
+                    return f"{sid} ({e2e})"
+    return "— (sem E2E)"
+
+
+def fill_block(block: str, values) -> str:
+    """Substitui {{chave}} numa passada só: o texto inserido nunca é expandido de novo."""
+    return re.sub(r"\{\{(\w+)\}\}", lambda m: values.get(m.group(1), m.group(0)), block)
+
+
+def render_journeys(project: Project, template: str) -> str:
+    m = JOURNEY_BLOCK_RE.search(template)
+    block = m.group(1) if m else ""
+    rows, _ = journey_coverage(project)
+    if rows:
+        sections = [fill_block(block, {"title": title, "id": jid,
+                                        "proof": journey_proof(project, jid, sids) if state == "provada" else "— (sem E2E)"})
+                    for jid, title, state, sids in rows]
+    else:
+        sections = ["<!-- Nenhuma jornada em critical_journeys: declare-as no sdd-config.yml e troque o exemplo abaixo "
+                    "por uma seção por jornada, com [jornada: <id>] no título. -->\n"
+                    + fill_block(block, {"title": "Nome da jornada", "id": "<id>", "proof": "— (sem E2E)"})]
+    return template[:m.start()] + "".join(sections) + template[m.end():] if m else template
+
+
+def render_system_map(project: Project, template: str) -> str:
+    accepted = [f"- {aid} — {doc.title}" for aid, doc in sorted(project.adrs.items()) if doc.status == "accepted"]
+    return template.replace("{{decisions}}", "\n".join(accepted) or "- Nenhum ADR aceito ainda.")
+
+
+def cmd_living_docs(project: Project, init: bool):
+    try:
+        paths = living_docs_paths(project)
+    except ValueError as e:
+        die(str(e))
+    if not paths:
+        print("Nenhum documento vivo em living_docs no sdd-config.yml.")
+        return 0
+    base = living_docs_base(project)
+    if init:
+        renders = {"journeys": render_journeys, "system_map": render_system_map}
+        for key, path in paths.items():
+            rel = path.relative_to(base).as_posix()
+            if path.exists():
+                print(f"mantido: {rel}")
+                continue
+            template = (TEMPLATES_DIR / LIVING_DOCS[key][1]).read_text(encoding="utf-8")
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(renders[key](project, template), encoding="utf-8")
+            print(f"criado: {rel}")
+        return 0
+    journeys = project.cfg_map("critical_journeys")
+    adrs = {aid: doc.status for aid, doc in project.adrs.items()}
+    guide, mapa = (paths[k].read_text(encoding="utf-8") if k in paths and paths[k].is_file() else ""
+                   for k in ("journeys", "system_map"))
+    findings = set(living_docs_findings(journeys, guide, adrs, mapa))
+    for key, path in paths.items():
+        print(f"{LIVING_DOCS[key][0]}: {path.relative_to(base).as_posix()} — {'existe' if path.is_file() else 'ausente'}")
+        if key == "journeys":
+            for jid, title in journeys.items():
+                print(f"  {'⚠' if ('journey_missing', jid) in findings else '✅'} {jid} — {title}")
+            for kind, jid in sorted(findings):
+                if kind == "journey_unknown":
+                    print(f"  ✖ {jid} — fora de critical_journeys")
+        else:
+            for aid, status in sorted(adrs.items()):
+                if status == "accepted":
+                    mark = "⚠" if ("adr_uncited", aid) in findings else "✅"
+                    print(f"  {mark} {aid} — {project.adrs[aid].title}")
+    return 0
+
+
 WORKTREE_DIR_DEFAULT = "../{repo}.worktrees"
 
 
@@ -794,6 +1298,8 @@ def spec_slug(doc: Doc) -> str:
 
 def worktree_for(project: Project, doc: Doc):
     slug = spec_slug(doc)
+    if project.private:
+        return worktree_base(project) / slug, f"{CONVENTIONAL_BY_TYPE.get(doc.type, 'feat')}/{slug}"
     return worktree_base(project) / f"{doc.id}-{slug}", f"sdd/{doc.id}-{slug}"
 
 
@@ -848,8 +1354,8 @@ def misplaced_worktrees(project: Project):
         why = ""
         if inside and run_git(project.root, "check-ignore", "-q", rel + "/")[0] != 0:
             why = " — está DENTRO do repositório e fora do .gitignore (ferramentas podem ver o código em dobro)"
-        out.append((str(path), f"fora do worktree_dir{why}; quando ninguém estiver trabalhando nela: "
-                               f"`git worktree move {path} {target}`"))
+        out.append((str(path), (f"fora do worktree_dir{why}; quando ninguém estiver trabalhando nela: "
+                                f"`git worktree move {path} {target}`")))
     return out
 
 
@@ -879,13 +1385,18 @@ def cmd_worktree(project: Project, spec_id: str, create: bool, base):
     if not create:
         print(f"{path}\n{branch}")
         return 0
+    if project.private:
+        n, first_path, first_branch = 2, path, branch
+        while path.exists():
+            path, branch = first_path.with_name(f"{first_path.name}-{n}"), f"{first_branch}-{n}"
+            n += 1
     if path.exists():
         die(f"{path} já existe")
     start = base or (f"sdd/{doc.scalar('parent')}" if doc.scalar("parent") else project.cfg("base_branch", "main"))
     exists = run_git(project.root, "rev-parse", "--verify", "--quiet", f"refs/heads/{branch}")[0] == 0
     args = ["worktree", "add", str(path), branch] if exists else ["worktree", "add", str(path), "-b", branch, start]
     path.parent.mkdir(parents=True, exist_ok=True)
-    code, out, err = run_git(project.root, *args)
+    code, _out, err = run_git(project.root, *args)
     if code != 0:
         die(f"git worktree add falhou: {err.strip()}")
     print(f"worktree criada: {path}\nbranch: {branch}" + ("" if exists else f" (a partir de {start})"))
@@ -916,7 +1427,7 @@ def validate_test_tooling(project: Project, add):
         if not tool:
             add(level, where, f"pilar testes sem decisão para o nível {label}: tabela 'Ferramenta por nível' "
                               "(ferramenta, por quê, onde roda) ou 'N/A — motivo'")
-        elif re.match(r"^N/A", tool, re.I) and len(re.sub(r"^N/A\s*[—–:-]?\s*", "", tool, flags=re.I)) < 10:
+        elif re.match(r"^N/A", tool, re.IGNORECASE) and len(re.sub(r"^N/A\s*[—–:-]?\s*", "", tool, flags=re.IGNORECASE)) < 10:
             add(level, where, f"pilar testes: N/A no nível {label} sem motivo")
 
 
@@ -985,17 +1496,19 @@ def validate_config(project: Project, add):
             if doc.status in APPROVED_PLUS and not doc.legacy and not doc.scalar("approved_via"):
                 add("WARN", sid, "h1_policy pr-approval: registre approved_via (ex: \"PR #12\") com o revisor em approved_by")
     policy = project.cfg("h2_policy", "per-wave")
+    policy_approved = bool(project.cfg("h2_policy_approved_by") and valid_date(project.cfg("h2_policy_approved_at")))
     if policy not in ("per-wave", "auto-on-green"):
         add("ERROR", "sdd-config", f"h2_policy '{policy}' inválida (per-wave | auto-on-green)")
-    elif policy == "auto-on-green" and not (project.cfg("h2_policy_approved_by") and valid_date(project.cfg("h2_policy_approved_at"))):
+    elif policy == "auto-on-green" and not policy_approved:
         add("ERROR", "sdd-config", "h2_policy auto-on-green exige h2_policy_approved_by e h2_policy_approved_at (decisão humana registrada)")
     h2_texts = defaultdict(list)
     for sid, doc in sorted(project.specs.items()):
         evidence = ((gate_table(doc) or {}).get("H2") or {}).get("evidence", "")
         if evidence and not evidence.startswith("política auto-on-green") and not doc.legacy:
             h2_texts[re.sub(r"\s+", " ", evidence.lower())].append(sid)
+    policy_declared = policy == "auto-on-green" and policy_approved
     for evidence, sids in h2_texts.items():
-        if len(sids) >= 3:
+        if len(sids) >= 3 and not policy_declared:
             add("WARN", "sdd-config", f"H2 com o mesmo texto em {len(sids)} specs ('{evidence[:50]}') — se é uma autorização "
                                       "permanente, declare h2_policy: auto-on-green no sdd-config.yml em vez de repeti-la")
     fields = set(re.findall(r"\{(\w+)\}", project.cfg("pr_title", PR_TITLE_DEFAULT)))
@@ -1158,7 +1671,7 @@ def validate_executable(project: Project, doc: Doc, add):
         elif user_facing == "false" and "E2E" not in kinds:
             e2e = find_sub(parse_subsections(plan), "E2E") or ""
             m = re.search(r"N/A\s*[—–:-]?\s*(.*)", e2e)
-            reason = re.sub(r"user_facing\s*:\s*false", "", m.group(1) if m else "", flags=re.I).strip(" .;—–-")
+            reason = re.sub(r"user_facing\s*:\s*false", "", m.group(1) if m else "", flags=re.IGNORECASE).strip(" .;—–-")
             if len(reason) < 15:
                 add("ERROR" if status == "proposed" else "WARN", sid,
                     "user_facing: false sem justificativa: na seção Testes E2E escreva \"N/A — <por que nenhuma jornada "
@@ -1468,7 +1981,7 @@ def validate_adr_content(adr: Doc, origin: str, add):
     """Decision quality: options and sources for recommended decisions; risks recorded for user-chosen ones."""
     aid = adr.id
     options = COMMENT_RE.sub("", adr.section("Opções") or "")
-    bullets = [l for l in options.split("\n") if re.match(r"^\s*[-*]\s+\S", l) and not re.match(r"^\s*[-*]\s+N/A", l, re.I)]
+    bullets = [l for l in options.split("\n") if re.match(r"^\s*[-*]\s+\S", l) and not re.match(r"^\s*[-*]\s+N/A", l, re.IGNORECASE)]
     sources = COMMENT_RE.sub("", (adr.section("Mais Informações") or "") + (adr.section("Fontes") or ""))
     consequences = COMMENT_RE.sub("", adr.section("Consequências") or adr.section("Resultado da Decisão") or "")
     if origin in ("", "decision"):
@@ -1761,8 +2274,8 @@ def build_index(project: Project) -> str:
     elif not plan[0]:
         out.append("Nenhuma spec aberta.")
     else:
-        wave, members, notes = plan
-        running, batch, held = next_batch(project, plan)
+        _wave, members, notes = plan
+        running, batch, _held = next_batch(project, plan)
         stalled = [s for s in running if readiness(project, specs[s])[0] == "stalled"]
         out.append(f"**Em andamento:** {', '.join(s for s in running if s not in stalled) or '—'}  ")
         out.append(f"**Paradas por impedimento:** {', '.join(stalled) or '—'}  ")
@@ -1857,9 +2370,142 @@ def cmd_index(project: Project, stdout: bool):
     return 0
 
 
-def run_git(root: Path, *args):
-    result = subprocess.run(["git", *args], cwd=root, capture_output=True, text=True)
+def run_git(root: Path, *args, input=None):
+    result = subprocess.run(["git", *args], check=False, cwd=root, capture_output=True, text=True, input=input)
     return result.returncode, result.stdout, result.stderr
+
+
+TEST_TARGET_RE = re.compile(r"(?:→|->)\s*`?(\S+?)::(\S+?)`?\s*$")
+LEDGER_SECTION = "Commits"
+
+
+def role_by_files(files, test_paths) -> str:
+    """Modo privado: papel do commit pelos arquivos — red (só test_paths) ou green (algum arquivo fora)."""
+    return "red" if files and all(matches_any(f, test_paths) for f in files) else "green"
+
+
+def parse_test_target(line: str):
+    """Linha do plano com `→ caminho::nome` (ou `->`): (caminho, nome), ou None sem mapeamento."""
+    m = TEST_TARGET_RE.search(line.strip())
+    return (m.group(1), m.group(2)) if m else None
+
+
+def plan_test_targets(doc: Doc) -> dict:
+    """ID do teste → (caminho, nome), para as linhas do plano que apontam `→ caminho::nome`."""
+    targets = {}
+    for line in COMMENT_RE.sub("", doc.section("Plano de Testes") or "").splitlines():
+        ids = TEST_ID_RE.findall(line)
+        target = parse_test_target(line)
+        if ids and target:
+            targets.setdefault(ids[0], target)
+    return targets
+
+
+def patch_id(root: Path, diff: str) -> str:
+    out = run_git(root, "patch-id", "--stable", input=diff)[1].split()
+    return out[0] if out else ""
+
+
+def spec_commits(project: Project, spec_id: str, root: Path, base: str):
+    """Commits da spec em merge-base..HEAD: por mensagem (modo completo) ou pela branch inteira (modo privado)."""
+    code, merge_base, err = run_git(root, "merge-base", base, "HEAD")
+    if code != 0:
+        die(f"não foi possível achar merge-base com '{base}': {err.strip()}")
+    merge_base = merge_base.strip()
+    _, log, _ = run_git(root, "log", "--reverse", "--no-merges", "--format=%H%x1f%s%x1f%b%x1e", f"{merge_base}..HEAD")
+    test_paths = project.cfg_list("test_paths", DEFAULT_TEST_PATHS)
+    commits = []
+    for chunk in log.split("\x1e"):
+        if not chunk.strip():
+            continue
+        parts = chunk.strip("\n").split("\x1f")
+        sha, subject = parts[0].strip(), parts[1] if len(parts) > 1 else ""
+        body = parts[2] if len(parts) > 2 else ""
+        files = run_git(root, "diff-tree", "--no-commit-id", "--name-only", "-r", "--root", sha)[1].split()
+        if "scaffold" in subject.lower() and (project.private or subject.lower().startswith("chore")):
+            kind = "scaffold"
+        elif project.private:
+            kind = role_by_files(files, test_paths)
+        else:
+            m = CONVENTIONAL_RE.match(subject)
+            ctype = m.group(1).lower() if m else ""
+            kind = "red" if ctype in RED_TYPES else "green" if ctype in GREEN_TYPES else "other"
+        commits.append({"sha": sha, "subject": subject, "body": body, "kind": kind, "files": files})
+    if project.private:
+        return merge_base, commits, commits
+    return merge_base, commits, [c for c in commits if spec_id in commit_spec_refs(c["subject"], c["body"])]
+
+
+REFS_TRAILER_RE = re.compile(r"^Refs:\s*(.+)$", re.MULTILINE | re.IGNORECASE)
+
+
+def commit_spec_refs(subject: str, body: str) -> set:
+    """Specs a que o commit pertence. Com rodapé `Refs:`, só ele conta (o corpo pode citar outras specs como
+    contexto, ex.: "consome SPEC-0005@2"); sem rodapé, vale qualquer menção no assunto ou no corpo."""
+    from_trailer = set(SPEC_REF_RE.findall("\n".join(REFS_TRAILER_RE.findall(body))))
+    if from_trailer:  # um `Refs: #12` sem spec não esconde o commit: cai na regra das menções
+        return from_trailer
+    return set(SPEC_REF_RE.findall(subject + "\n" + body))
+
+
+def write_commit_ledger(project: Project, doc: Doc, root: Path):
+    """Modo privado: grava na spec (spec_root) os commits da branch com papel, SHA, patch-id e arquivos."""
+    merge_base, _, mine = spec_commits(project, doc.id, root, project.cfg("base_branch", "main"))
+    if not mine:
+        return
+    rows = []
+    for c in mine:
+        pid = patch_id(root, run_git(root, "show", "--format=", c["sha"])[1])
+        rows.append(f"| {c['kind']} | {c['sha']} | {pid} | {md_cell(', '.join(c['files']))} |")
+    head = run_git(root, "rev-parse", "HEAD")[1].strip()
+    rows.append(f"| branch | {head} | {patch_id(root, run_git(root, 'diff', merge_base, 'HEAD')[1])} | — |")
+    block = [f"## {LEDGER_SECTION}",
+             "<!-- Modo privado: gravado pelo gate --run. Liga a spec aos commits da branch sem marcas no repositório. -->",
+             "| Papel | SHA | patch-id | Arquivos |", "|---|---|---|---|", *rows, ""]
+    lines = doc.path.read_text(encoding="utf-8").split("\n")
+    bounds = section_bounds(lines, LEDGER_SECTION)
+    if bounds:
+        lines[bounds[0]:bounds[1]] = block
+    else:
+        lines = lines + ([""] if lines and lines[-1].strip() else []) + block
+    doc.path.write_text("\n".join(lines).rstrip("\n") + "\n", encoding="utf-8")
+
+
+def ledger_rows(doc_path: Path):
+    lines = doc_path.read_text(encoding="utf-8").split("\n")
+    bounds = section_bounds(lines, LEDGER_SECTION)
+    rows = []
+    for line in lines[bounds[0] + 1:bounds[1]] if bounds else []:
+        cells = [c.strip() for c in line.strip().strip("|").split("|")]
+        if len(cells) >= 3 and cells[0] in ("red", "green", "scaffold", "branch"):
+            rows.append({"role": cells[0], "sha": cells[1], "pid": cells[2]})
+    return rows
+
+
+def find_spec_merge(project: Project, doc: Doc, root: Path):
+    """Modo privado: onde a spec entrou na base — merge commit, squash (patch-id da branch) ou rebase (patch-ids)."""
+    rows = ledger_rows(doc.path)
+    if not rows:
+        return False, "registro de commits vazio — rode o gate G1 ou G2 na branch da spec antes"
+    base = project.cfg("base_branch", "main")
+    branch = next((r for r in rows if r["role"] == "branch"), None)
+    commits = [r for r in rows if r["role"] != "branch"]
+    head = branch["sha"] if branch else commits[-1]["sha"]
+    if run_git(root, "merge-base", "--is-ancestor", head, base)[0] == 0:
+        for merge in run_git(root, "rev-list", "--first-parent", "--merges", base)[1].split():
+            if (run_git(root, "merge-base", "--is-ancestor", head, merge)[0] == 0
+                    and run_git(root, "merge-base", "--is-ancestor", head, f"{merge}^1")[0] != 0):
+                return True, f"merge {merge[:7]}"
+        return True, f"merge (fast-forward) {head[:7]}"
+    pids = {}
+    for sha in run_git(root, "rev-list", "--first-parent", "--no-merges", "-n", "200", base)[1].split():
+        pids.setdefault(patch_id(root, run_git(root, "show", "--format=", sha)[1]), sha)
+    if branch and branch["pid"] in pids:
+        return True, f"squash {pids[branch['pid']][:7]}"
+    found = [pids.get(r["pid"]) for r in commits]
+    if found and all(found):
+        return True, f"rebase {found[0][:7]}..{found[-1][:7]}"
+    return False, f"merge da spec não encontrado em {base}"
 
 
 def verify_spec(project: Project, spec_id: str, base, git_root=None):
@@ -1872,37 +2518,10 @@ def verify_spec(project: Project, spec_id: str, base, git_root=None):
     if run_git(root, "rev-parse", "--is-inside-work-tree")[0] != 0:
         die("não é um repositório git")
     base = base or project.cfg("base_branch", "main")
-    code, merge_base, err = run_git(root, "merge-base", base, "HEAD")
-    if code != 0:
-        die(f"não foi possível achar merge-base com '{base}': {err.strip()}")
-    merge_base = merge_base.strip()
-    _, log, _ = run_git(root, "log", "--reverse", "--no-merges", "--format=%H%x1f%s%x1f%b%x1e", f"{merge_base}..HEAD")
-
+    merge_base, commits, mine = spec_commits(project, spec_id, root, base)
     test_paths = project.cfg_list("test_paths", DEFAULT_TEST_PATHS)
     exempt = project.scope_exempt()
-    commits = []
-    for chunk in log.split("\x1e"):
-        if not chunk.strip():
-            continue
-        parts = chunk.strip("\n").split("\x1f")
-        sha, subject = parts[0].strip(), parts[1] if len(parts) > 1 else ""
-        body = parts[2] if len(parts) > 2 else ""
-        m = CONVENTIONAL_RE.match(subject)
-        ctype = m.group(1).lower() if m else ""
-        if ctype in RED_TYPES:
-            kind = "red"
-        elif ctype in GREEN_TYPES:
-            kind = "green"
-        elif ctype == "chore" and "scaffold" in subject.lower():
-            kind = "scaffold"
-        else:
-            kind = "other"
-        files = run_git(root, "diff-tree", "--no-commit-id", "--name-only", "-r", "--root", sha)[1].split()
-        commits.append({"sha": sha, "subject": subject, "body": body, "kind": kind, "files": files})
-
-    ref_re = re.compile(rf"\b{re.escape(spec_id)}\b")
-    mine = [c for c in commits if ref_re.search(c["subject"] + "\n" + c["body"])]
-    untraced = [c for c in commits if not SPEC_REF_RE.search(c["subject"] + "\n" + c["body"])]
+    untraced = [] if project.private else [c for c in commits if not SPEC_REF_RE.search(c["subject"] + "\n" + c["body"])]
     short = lambda c: f"{c['sha'][:7]} {c['subject'][:72]}"
     is_test = lambda f: matches_any(f, test_paths)
     is_exempt = lambda f: matches_any(f, exempt)
@@ -1911,9 +2530,11 @@ def verify_spec(project: Project, spec_id: str, base, git_root=None):
     reds = [i for i, c in enumerate(mine) if c["kind"] == "red"]
     greens = [i for i, c in enumerate(mine) if c["kind"] == "green"]
     if not mine:
-        results.append(("FAIL", "G1", f"nenhum commit referencia {spec_id} em {base}..HEAD"))
+        results.append(("FAIL", "G1", f"nenhum commit da spec em {base}..HEAD" if project.private
+                        else f"nenhum commit referencia {spec_id} em {base}..HEAD"))
     elif not reds:
-        results.append(("FAIL", "G1", "nenhum commit test(...) — a fase Red não foi registrada"))
+        results.append(("FAIL", "G1", "nenhum commit só de testes — a fase Red não foi registrada" if project.private
+                        else "nenhum commit test(...) — a fase Red não foi registrada"))
     else:
         early = [mine[i] for i in greens if i < reds[0]]
         if early:
@@ -1930,6 +2551,20 @@ def verify_spec(project: Project, spec_id: str, base, git_root=None):
     plan_ids = plan_test_ids(doc)
     if not plan_ids:
         results.append(("FAIL", "G1", "plano de testes sem IDs"))
+    elif project.private:
+        targets, missing = plan_test_targets(doc), []
+        for tid in plan_ids:
+            target = targets.get(tid)
+            if target is None:
+                missing.append(f"{tid} (sem → caminho::nome no plano)")
+                continue
+            code, content, _ = run_git(root, "show", f"HEAD:{target[0]}")
+            if code != 0 or target[1] not in content:
+                missing.append(f"{tid} ({target[0]}::{target[1]})")
+        if missing:
+            results.append(("FAIL", "G1", "teste do plano sem caminho::nome no HEAD: " + ", ".join(missing)))
+        else:
+            results.append(("PASS", "G1", f"rastreabilidade: {len(plan_ids)}/{len(plan_ids)} testes do plano no código ({', '.join(plan_ids)})"))
     else:
         missing, outside = [], []
         for tid in plan_ids:
@@ -2092,7 +2727,7 @@ MANUAL_PREFIX = "MANUAL:"
 
 def run_shell(command: str, cwd: Path):
     try:
-        result = subprocess.run(command, shell=True, cwd=cwd, capture_output=True, text=True, timeout=1800)
+        result = subprocess.run(command, shell=True, check=False, cwd=cwd, capture_output=True, text=True, timeout=1800)
     except subprocess.TimeoutExpired:
         return 124, "timeout (30 min)"
     lines = [l.strip() for l in (result.stdout + "\n" + result.stderr).splitlines() if l.strip()]
@@ -2125,7 +2760,8 @@ def pillar_waivers(project: Project) -> dict:
     return waived if isinstance(waived, dict) else {}
 
 
-def cmd_gate(project: Project, spec_id, gate, run, cwd, na, fail, by, evidence, manual, allow_dirty, expect_green=False):
+def cmd_gate(project: Project, spec_id, gate, run, cwd, na, fail, by, evidence, manual, allow_dirty, expect_green=False,
+             at=None):
     doc = project.specs.get(spec_id)
     if doc is None or doc.tier == "epic":
         die(f"{spec_id} não encontrada ou é épico (gates são por spec executável)")
@@ -2179,6 +2815,33 @@ def cmd_gate(project: Project, spec_id, gate, run, cwd, na, fail, by, evidence, 
         print(f"{spec_id} {gate} = PASS (manual) — {evidence}")
         return 0
 
+    branch_dir = workdir
+    if gate == "G1" and not at and project.private:
+        reds = [c for c in spec_commits(project, spec_id, workdir, project.cfg("base_branch", "main"))[2]
+                if c["kind"] == "red"]
+        at = reds[-1]["sha"] if reds else None
+    temp_dir = None
+    if gate == "G1" and at:
+        if run_git(workdir, "rev-parse", "--verify", "--quiet", f"{at}^{{commit}}")[0] != 0:
+            die(f"--at {at}: commit não encontrado")
+        temp_dir = Path(tempfile.mkdtemp(prefix="sdd-g1-"))
+        code, _, err = run_git(workdir, "worktree", "add", "--detach", str(temp_dir / "wt"), at)
+        if code != 0:
+            shutil.rmtree(temp_dir, ignore_errors=True)
+            die(f"git worktree add falhou: {err.strip()}")
+        workdir = temp_dir / "wt"
+    try:
+        return gate_run(project, doc, spec_id, gate, workdir, branch_dir, by, allow_dirty, expect_green, bool(at),
+                        evidence)
+    finally:
+        if temp_dir:
+            if run_git(branch_dir, "worktree", "remove", "--force", str(workdir))[0] != 0:
+                print(f"aviso: remova a worktree temporária com `git worktree remove --force {workdir}`", file=sys.stderr)
+            shutil.rmtree(temp_dir, ignore_errors=True)
+
+
+def gate_run(project: Project, doc: Doc, spec_id, gate, workdir: Path, branch_dir: Path, by, allow_dirty, expect_green,
+             at_red: bool, note=None):
     sha, dirty = head_ref(workdir)
     if dirty and not allow_dirty and gate != "G0":
         die(f"há alterações não commitadas em {workdir}: a evidência precisa apontar um commit (commite ou use --allow-dirty)")
@@ -2198,6 +2861,11 @@ def cmd_gate(project: Project, spec_id, gate, run, cwd, na, fail, by, evidence, 
             red = code != 0
             ok = red or expect_green
             parts.append(f"`{project.cfg('test')}` exit {code} ({'red' if red else 'verde'}: {summary})")
+            if not red and not expect_green and not at_red:
+                reds = [c for c in spec_commits(project, spec_id, workdir, project.cfg("base_branch", "main"))[2]
+                        if c["kind"] == "red"]
+                if reds:
+                    parts.append(f"HEAD já verde: rode com --at {reds[-1]['sha'][:7]} (último commit red)")
         if gate == "G4":
             if not by:
                 die("G4 exige o veredito do Reviewer: --by \"<revisor>: APPROVED ...\"")
@@ -2210,8 +2878,13 @@ def cmd_gate(project: Project, spec_id, gate, run, cwd, na, fail, by, evidence, 
         validate_delivery(doc, plan, lambda lvl, s, m: issues.append(m) if lvl == "ERROR" else None)
         ok = not issues
         parts.append("Relatório de Entrega e Definição de Pronto: " + ("ok" if ok else issues[0][:80]))
+        if project.private:
+            merged, text = find_spec_merge(project, doc, workdir)
+            ok = ok and merged
+            parts.append(text)
     else:
-        configured = [key for key in GATE_COMMANDS[gate] if project.cfg(key)]
+        keys = GATE_COMMANDS[gate] + (("ci",) if gate == "G5" and project.private else ())
+        configured = [key for key in keys if project.cfg(key)]
         if not configured:
             die(f"nenhum comando configurado para {gate} ({', '.join(GATE_COMMANDS[gate])}) — configure no sdd-config "
                 f"ou registre N/A com --na apontando a spec que vai criá-lo")
@@ -2219,8 +2892,22 @@ def cmd_gate(project: Project, spec_id, gate, run, cwd, na, fail, by, evidence, 
             code, summary = run_shell(project.cfg(key), workdir)
             parts.append(f"{key} exit {code} ({summary})")
             ok = ok and code == 0
+    if project.private and gate in ("G4", "G5"):
+        code, merge_base, _ = run_git(workdir, "merge-base", project.cfg("base_branch", "main"), "HEAD")
+        branch = run_git(workdir, "rev-parse", "--abbrev-ref", "HEAD")[1].strip()
+        leaks = leak_scan(project, workdir, rng=f"{merge_base.strip()}..HEAD" if code == 0 else None, branch=branch)
+        if leaks:
+            ok = False
+            origin, number, label, _ = leaks[0]
+            parts.append(f"vazamento: {len(leaks)} achado(s) (1º: {origin}:{number} — {label})")
+        else:
+            parts.append("leak-check: limpo")
+    if note:
+        parts.append(f"nota: {note}")
     evidence_text = "; ".join(parts) + f" — {sha}" + (" (árvore suja)" if dirty else "")
     set_gate_row(doc, gate, "PASS" if ok else "FAIL", evidence_text)
+    if project.private and gate in ("G1", "G2", "G3", "G4", "G5"):
+        write_commit_ledger(project, doc, branch_dir)
     print(f"{spec_id} {gate} = {'PASS' if ok else 'FAIL'} — {evidence_text}")
     return 0 if ok else 1
 
@@ -2390,6 +3077,17 @@ def progress_panel(doc: Doc, done) -> str:
 
 
 def cmd_status(project: Project, ids):
+    code = status_body(project, ids)
+    news = status_news_line(project)  # também quando não há spec aberta (status_body retorna cedo)
+    if news:
+        print(news)
+    return code
+
+
+def status_body(project: Project, ids):
+    if project.private:
+        for warning in spec_root_pending(project.spec_root, project.sync):
+            print(f"⚠ {warning}")
     if ids:
         for sid in ids:
             doc = project.specs.get(sid)
@@ -2416,6 +3114,169 @@ def cmd_status(project: Project, ids):
         phase = next((PHASES[i] for i, ok in enumerate(done) if not ok), "—")
         print(f"{doc.id}  {doc.status:<11} {phase:<20} {doc.title}")
         print(f"             → {step.splitlines()[0]}")
+    return 0
+
+
+# ---------------------------------------------------------------- novidades da skill (whats-new)
+
+VERSION_RE = re.compile(r"^\d+(?:\.\d+)+$")
+CHANGELOG_SECTION_RE = re.compile(r"^## \[([^\]]+)\]")
+# Banner de seção ou chave comentada (só quando o valor parece YAML; "# pr: toda mudança…" é prosa e fica).
+TEMPLATE_NOISE_RE = re.compile(r"^#\s*(?:---|[a-z_][a-z0-9_]*:\s*(?:$|[\"'\[{]|-?\d|true\b|false\b))")
+
+
+def version_key(version: str) -> tuple:
+    """"2026.10.10" -> (2026, 10, 10): versões comparadas numericamente, não como texto."""
+    return tuple(int(part) for part in version.strip().split("."))
+
+
+def changelog_since(text: str, since, until: str) -> list:
+    """Seções de versão do CHANGELOG com since < versão <= until, na ordem do arquivo ([Unreleased] nunca entra)."""
+    if not since or not VERSION_RE.match(since) or not VERSION_RE.match(until):
+        return []
+    low, high = version_key(since), version_key(until)
+    sections, current = [], None
+    for line in text.splitlines():
+        if line.startswith("## "):
+            if current is not None:
+                sections.append("\n".join(current).rstrip("\n"))
+            m = CHANGELOG_SECTION_RE.match(line)
+            version = m.group(1).strip() if m else ""
+            keep = bool(VERSION_RE.match(version)) and low < version_key(version) <= high
+            current = [line] if keep else None
+        elif current is not None:
+            current.append(line)
+    if current is not None:
+        sections.append("\n".join(current).rstrip("\n"))
+    return sections
+
+
+def missing_config_keys(template_text: str, config: dict) -> list:
+    """(chave, comentário) das chaves de topo do template ausentes no config, na ordem do template."""
+    out, comments = [], []
+    for line in template_text.splitlines():
+        if line.startswith("#"):
+            if not TEMPLATE_NOISE_RE.match(line):  # banner de seção e chave comentada não descrevem a chave
+                comments.append(line.lstrip("#").strip())
+            continue
+        m = re.match(r"^([A-Za-z_][\w-]*)\s*:", line)
+        if m and m.group(1) not in config:
+            out.append((m.group(1), " ".join(c for c in comments if c)))
+        comments = []
+    return out
+
+
+def project_tool_version(project: Project):
+    """Versão do projeto: tools/sdd (se existir), senão sdd_version do sdd-config; None = desconhecida."""
+    vendored = project.root / VENDORED_TOOL
+    if vendored.exists():
+        m = re.search(r'SDD_TOOL_VERSION = "([^"]+)"', vendored.read_text(encoding="utf-8"))
+        version = m.group(1) if m else ""
+        return (version if VERSION_RE.match(version) else None), "tools/sdd"
+    version = project.config.get("sdd_version")
+    version = version.strip() if isinstance(version, str) else ""
+    return (version if VERSION_RE.match(version) else None), "sdd_version"
+
+
+def skill_news(project: Project):
+    """(versão do projeto, origem, seções novas do CHANGELOG ou None sem CHANGELOG, chaves novas do template)."""
+    version, source = project_tool_version(project)
+    changelog = SKILL_DIR / "CHANGELOG.md"
+    sections = changelog_since(changelog.read_text(encoding="utf-8"), version, SDD_TOOL_VERSION) \
+        if changelog.exists() else None
+    template = TEMPLATES_DIR / "sdd-config.template.yml"
+    keys = [(k, c) for k, c in missing_config_keys(template.read_text(encoding="utf-8"), project.config)
+            if k != "sdd_version"] if template.exists() else []
+    return version, source, sections, keys
+
+
+def is_older(version) -> bool:
+    return bool(version) and version_key(version) < version_key(SDD_TOOL_VERSION)
+
+
+def status_news_line(project: Project) -> str:
+    """Linha do `status` quando a skill tem novidade para o projeto; "" quando em dia."""
+    if not project.config_path.exists():
+        return ""
+    version, _, sections, keys = skill_news(project)
+    older = is_older(version)
+    if not older and not keys:
+        return ""
+    parts = []
+    if older and sections:
+        parts.append(f"{len(sections)} versão(ões)")
+    elif older:
+        parts.append(f"projeto na {version}")  # sem CHANGELOG (ou sem seções) não há como contar versões
+    if keys:
+        parts.append(f"{len(keys)} configuração(ões) nova(s)")
+    return f"Novidades da skill: {' e '.join(parts)} — rode whats-new"
+
+
+def write_config_key(path: Path, key: str, value: str):
+    """Cria ou troca a linha `key: "value"` de topo no sdd-config; o resto do arquivo fica igual, byte a byte."""
+    with path.open(encoding="utf-8", newline="") as fh:
+        text = fh.read()
+    rendered = f'{key}: "{value}"'
+    m = re.search(rf"^{re.escape(key)}\s*:[^\r\n]*", text, re.MULTILINE)
+    if m:
+        text = text[:m.start()] + rendered + text[m.end():]
+    else:
+        eol = "\r\n" if "\r\n" in text else "\n"
+        if text and not text.endswith(("\n", "\r")):
+            text += eol
+        text += rendered + eol
+    with path.open("w", encoding="utf-8", newline="") as fh:
+        fh.write(text)
+
+
+def cmd_whats_new(project: Project, ack: bool):
+    if ack:
+        if not project.config_path.exists():
+            print(f"aviso: {project.rel(project.config_path)} não existe — nada gravado; crie o sdd-config a partir de "
+                  "references/sdd-config.template.yml")
+            return 0
+        write_config_key(project.config_path, "sdd_version", SDD_TOOL_VERSION)
+        print(f"sdd_version = {SDD_TOOL_VERSION}")
+        return 0
+    version, source, sections, keys = skill_news(project)
+    print(f"Projeto: {version or 'desconhecida'} · skill: {SDD_TOOL_VERSION}\n")
+    older = is_older(version)
+    if sections is None:
+        print(f"CHANGELOG da skill não encontrado ({SKILL_DIR / 'CHANGELOG.md'})\n")
+    newer = bool(version) and version_key(version) > version_key(SDD_TOOL_VERSION)
+    if version is None and source == "tools/sdd":
+        print(f"{VENDORED_TOOL} sem versão legível — rode vendor --force\n")
+    elif version is None:
+        print("Versão do projeto desconhecida — rode whats-new --ack depois de revisar\n")
+    elif older:
+        print(f"Novidades desde {version}:\n")
+        if sections:
+            print("\n\n".join(sections) + "\n")
+        elif sections is not None:
+            print("(nenhuma entrada no CHANGELOG da skill para essas versões)\n")
+    elif newer:
+        print(f"A skill instalada ({SDD_TOOL_VERSION}) é mais antiga que o projeto ({version}) — atualize a cópia da skill.\n")
+    if keys:
+        print("Configurações novas (ausentes no seu sdd-config):")
+        for key, comment in keys:
+            print(f"- {key}: {comment}" if comment else f"- {key}:")
+        print()
+    steps = []
+    if source == "tools/sdd" and (older or version is None):
+        steps.append(f"- `spec_graph.py vendor --force` — atualiza {VENDORED_TOOL} para a {SDD_TOOL_VERSION}")
+    if older:
+        steps.append("- `spec_graph.py upgrade` (simulação) e `upgrade --apply` — leva as specs aos templates atuais")
+    if keys:
+        steps.append(f"- copie a chave do template references/sdd-config.template.yml para {project.rel(project.config_path)} "
+                     "(ou deixe de fora para manter o comportamento atual)")
+    if source == "sdd_version" and (older or version is None):
+        steps.append(f"- `spec_graph.py whats-new --ack` — registra sdd_version = {SDD_TOOL_VERSION} depois de revisar")
+    if newer:
+        steps.append(f"- atualize a cópia instalada da skill ({SKILL_DIR}) para a {version} ou mais nova")
+    if steps:
+        print("Para se atualizar:\n" + "\n".join(steps))
+    else:
+        print(f"Projeto em dia com a skill ({SDD_TOOL_VERSION}).")
     return 0
 
 
@@ -2579,6 +3440,140 @@ def labeled_line(doc: Doc, section: str, label: str) -> str:
     return m.group(1).strip() if m else ""
 
 
+PR_TEMPLATE_CANDIDATES = (".github/pull_request_template.md", ".github/PULL_REQUEST_TEMPLATE.md",
+                          "docs/pull_request_template.md", ".gitlab/merge_request_templates/Default.md",
+                          ".azuredevops/pull_request_template.md")
+PR_SECTION_KEYWORDS = (("risk", ("risco", "risk", "rollback", "rollout")),
+                       ("test", ("teste", "test", "como testar", "how to test")),
+                       ("summary", ("resumo", "summary", "descricao", "description", "o que", "what")))
+
+
+def detect_team_conventions(first_parent_parents, subjects, files, hooks_path="") -> dict:
+    """Convenções do time: forma de merge, padrão de mensagens, gerenciador de hooks e template de PR."""
+    if not first_parent_parents:
+        merge = "desconhecida"
+    else:
+        merges = sum(1 for n in first_parent_parents if n > 1)
+        merge = "merge" if merges / len(first_parent_parents) >= 0.2 else "linear"
+    recent = list(subjects)[:50]
+    if not recent:
+        commits = "desconhecida"
+    else:
+        conventional = sum(1 for s in recent if CONVENTIONAL_RE.match(s))
+        commits = "conventional" if conventional / len(recent) >= 0.8 else "livre"
+    hooks = "core.hooksPath" if hooks_path else next((label for name, label in TEAM_HOOK_MARKERS if name in files), "nenhum")
+    template = next((c for c in PR_TEMPLATE_CANDIDATES if c in files), "")
+    return {"merge": merge, "commits": commits, "hooks": hooks, "pr_template": template}
+
+
+def team_conventions(project: Project) -> dict:
+    root = project.root
+    base = project.cfg("base_branch", "main")
+    if run_git(root, "rev-parse", "--verify", "--quiet", base)[0] != 0:
+        base = "HEAD"
+    parents = [len(line.split()) for line in
+               run_git(root, "log", "--first-parent", "-n", "200", "--format=%P", base)[1].splitlines()]
+    subjects = run_git(root, "log", "--no-merges", "-n", "50", "--format=%s", base)[1].splitlines()
+    files = {name for name in PR_TEMPLATE_CANDIDATES + tuple(n for n, _ in TEAM_HOOK_MARKERS) if (root / name).exists()}
+    hooks_path = run_git(root, "config", "--get", "core.hooksPath")[1].strip()
+    return detect_team_conventions(parents, subjects, files, hooks_path)
+
+
+def write_team_block(config_path: Path, conv: dict):
+    """Grava (ou troca) o bloco `team:` no sdd-config do spec_root."""
+    lines = config_path.read_text(encoding="utf-8").split("\n") if config_path.exists() else []
+    out, skipping = [], False
+    for line in lines:
+        if line.startswith(("team:", "# Convenções do time")):
+            skipping = True
+            continue
+        if skipping and (line.startswith((" ", "\t")) or not line.strip()):
+            continue
+        skipping = False
+        out.append(line)
+    block = ["# Convenções do time (detectadas por `private init`/`private detect`; corrija se preciso)", "team:"]
+    block += [f'  {key}: "{value}"' if key == "pr_template" else f"  {key}: {value}" for key, value in conv.items()]
+    text = "\n".join(out).rstrip("\n") + "\n\n" + "\n".join(block) + "\n"
+    config_path.write_text(text, encoding="utf-8")
+
+
+def describe_team(conv: dict) -> str:
+    return (f"Detectado: merge {conv['merge']} · commits {conv['commits']} · hooks {conv['hooks']} · "
+            f"template {conv['pr_template'] or 'nenhum'}")
+
+
+def plan_sentences(doc: Doc):
+    """Testes do plano em linguagem natural, sem IDs nem `→ caminho::nome`."""
+    out = []
+    for line in COMMENT_RE.sub("", doc.section("Plano de Testes") or "").splitlines():
+        if not TEST_ID_RE.search(line):
+            continue
+        text = re.sub(r"^\s*-\s*\*\*[A-Z0-9]+-\d+\*\*\s*[—–-]\s*", "", line)
+        text = TEST_TARGET_RE.sub("", text)
+        text = re.sub(r"\(guarda[^)]*\)\s*", "", text).strip()
+        if text:
+            out.append(f"- {text}")
+    return out
+
+
+def private_pr_parts(docs) -> dict:
+    summary, tests, risk = [], [], []
+    for d in docs:
+        overview = COMMENT_RE.sub("", d.section("Visão Geral") or d.section("Problema") or "").strip()
+        motivation = labeled_line(d, "Motivação", "Motivação")
+        summary += [p for p in (overview, motivation) if p]
+        tests += plan_sentences(d)
+        rollout = COMMENT_RE.sub("", d.section("Plano de Rollout") or "").strip()
+        rollback = labeled_line(d, "Mudança Proposta", "Rollback")
+        risk += [rollout] if rollout else ([f"Rollback: {rollback}"] if rollback else [])
+    return {"summary": "\n\n".join(summary) or "—", "test": "\n".join(tests) or "—", "risk": "\n\n".join(risk) or "—"}
+
+
+def fill_team_template(template: str, parts: dict) -> str:
+    """Preenche as seções do template do time por título; as demais ficam como estão."""
+    out, filling = [], False
+    for line in template.split("\n"):
+        if line.startswith("#"):
+            heading = norm(line.lstrip("#"))
+            kind = next((k for k, words in PR_SECTION_KEYWORDS if any(w in heading for w in words)), None)
+            if filling:
+                out.append("")
+            out.append(line)
+            filling = kind is not None
+            if filling:
+                out += [parts[kind]]
+            continue
+        if filling:
+            if line.strip().startswith("<!--"):
+                out.insert(len(out) - 1, line)
+            continue
+        out.append(line)
+    return "\n".join(out).rstrip("\n") + "\n"
+
+
+def private_pr(project: Project, docs):
+    team = project.cfg_map("team")
+    if len(docs) == 1:
+        title, conv = docs[0].title, CONVENTIONAL_BY_TYPE.get(docs[0].type, "feat")
+    else:
+        parents = {d.scalar("parent") for d in docs}
+        epic = project.specs.get(parents.pop()) if len(parents) == 1 else None
+        title = epic.title if epic else "; ".join(d.title for d in docs)
+        convs = {CONVENTIONAL_BY_TYPE.get(d.type, "feat") for d in docs}
+        conv = "feat" if "feat" in convs else min(convs)
+    if team.get("commits") == "conventional":
+        lowered = title[0].lower() + title[1:] if len(title) > 1 and title[0].isupper() and title[1].islower() else title
+        title = f"{conv}: {lowered}"
+    parts = private_pr_parts(docs)
+    template_path = project.root / team["pr_template"] if team.get("pr_template") else None
+    if template_path and template_path.exists():
+        body = fill_team_template(template_path.read_text(encoding="utf-8"), parts)
+    else:
+        body = (f"## O que muda\n\n{parts['summary']}\n\n## Como testar\n\n{parts['test']}\n\n"
+                f"## Riscos e rollback\n\n{parts['risk']}\n")
+    return title, body
+
+
 def pr_title(project: Project, docs) -> str:
     fmt = project.cfg("pr_title", PR_TITLE_DEFAULT)
     if len(docs) == 1:
@@ -2589,7 +3584,7 @@ def pr_title(project: Project, docs) -> str:
         parents = {d.scalar("parent") for d in docs}
         epic = project.specs.get(parents.pop()) if len(parents) == 1 else None
         convs = {CONVENTIONAL_BY_TYPE.get(d.type, "feat") for d in docs}
-        values = {"conv": "feat" if "feat" in convs else sorted(convs)[0], "type": "wave",
+        values = {"conv": "feat" if "feat" in convs else min(convs), "type": "wave",
                   "title": epic.title if epic else "; ".join(d.title for d in docs),
                   "id": ", ".join(d.id for d in docs), "scope": ""}
     title = values["title"]
@@ -2646,9 +3641,14 @@ def pr_body(project: Project, docs) -> str:
     return "\n".join(out) + "\n"
 
 
+def capitalized(text: str) -> str:
+    return text[:1].upper() + text[1:]
+
+
 def pr_how(project, d):
-    return sub_text(d, "Relatório de Entrega", "Como foi feito") or \
-        (labeled_line(d, "Decisão Arquitetural", "Decisão") or COMMENT_RE.sub("", d.section("Mudança Proposta") or "").strip() or "—")
+    return capitalized(sub_text(d, "Relatório de Entrega", "Como foi feito") or
+                       labeled_line(d, "Decisão Arquitetural", "Decisão") or
+                       COMMENT_RE.sub("", d.section("Mudança Proposta") or "").strip() or "—")
 
 
 def pr_architecture(project, d):
@@ -2678,11 +3678,11 @@ def pr_rollout(project, d):
 
 
 def pr_breaking(project, d):
+    """O que quebra vem da chave `breaking` da spec; uma emenda (contract_version > 1) não é quebra por si só."""
+    if d.scalar("breaking"):
+        return d.scalar("breaking")
     v = contract_version(d)
-    if v > 1:
-        return (f"Contrato em v{v} — ver Emendas da spec. Se quebra consumidores, marque `!` no título "
-                "(Conventional Commits) e descreva a migração.")
-    return "Nenhuma"
+    return f"Nenhuma (contrato em v{v}; emendas compatíveis — ver Emendas)" if v > 1 else "Nenhuma"
 
 
 def pr_gates(project, d):
@@ -2698,6 +3698,24 @@ def cmd_pr(project: Project, ids, title_only: bool, out):
         docs += [k for k in project.children(sid) if k.status in APPROVED_PLUS] if d.tier == "epic" else [d]
     if not docs:
         die("nenhuma spec executável aprovada para o PR")
+    if project.private:
+        title, body = private_pr(project, docs)
+        patterns, allow = leak_rules(project)
+        found = leak_findings(title, "título", patterns, allow)
+        found += leak_findings("" if title_only else body, "corpo do PR", patterns, allow)
+        if found:
+            for origin, number, label, snippet in found:
+                print(f"[LEAK] FAIL {origin}:{number} — {label} — \"{snippet}\"")
+            print("pr: o PR teria marcas do SDD — ajuste a spec e gere de novo (nada foi gravado)")
+            return 1
+        if title_only:
+            print(title)
+        elif out:
+            Path(out).write_text(body, encoding="utf-8")
+            print(title)
+        else:
+            print(title + "\n\n" + body)
+        return 0
     title = pr_title(project, docs)
     if title_only:
         print(title)
@@ -2720,16 +3738,16 @@ def cmd_pr_check(project: Project, title, body, body_file, base):
     # Only declared specs count (title, "Refs:" line, sdd marker); narrative mentions in the body don't.
     declared = set(SPEC_REF_RE.findall(title))
     for line in body.splitlines():
-        if re.match(r"^\s*(refs\s*:|<!--\s*sdd:)", line, re.I):
+        if re.match(r"^\s*(refs\s*:|<!--\s*sdd:)", line, re.IGNORECASE):
             declared |= set(SPEC_REF_RE.findall(line))
     refs = sorted(declared) if declared else sorted(set(SPEC_REF_RE.findall(body)))
     title_level = "WARN" if project.cfg("pr_title_policy", "fail") == "warn" else "FAIL"
-    bare = re.sub(r"\s*\[no-spec\]\s*", " ", title, flags=re.I).replace(" :", ":").strip()
+    bare = re.sub(r"\s*\[no-spec\]\s*", " ", title, flags=re.IGNORECASE).replace(" :", ":").strip()
     m = CONVENTIONAL_RE.match(bare)
     if not m or m.group(1).lower() not in COMMIT_TYPES:
-        results.append((title_level, "PR", f"título fora do Conventional Commits: '{title[:60]}' — use "
-                        f"<tipo>(escopo)?: descrição [SPEC-NNNN] (tipos: {', '.join(COMMIT_TYPES)}); "
-                        "gere com `pr SPEC-X --title`"))
+        results.append((title_level, "PR", (f"título fora do Conventional Commits: '{title[:60]}' — use "
+                                            f"<tipo>(escopo)?: descrição [SPEC-NNNN] (tipos: {', '.join(COMMIT_TYPES)}); "
+                                            "gere com `pr SPEC-X --title`")))
     try:
         max_len = int(project.cfg("pr_title_max", "100"))
     except ValueError:
@@ -2749,8 +3767,8 @@ def cmd_pr_check(project: Project, title, body, body_file, base):
                     results.append(("WARN", "PR", "[no-spec] altera arquivos que não são documentação: " + ", ".join(code_files[:8])
                                     + " — se muda comportamento, precisa de spec (mesmo lite, criada na hora)"))
         else:
-            results.append(("FAIL", "PR", "PR não referencia nenhuma spec (SPEC-NNNN no título ou corpo); "
-                                          "mudança sem comportamento: marque [no-spec] no título"))
+            results.append(("FAIL", "PR", ("PR não referencia nenhuma spec (SPEC-NNNN no título ou corpo); "
+                                           "mudança sem comportamento: marque [no-spec] no título")))
     for ref in refs:
         d = project.specs.get(ref)
         if d is None:
@@ -2803,7 +3821,7 @@ CI_TARGETS = {
     "generic": ("ci/sdd-check.sh", "tools/sdd/ci-check.sh"),
 }
 AGENT_FILES = ("AGENTS.md", "CLAUDE.md", "GEMINI.md")
-AGENT_BLOCK_RE = re.compile(r"<!-- sdd:start -->.*?<!-- sdd:end -->\n?", re.S)
+AGENT_BLOCK_RE = re.compile(r"<!-- sdd:start -->.*?<!-- sdd:end -->\n?", re.DOTALL)
 
 
 CODEOWNERS_PATHS = {"github": ".github/CODEOWNERS", "gitlab": ".gitlab/CODEOWNERS"}
@@ -3065,7 +4083,7 @@ def legacy_title(body: str, fallback: str) -> str:
     for line in body.split("\n"):
         if line.startswith("# "):
             title = re.sub(r"^(especifica[cç][aã]o t[eé]cnica|technical spec(ification)?|spec)\s*[:—-]\s*", "",
-                           line[2:].strip(), flags=re.I)
+                           line[2:].strip(), flags=re.IGNORECASE)
             return title or fallback
     return fallback
 
@@ -3200,6 +4218,7 @@ def main(argv=None):
     p.add_argument("--manual", action="store_true", help="PASS sem execução (marcado MANUAL:, gera aviso)")
     p.add_argument("--allow-dirty", action="store_true")
     p.add_argument("--expect-green", action="store_true", help="G1: todos os testes novos são de guarda/caracterização")
+    p.add_argument("--at", help="G1: roda no commit red indicado, numa worktree temporária")
     p = sub.add_parser("impede", help="registra impedimento (spec | decisão | trabalho | externo | falha)")
     p.add_argument("id")
     p.add_argument("--type", required=True)
@@ -3229,16 +4248,52 @@ def main(argv=None):
     p.add_argument("--create", action="store_true")
     p.add_argument("--base", help="branch de partida (padrão: integração do épico ou base_branch)")
     sub.add_parser("journeys", help="cobertura das jornadas críticas (critical_journeys) por testes E2E")
+    p = sub.add_parser("living-docs", help="cobertura do guia de jornadas e do mapa do sistema (living_docs); --init cria os ausentes")
+    p.add_argument("--init", action="store_true")
+    p = sub.add_parser("whats-new", help="novidades da skill desde a versão do projeto e chaves novas do sdd-config; "
+                                         "--ack grava sdd_version")
+    p.add_argument("--ack", action="store_true", help="grava sdd_version = versão da skill no sdd-config (depois de revisar)")
     sub.add_parser("pillars", help="cobertura dos pilares de entrega (perfil do sdd-config) e N/A recorrente")
     p = sub.add_parser("upgrade", help="atualiza specs antigas para os templates atuais (seções, chaves, gates); simulação por padrão")
     p.add_argument("ids", nargs="*")
     p.add_argument("--apply", action="store_true")
+    p = sub.add_parser("leak-check", help="modo privado: marcas do SDD no diff, mensagens e branch (sem fonte: tudo)")
+    p.add_argument("--staged", action="store_true")
+    p.add_argument("--range", dest="rng", help="intervalo de commits A..B (A = 000… → commits fora dos remotos)")
+    p.add_argument("--message", help="arquivo com a mensagem de commit")
+    p.add_argument("--branch", help="nome de branch")
+    p = sub.add_parser("private", help="modo privado: SDD fora do repositório do time (init | status | off)")
+    p.add_argument("action", choices=["init", "status", "off", "detect"])
+    p.add_argument("--spec-root", help="pasta das specs (padrão: <default_root>/<org>/<repo>)")
+    p.add_argument("--sync", choices=["none", "push"], help="push do spec_root após cada commit (padrão: none)")
     p = sub.add_parser("migrate", help="converte o layout legado (pastas de status + nomes com data)")
     p.add_argument("--apply", action="store_true")
     args = parser.parse_args(argv)
 
     root = Path(args.root).resolve() if args.root else find_root(Path.cwd())
     project = Project(root)
+    if project.private:
+        print(f"{PRIVATE_BANNER} — nada de SDD no repositório (specs em {project.spec_root})", file=sys.stderr)
+        if args.command in ("vendor", "pr-check"):
+            die(f"{args.command} não se aplica em modo privado: o repositório é do time e o SDD fica no spec_root")
+    try:
+        return dispatch(args, project)
+    finally:
+        if project.private and writes_records(args):
+            ids = getattr(args, "ids", None) or [getattr(args, "id", None) or ""]
+            commit_records(project, f"sdd: {args.command} {' '.join(i for i in ids if i)}".strip())
+
+
+def writes_records(args) -> bool:
+    """Comando que grava registros: `living-docs` só com --init e `whats-new` só com --ack (sem eles, só leem)."""
+    if args.command == "living-docs":
+        return args.init
+    if args.command == "whats-new":
+        return args.ack
+    return args.command in RECORD_COMMANDS
+
+
+def dispatch(args, project: Project):
     if args.command == "validate":
         return cmd_validate(project, args.ids, args.staged, args.exclude_drafts)
     if args.command == "status":
@@ -3268,7 +4323,7 @@ def main(argv=None):
         return cmd_report(project, args.id, args.changelog)
     if args.command == "gate":
         return cmd_gate(project, args.id, args.gate, args.run, args.cwd, args.na, args.fail, args.by, args.evidence,
-                        args.manual, args.allow_dirty, args.expect_green)
+                        args.manual, args.allow_dirty, args.expect_green, args.at)
     if args.command == "impede":
         return cmd_impede(project, args.id, args.type, args.reason, args.owner, args.phase, args.tried)
     if args.command == "resolve":
@@ -3285,10 +4340,18 @@ def main(argv=None):
         return cmd_worktree(project, args.id, args.create, args.base)
     if args.command == "journeys":
         return cmd_journeys(project)
+    if args.command == "living-docs":
+        return cmd_living_docs(project, args.init)
+    if args.command == "whats-new":
+        return cmd_whats_new(project, args.ack)
     if args.command == "pillars":
         return cmd_pillars(project)
     if args.command == "upgrade":
         return cmd_upgrade(project, args.ids, args.apply)
+    if args.command == "leak-check":
+        return cmd_leak_check(project, args.staged, args.rng, args.message, args.branch)
+    if args.command == "private":
+        return cmd_private(project, args.action, args.spec_root, args.sync)
     if args.command == "migrate":
         return cmd_migrate(project, args.apply)
     return 2
