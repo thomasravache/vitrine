@@ -3,6 +3,7 @@ using JasperFx;
 using JasperFx.Resources;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
+using Vitrine.Api.Observability;
 using Vitrine.Identity.Infrastructure;
 using Vitrine.Identity.Presentation;
 using Wolverine;
@@ -18,6 +19,9 @@ var generatingOpenApi = Assembly.GetEntryAssembly()?.GetName().Name == "GetDocum
 var builder = WebApplication.CreateBuilder(args.Where(arg => arg != MigrateArgument).ToArray());
 
 builder.AddServiceDefaults();
+
+// Observabilidade da Api (SPEC-0007): readiness do banco, spans do Npgsql, métricas vitrine.auth.* e Sentry opcional.
+builder.AddApiObservability();
 
 // Borda HTTP: erros em application/problem+json, documento OpenAPI (fonte do cliente da SPA — ADR-0013).
 builder.Services.AddProblemDetails(options => options.CustomizeProblemDetails = context =>

@@ -19,6 +19,10 @@
     <PackageVersion Include="OpenTelemetry.Instrumentation.Http" Version="1.19.0" />
     <PackageVersion Include="OpenTelemetry.Instrumentation.Runtime" Version="1.19.0" />
   </ItemGroup>
+  <ItemGroup Label="Observabilidade (ADR-0009)">
+    <PackageVersion Include="Npgsql.OpenTelemetry" Version="10.0.3" />
+    <PackageVersion Include="Sentry.AspNetCore" Version="6.12.1" />
+  </ItemGroup>
   <ItemGroup Label="Testes">
     <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.12" />
     <PackageVersion Include="Npgsql" Version="10.0.3" />
