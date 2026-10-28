@@ -76,8 +76,8 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 | G2 Green | PASS | build exit 0 (npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts a); test exit 0 (Duration  322ms (environment 60%, import 22%, transform 9%, tests 7%, worker 1%)); lint exit 0 (> tsc --noEmit && tsc --noEmit -p tsconfig.node.json); coverage exit 0 (Installed 6 packages in 8ms) — a0ea53c | 2026-10-28 |
 | G3 Arquitetura | PASS | arch_test exit 0 (duration: 974ms) — a0ea53c | 2026-10-28 |
 | G4 Review | PASS | MANUAL: Review de fc3f2e9..a0ea53c: 0 blocker/major; minor (comparação textual de pré-release, sem efeito nas faixas atuais) e nits aceitos; verify --base sdd/SPEC-0001 PASS (1 aviso justificado: lockfile do restore); build -warnaserror 0 avisos; Tooling 13/13; npm audit high exit 0; dotnet list --vulnerable: nenhum; diff de lockfiles: só Aspire 13.6.4, MessagePack 2.5.307, undici 7.30.1, happy-dom 21.0.4 | 2026-10-28 |
-| G5 Integração & CI | PENDING | | |
-| H2 Integração aprovada | PENDING | | |
+| G5 Integração & CI | PASS | MANUAL: PR #23 (sdd/SPEC-0001 @ 1152552): CI 7/7 verde + CodeQL — https://github.com/thomasravache/vitrine/actions/runs/40782044161; local: build -warnaserror 0 avisos, npm audit high 0; implementer: dotnet 72/72, e2e 6/6 | 2026-10-28 |
+| H2 Integração aprovada | PASS | política auto-on-green (aprovada por thomas em 2026-10-13); G5 PASS | 2026-10-28 |
 | G6 Deploy | PENDING | | |
 | G7 Pronto & Docs | PENDING | | |
 
