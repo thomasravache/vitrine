@@ -4,7 +4,7 @@ title: Avisos de segurança novos em dependências quebram o build da main
 tier: lite
 type: fix
 user_facing: false
-status: approved
+status: implemented
 created: 2026-10-28
 parent: SPEC-0001
 depends_on: []
@@ -59,13 +59,13 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 
 ## 7. Checklist de Implementação
 <!-- Preenchido na fase PLAN, após a aprovação. -->
-- [ ] Red: UT-01 com a tag `SPEC-0010:UT-01`, falhando nos lockfiles atuais
-- [ ] Green: atualizar Aspire, undici e happy-dom; regenerar lockfiles
-- [ ] Validar: build -warnaserror, suíte completa, E2E, npm audit e scan de vulnerabilidades NuGet (G2/G3)
-- [ ] Review independente (G4)
-- [ ] Integração + CI verde (G5) e H2
-- [ ] Deploy local prod-like com smoke (G6)
-- [ ] CHANGELOG (G7)
+- [x] Red: UT-01 com a tag `SPEC-0010:UT-01`, falhando nos lockfiles atuais
+- [x] Green: atualizar Aspire, undici e happy-dom; regenerar lockfiles
+- [x] Validar: build -warnaserror, suíte completa, E2E, npm audit e scan de vulnerabilidades NuGet (G2/G3)
+- [x] Review independente (G4)
+- [x] Integração + CI verde (G5) e H2
+- [x] Deploy local prod-like com smoke (G6)
+- [x] CHANGELOG (G7)
 
 ## 8. Registro de Gates
 <!-- Status: PENDING | PASS | FAIL | N/A. PASS e N/A exigem evidência. -->
@@ -79,7 +79,7 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 | G5 Integração & CI | PASS | MANUAL: PR #23 (sdd/SPEC-0001 @ 1152552): CI 7/7 verde + CodeQL — https://github.com/thomasravache/vitrine/actions/runs/40782044161; local: build -warnaserror 0 avisos, npm audit high 0; implementer: dotnet 72/72, e2e 6/6 | 2026-10-28 |
 | H2 Integração aprovada | PASS | política auto-on-green (aprovada por thomas em 2026-10-13); G5 PASS | 2026-10-28 |
 | G6 Deploy | PASS | smoke_test exit 0 (2 passed (2.4s)) — 80e611d (árvore suja) | 2026-10-28 |
-| G7 Pronto & Docs | PENDING | | |
+| G7 Pronto & Docs | PASS | Relatório de Entrega e Definição de Pronto: ok — 593df48 (árvore suja) | 2026-10-28 |
 
 ## 9. Registro de Impedimentos
 <!-- Toda parada é registrada pelo Architect com `spec_graph.py impede` e fechada com `resolve` — não edite à mão. Tipos: spec (spec errada/incompleta → resolve com Emenda) | decisão (só o humano decide → resposta ou ADR) | trabalho (falta algo que exige código → SPEC-NNNN nova) | externo (acesso, ambiente, terceiro → ação tomada) | falha (3 FAILs seguidos no mesmo gate → diagnóstico e decisão). Com impedimento aberto a spec aparece como parada no INDEX e não pode ser fechada. -->

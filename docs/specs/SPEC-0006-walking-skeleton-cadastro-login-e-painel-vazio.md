@@ -4,7 +4,7 @@ title: "Walking skeleton: cadastro, login e painel vazio"
 tier: full
 type: foundation
 user_facing: true
-status: in-progress
+status: implemented
 created: 2026-10-13
 parent: SPEC-0001
 depends_on: [SPEC-0003, SPEC-0004, SPEC-0005]
@@ -162,24 +162,24 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 ## 11. Checklist de Implementação
 <!-- Preenchido na fase PLAN, após a aprovação. Cada fase começa pelos testes. -->
 **Fase 1: Domínio e aplicação**
-- [ ] Red: escrever UT-01..UT-04 com a tag `SPEC-0006:<ID>` e confirmar que falham pelo motivo certo
-- [ ] Green: módulo `Identity` (Domain, Application, Infrastructure, Presentation, IntegrationEvents), `Workspace`/`WorkspaceMember`, validações, configuração de lockout
-- [ ] Refactor mantendo tudo verde
+- [x] Red: escrever UT-01..UT-04 com a tag `SPEC-0006:<ID>` e confirmar que falham pelo motivo certo
+- [x] Green: módulo `Identity` (Domain, Application, Infrastructure, Presentation, IntegrationEvents), `Workspace`/`WorkspaceMember`, validações, configuração de lockout
+- [x] Refactor mantendo tudo verde
 
 **Fase 2: API, persistência e evento**
-- [ ] Red: escrever IT-01..IT-08 e CT-01 e confirmar que falham pelo motivo certo
-- [ ] Green: endpoints `/api/v1/auth/*` e `/api/v1/me`, cookie, antiforgery, flag `Features:SignupOpen`, migração do schema `identity`, `WorkspaceCreated` via outbox
-- [ ] Validar: build + suíte completa + arquitetura (G2/G3)
+- [x] Red: escrever IT-01..IT-08 e CT-01 e confirmar que falham pelo motivo certo
+- [x] Green: endpoints `/api/v1/auth/*` e `/api/v1/me`, cookie, antiforgery, flag `Features:SignupOpen`, migração do schema `identity`, `WorkspaceCreated` via outbox
+- [x] Validar: build + suíte completa + arquitetura (G2/G3)
 
 **Fase 3: Jornada E2E**
-- [ ] Red: E2E-01, E2E-02 falhando pelo motivo certo
-- [ ] Green: telas `/cadastro`, `/entrar`, `/painel` conforme o Stitch (mobile e desktop) e as exclusões da seção Design; cliente gerado do OpenAPI; axe sem violações sérias
+- [x] Red: E2E-01, E2E-02 falhando pelo motivo certo
+- [x] Green: telas `/cadastro`, `/entrar`, `/painel` conforme o Stitch (mobile e desktop) e as exclusões da seção Design; cliente gerado do OpenAPI; axe sem violações sérias
 
 **Fase final: Integração, entrega e documentação**
-- [ ] Review independente (G4)
-- [ ] Integração + CI verde (G5) e aprovação (H2)
-- [ ] Deploy no ambiente local prod-like (SPEC-0005) com smoke/E2E; nuvem e usuário de prova na SPEC-0009 (G6)
-- [ ] Relatório de Entrega, docs raiz e CHANGELOG (G7)
+- [x] Review independente (G4)
+- [x] Integração + CI verde (G5) e aprovação (H2)
+- [x] Deploy no ambiente local prod-like (SPEC-0005) com smoke/E2E; nuvem e usuário de prova na SPEC-0009 (G6)
+- [x] Relatório de Entrega, docs raiz e CHANGELOG (G7)
 
 ## 12. Registro de Gates
 <!-- Status: PENDING | PASS | FAIL | N/A. PASS e N/A exigem evidência (comando + resultado, SHA, execução de CI, veredito). -->
@@ -193,7 +193,7 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 | G5 Integração & CI | PASS | MANUAL: PR #13 (sdd/SPEC-0001 @ 65176c8): CI 7/7 verde + CodeQL — https://github.com/thomasravache/vitrine/actions/runs/38636314099; local: build/lint OK, dotnet 71/71, vitest 1/1, e2e 6/6, pr-check PASS, gitleaks 0, npm audit 0 | 2026-10-14 |
 | H2 Integração aprovada | PASS | política auto-on-green (aprovada por thomas em 2026-10-13); G5 PASS | 2026-10-28 |
 | G6 Deploy | PASS | smoke_test exit 0 (2 passed (3.7s)) — 80e611d | 2026-10-28 |
-| G7 Pronto & Docs | PENDING | | |
+| G7 Pronto & Docs | PASS | Relatório de Entrega e Definição de Pronto: ok — 593df48 | 2026-10-28 |
 
 ## 13. Registro de Impedimentos
 <!-- Toda parada é registrada pelo Architect com `spec_graph.py impede` e fechada com `resolve` — não edite à mão. Tipos: spec (spec errada/incompleta → resolve com Emenda) | decisão (só o humano decide → resposta ou ADR) | trabalho (falta algo que exige código → SPEC-NNNN nova) | externo (acesso, ambiente, terceiro → ação tomada) | falha (3 FAILs seguidos no mesmo gate → diagnóstico e decisão). Com impedimento aberto a spec aparece como parada no INDEX e não pode ser fechada. -->
