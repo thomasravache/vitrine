@@ -4,8 +4,8 @@
 
 ## Saúde
 
-- Validação (G0): **2 erro(s), 12 aviso(s)** — rode `spec_graph.py validate`
-- Specs: proposed 2, approved 3, implemented 6
+- Validação (G0): **0 erro(s), 14 aviso(s)** — rode `spec_graph.py validate`
+- Specs: approved 5, implemented 6
 - Impedimentos: **0 aberto(s)**, 5 resolvido(s)
 
 ## Cobertura de Pilares
@@ -37,13 +37,13 @@ Perfil: **padrao**
 
 **Em andamento:** —  
 **Paradas por impedimento:** —  
-**Próximo lote:** SPEC-0007
+**Próximo lote:** SPEC-0007, SPEC-0011, SPEC-0012
 
 | Onda | Spec | Título | Tier/Tam. | Status | Prontidão | Observação |
 |---|---|---|---|---|---|---|
 | 1 | SPEC-0007 | Observabilidade de base | full/M | approved | ✅ pronta |  |
-| 1 | SPEC-0011 | Checagem de drift do cliente OpenAPI no CI | lite/S | proposed | ⏳ aguardando aprovação (H1) |  |
-| 1 | SPEC-0012 | Testes de infra deixam a stack local rodando | lite/S | proposed | ⏳ aguardando aprovação (H1) |  |
+| 1 | SPEC-0011 | Checagem de drift do cliente OpenAPI no CI | lite/S | approved | ✅ pronta |  |
+| 1 | SPEC-0012 | Testes de infra deixam a stack local rodando | lite/S | approved | ✅ pronta |  |
 | 2 | SPEC-0008 | Segurança de base | full/M | approved | ✅ pronta | saiu da onda 1: arquivos em comum com SPEC-0007 |
 | 3 | SPEC-0009 | Provisionamento na nuvem e go-live | full/M | approved | ⛔ aguarda implementação de SPEC-0007; aguarda implementação de SPEC-0008 |  |
 
@@ -65,8 +65,8 @@ flowchart LR
     S0007["SPEC-0007<br/>Observabilidade de base"]:::approved
     S0008["SPEC-0008<br/>Segurança de base"]:::approved
     S0009["SPEC-0009<br/>Provisionamento na nuvem e go-live"]:::approved
-    S0011["SPEC-0011<br/>Checagem de drift do cliente OpenAPI no…"]:::proposed
-    S0012["SPEC-0012<br/>Testes de infra deixam a stack local ro…"]:::proposed
+    S0011["SPEC-0011<br/>Checagem de drift do cliente OpenAPI no…"]:::approved
+    S0012["SPEC-0012<br/>Testes de infra deixam a stack local ro…"]:::approved
   end
   S0005 --> S0006
   S0006 --> S0007
@@ -98,8 +98,8 @@ flowchart LR
 | [SPEC-0008](SPEC-0008-seguranca-de-base.md) | Segurança de base | full | foundation | approved | 2026-10-13 | SPEC-0001 | SPEC-0006 | SPEC-0006@1 |
 | [SPEC-0009](SPEC-0009-provisionamento-na-nuvem-e-go-live.md) | Provisionamento na nuvem e go-live | full | foundation | approved | 2026-10-13 | SPEC-0001 | SPEC-0005, SPEC-0006, SPEC-0007, SPEC-0008 | — |
 | [SPEC-0010](SPEC-0010-avisos-de-seguranca-novos-em-dependencias-quebram-o-build-da.md) | Avisos de segurança novos em dependências quebram o build da main | lite | fix | implemented | 2026-10-28 | SPEC-0001 | — | — |
-| [SPEC-0011](SPEC-0011-checagem-de-drift-do-cliente-openapi-no-ci.md) | Checagem de drift do cliente OpenAPI no CI | lite | feature | proposed | 2026-10-28 | SPEC-0001 | — | — |
-| [SPEC-0012](SPEC-0012-testes-de-infra-deixam-a-stack-local-rodando.md) | Testes de infra deixam a stack local rodando | lite | fix | proposed | 2026-10-28 | SPEC-0001 | — | — |
+| [SPEC-0011](SPEC-0011-checagem-de-drift-do-cliente-openapi-no-ci.md) | Checagem de drift do cliente OpenAPI no CI | lite | feature | approved | 2026-10-28 | SPEC-0001 | — | — |
+| [SPEC-0012](SPEC-0012-testes-de-infra-deixam-a-stack-local-rodando.md) | Testes de infra deixam a stack local rodando | lite | fix | approved | 2026-10-28 | SPEC-0001 | — | — |
 
 ## ADRs
 

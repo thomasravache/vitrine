@@ -4,7 +4,7 @@ title: Checagem de drift do cliente OpenAPI no CI
 tier: lite
 type: feature
 user_facing: false
-status: proposed
+status: approved
 created: 2026-10-28
 parent: SPEC-0001
 depends_on: []
@@ -13,8 +13,9 @@ touches: [.github/workflows/ci.yml, tests/ci/**]
 adrs: [ADR-0013, ADR-0004]
 external: []
 size: S
-approved_by:
-approved_at:
+approved_by: thomas
+approved_at: 2026-10-28
+approved_via: piloto automático autorizado no chat em 2026-10-28
 ---
 
 # SPEC-0011 — Checagem de drift do cliente OpenAPI no CI
@@ -56,7 +57,7 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 <!-- Status: PENDING | PASS | FAIL | N/A. PASS e N/A exigem evidência. -->
 | Gate | Status | Evidência | Data |
 |---|---|---|---|
-| G0 Spec | PENDING | | |
+| G0 Spec | PASS | validate: 0 erro(s) — 1f05dea | 2026-10-28 |
 | G1 Red | PENDING | | |
 | G2 Green | PENDING | | |
 | G3 Arquitetura | PENDING | | |
