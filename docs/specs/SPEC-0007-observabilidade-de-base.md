@@ -10,7 +10,7 @@ parent: SPEC-0001
 depends_on: [SPEC-0006]
 consumes_contract: [SPEC-0006@1]
 contract_version: 1
-touches: [src/ServiceDefaults/**, src/Api/Observability/**, src/Api/Program.cs, src/Api/appsettings*.json, src/Api/Vitrine.Api.csproj, src/Modules/Identity/Vitrine.Identity.Infrastructure/**, src/Modules/Identity/Vitrine.Identity.Presentation/**, web/src/observability/**, web/src/main.tsx, web/src/vite-env.d.ts, web/package.json, web/package-lock.json, deploy/alloy/**, deploy/compose.yaml, deploy/compose.override.yaml, deploy/local/.env.example, docs/runbooks/**, tests/Vitrine.IntegrationTests/Observability/**, tests/Vitrine.IntegrationTests/Support/**, tests/Vitrine.UnitTests/Observability/**, Directory.Packages.props, "**/packages.lock.json"]
+touches: [src/ServiceDefaults/**, src/Api/Observability/**, src/Api/Program.cs, src/Api/appsettings*.json, src/Api/Vitrine.Api.csproj, src/Modules/Identity/Vitrine.Identity.Infrastructure/**, src/Modules/Identity/Vitrine.Identity.Presentation/**, web/src/observability/**, web/src/main.tsx, web/src/vite-env.d.ts, web/package.json, web/package-lock.json, deploy/alloy/**, deploy/compose.yaml, deploy/compose.override.yaml, deploy/local/.env.example, docs/runbooks/**, tests/Vitrine.IntegrationTests/Observability/**, tests/Vitrine.IntegrationTests/Support/**, tests/Vitrine.UnitTests/Observability/**, tests/Vitrine.UnitTests/Vitrine.UnitTests.csproj, tests/Vitrine.IntegrationTests/Vitrine.IntegrationTests.csproj, Directory.Packages.props, "**/packages.lock.json"]
 adrs: [ADR-0009, ADR-0006, ADR-0004]
 external: []
 size: M
@@ -113,13 +113,13 @@ Alertas (Grafana): synthetic-ready, synthetic-login-page, disk-80, memory-90, ht
 - **IT-04** — Dado `OTEL_EXPORTER_OTLP_ENDPOINT` apontando para porta fechada, quando 50 requisições são feitas, então todas respondem com sucesso e latência p95 dentro de +10% da linha de base.
 - **IT-05** — Dado um `MeterListener` de teste, quando ocorrem um login bem-sucedido, um falho e um bloqueio, então `vitrine.auth.logins` registra `success`, `failure` e `locked` e `vitrine.auth.lockouts` incrementa.
 - **IT-06** — Dado o host sem `OTEL_EXPORTER_OTLP_ENDPOINT` nem `Sentry__Dsn`, quando a API sobe e atende requisições, então nenhum erro de configuração ocorre e o exportador do Aspire (`DOTNET_DASHBOARD_OTLP_ENDPOINT_URL`) recebe os traces.
-- Alerta em produção e telemetria em staging: provados na SPEC-0009 (IT-06, IT-07).
+- Alerta em produção e telemetria em staging: provados pelos testes de integração da SPEC-0009.
 
 ### 7.4 Testes de Contrato
 - **CT-01** — Dado o contrato SPEC-0006@1, quando um login de prova é feito via `POST /api/v1/auth/login`, então o trace exportado (exportador em memória) contém span HTTP da rota e span de banco filhos do mesmo `trace_id`, e a métrica `vitrine.auth.logins{result=success}` incrementa.
 
 ### 7.5 Testes E2E
-- N/A — `user_facing: false`: sem mudança de jornada; a jornada `acesso` continua coberta por SPEC-0006:E2E-01, usada aqui como verificação sintética.
+- N/A — `user_facing: false`: sem mudança de jornada; a jornada `acesso` continua coberta pelo E2E de acesso da SPEC-0006, usado aqui como verificação sintética.
 
 ### 7.6 Outros
 - N/A
@@ -168,7 +168,7 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 | Gate | Status | Evidência | Data |
 |---|---|---|---|
 | G0 Spec | PASS | validate: 0 erro(s) — 4602cbe (árvore suja) | 2026-10-13 |
-| G1 Red | PENDING | | |
+| G1 Red | FAIL | verify G1: FAIL — commits test(...) alteram arquivos fora de test_paths: Directory.Packa — 26e88c5 | 2026-10-28 |
 | G2 Green | PENDING | | |
 | G3 Arquitetura | PENDING | | |
 | G4 Review | PENDING | | |
@@ -221,5 +221,6 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 <!-- Mudança em spec aprovada: uma linha por emenda. Mudou o contrato? Incremente `contract_version` e rode `spec_graph.py impacted SPEC-0007`. -->
 | Versão do contrato | Data | Mudança | Motivo | Specs impactadas | Aprovado por |
 |---|---|---|---|---|---|
+| v1.2 (escopo, sem mudança de contrato) | 2026-10-28 | `touches` ganha os csproj de `Vitrine.UnitTests` e `Vitrine.IntegrationTests` (pacote InMemory e referência ao ServiceDefaults); seção 7 deixa de citar IDs de testes de outras specs | `verify` do G1: arquivos fora do escopo e IDs de outras specs lidos como do plano | — | thomas (2026-10-28, piloto automático) |
 | v1.1 (escopo, sem mudança de contrato) | 2026-10-28 | `touches` alinhado ao código real: projetos `Vitrine.Identity.Infrastructure`/`Presentation` (o login fica em `IdentityEndpoints` e `CookieSessions`), suporte de testes de integração, `appsettings`, csproj da API, `web/package.json`/`main.tsx` (Sentry na SPA), `deploy/compose.yaml` e `.env.example` (variáveis opcionais), lockfiles. Versões: Sentry.AspNetCore 6.12.1, @sentry/react 11.7.0, grafana/alloy v1.20.1, OpenTelemetry.Exporter.InMemory 1.19.1 (testes), Npgsql.OpenTelemetry 10.0.3 — registradas no ADR-0009 | A spec foi escrita antes do módulo Identity existir; o caminho `src/Modules/Identity/Infrastructure/Metrics/**` não corresponde à estrutura criada na SPEC-0006 | — | thomas (2026-10-28, piloto automático) |
 | v1 (sem mudança de contrato) | 2026-10-13 | IT-06/IT-07 de produção/staging movidos para a SPEC-0009; novo IT-06 (exportação opcional); alertas como código, aplicados na SPEC-0009 | Usuário: nada que gere custo até tudo rodar localmente | SPEC-0009 | thomas (2026-10-13) |
