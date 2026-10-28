@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Casos de uso do módulo Identity (SPEC-0006). Não referencia Infrastructure nem Presentation (ADR-0001). -->
+
+  <ItemGroup>
+    <ProjectReference Include="..\Vitrine.Identity.Domain\Vitrine.Identity.Domain.csproj" />
+    <ProjectReference Include="..\Vitrine.Identity.IntegrationEvents\Vitrine.Identity.IntegrationEvents.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,1 +1,37 @@
 @import "tailwindcss";
+
+/* Tokens do sistema de design (Stitch "Vitrine"): primária #0F766E; âmbar só para pendências; vermelho só para erros. */
+@theme {
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-display:
+    "Plus Jakarta Sans Variable", "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+
+  --color-primary: #0f766e;
+  --color-primary-hover: #115e59;
+  --color-primary-soft: #e3f2ef;
+  --color-canvas: #f5f8f7;
+  --color-surface: #ffffff;
+  --color-ink: #1c2b2a;
+  --color-muted: #4b5d5b;
+  --color-line: #c9d3d1;
+  --color-line-soft: #e2e8e6;
+  --color-pending: #d97706;
+  --color-danger: #b42318;
+  --color-danger-soft: #fef3f2;
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-canvas font-sans text-ink antialiased;
+  }
+
+  h1,
+  h2,
+  h3 {
+    @apply font-display;
+  }
+}
