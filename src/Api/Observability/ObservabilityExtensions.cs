@@ -69,10 +69,13 @@ internal static class ObservabilityExtensions
         var request = sentryEvent.Request;
         request.Cookies = null;
         request.Data = null;
+        // Query e URL: valor de parâmetro de nome sensível (access_token, email...) vira ***, e-mails também.
         request.QueryString = request.QueryString is null ? null : SensitiveDataMasker.MaskText(request.QueryString);
-        foreach (var name in request.Headers.Keys.Where(SensitiveDataMasker.IsSensitiveName).ToList())
+        request.Url = request.Url is null ? null : SensitiveDataMasker.MaskText(request.Url);
+        foreach (var (name, value) in request.Headers.ToList())
         {
-            request.Headers[name] = SensitiveDataMasker.Mask;
+            // Cabeçalho de nome sensível (Authorization, Cookie...) inteiro; os demais (ex.: Referer com query) por texto.
+            request.Headers[name] = SensitiveDataMasker.IsSensitiveName(name) ? SensitiveDataMasker.Mask : SensitiveDataMasker.MaskText(value);
         }
 
         foreach (var (key, value) in sentryEvent.Extra.ToList())

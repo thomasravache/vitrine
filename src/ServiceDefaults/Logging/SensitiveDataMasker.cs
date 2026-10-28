@@ -29,15 +29,11 @@ public static partial class SensitiveDataMasker
             return false;
         }
 
-        Span<char> buffer = stackalloc char[Math.Min(name.Length, 256)];
+        // O nome inteiro é normalizado (sem truncar): um trecho sensível no fim de um nome longo também conta.
+        Span<char> buffer = name.Length <= 256 ? stackalloc char[name.Length] : new char[name.Length];
         var length = 0;
         foreach (var character in name)
         {
-            if (length == buffer.Length)
-            {
-                break;
-            }
-
             if (char.IsLetterOrDigit(character))
             {
                 buffer[length++] = char.ToLowerInvariant(character);
@@ -56,7 +52,10 @@ public static partial class SensitiveDataMasker
         return false;
     }
 
-    /// <summary>Mascara e-mails e credenciais <c>Bearer</c>/<c>Basic</c> em um texto livre.</summary>
+    /// <summary>
+    /// Mascara, em um texto livre, e-mails, credenciais <c>Bearer</c>/<c>Basic</c> e o valor de todo par
+    /// <c>nome=valor</c> de nome sensível (query string, URL, cabeçalho <c>Cookie</c>, texto de log).
+    /// </summary>
     public static string MaskText(string text) => MaskText(text, []);
 
     /// <summary>
@@ -73,6 +72,11 @@ public static partial class SensitiveDataMasker
         foreach (var value in sensitiveValues.OrderByDescending(value => value.Length))
         {
             masked = masked.Replace(value, Mask, StringComparison.Ordinal);
+        }
+
+        if (masked.Contains('=', StringComparison.Ordinal))
+        {
+            masked = NameValuePattern().Replace(masked, MaskSensitivePair);
         }
 
         if (masked.Contains('@', StringComparison.Ordinal))
@@ -153,6 +157,26 @@ public static partial class SensitiveDataMasker
         var maskedText = MaskText(text);
         return string.Equals(maskedText, text, StringComparison.Ordinal) ? value : maskedText;
     }
+
+    // Par nome=valor (ex.: access_token=..., em query string); o nome pode vir percent-encoded.
+    private static string MaskSensitivePair(Match pair)
+    {
+        var name = pair.Groups["name"].Value;
+        string decoded;
+        try
+        {
+            decoded = Uri.UnescapeDataString(name);
+        }
+        catch (UriFormatException)
+        {
+            decoded = name;
+        }
+
+        return IsSensitiveName(decoded) ? $"{name}={Mask}" : pair.Value;
+    }
+
+    [GeneratedRegex(@"(?<name>[A-Za-z0-9_.%\-\[\]]+)=(?<value>[^&\s#;,""']+)", RegexOptions.CultureInvariant)]
+    private static partial Regex NameValuePattern();
 
     [GeneratedRegex(@"[A-Za-z0-9._%+\-]+@[A-Za-z0-9\-]+(?:\.[A-Za-z0-9\-]+)*\.[A-Za-z]{2,}", RegexOptions.CultureInvariant)]
     private static partial Regex EmailPattern();
