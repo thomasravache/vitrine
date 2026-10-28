@@ -72,10 +72,10 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 | Gate | Status | Evidência | Data |
 |---|---|---|---|
 | G0 Spec | PASS | validate: 0 erro(s) — bf1862a | 2026-10-28 |
-| G1 Red | PENDING | | |
-| G2 Green | PENDING | | |
-| G3 Arquitetura | PENDING | | |
-| G4 Review | PENDING | | |
+| G1 Red | PASS | MANUAL: verify G1 PASS (fc3f2e9); red real: `dotnet test tests/Vitrine.Tooling.Tests -p:NuGetAudit=false -- --filter-trait spec=SPEC-0010:UT-01` → failed 1: MessagePack 2.5.302 em 3 lockfiles, happy-dom 20.14.6, undici 7.29.1 (o red do comando test do sdd-config foi 'vitest not found' — worktree sem node_modules, não conta) | 2026-10-28 |
+| G2 Green | PASS | build exit 0 (npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts a); test exit 0 (Duration  322ms (environment 60%, import 22%, transform 9%, tests 7%, worker 1%)); lint exit 0 (> tsc --noEmit && tsc --noEmit -p tsconfig.node.json); coverage exit 0 (Installed 6 packages in 8ms) — a0ea53c | 2026-10-28 |
+| G3 Arquitetura | PASS | arch_test exit 0 (duration: 974ms) — a0ea53c | 2026-10-28 |
+| G4 Review | PASS | MANUAL: Review de fc3f2e9..a0ea53c: 0 blocker/major; minor (comparação textual de pré-release, sem efeito nas faixas atuais) e nits aceitos; verify --base sdd/SPEC-0001 PASS (1 aviso justificado: lockfile do restore); build -warnaserror 0 avisos; Tooling 13/13; npm audit high exit 0; dotnet list --vulnerable: nenhum; diff de lockfiles: só Aspire 13.6.4, MessagePack 2.5.307, undici 7.30.1, happy-dom 21.0.4 | 2026-10-28 |
 | G5 Integração & CI | PENDING | | |
 | H2 Integração aprovada | PENDING | | |
 | G6 Deploy | PENDING | | |
