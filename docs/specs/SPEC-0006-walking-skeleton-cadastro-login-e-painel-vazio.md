@@ -189,8 +189,8 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 | G2 Green | PASS | build exit 0 (npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts a); test exit 0 (Duration  311ms (environment 59%, import 23%, transform 10%, tests 7%, worker 1%)); lint exit 0 (> tsc --noEmit && tsc --noEmit -p tsconfig.node.json); coverage exit 0 (AVISO: uvx não encontrado; diff-cover (>= 80% das linhas alteradas) NÃO foi verificado loc) — 858646b | 2026-10-14 |
 | G3 Arquitetura | PASS | arch_test exit 0 (duration: 1s 028ms) — 858646b | 2026-10-14 |
 | G4 Review | PASS | verify G1+G4: PASS; revisão: reviewer-agent: APPROVED 858646b — sem blocker/major; minor: guarda de /health desconhecido não exercita o fallback da SPA (host de teste sem index.html) → levado à SPEC-0008 — 858646b | 2026-10-14 |
-| G5 Integração & CI | PENDING | | |
-| H2 Integração aprovada | PENDING | | |
+| G5 Integração & CI | PASS | MANUAL: PR #13 (sdd/SPEC-0001 @ 65176c8): CI 7/7 verde + CodeQL — https://github.com/thomasravache/vitrine/actions/runs/38636314099; local: build/lint OK, dotnet 71/71, vitest 1/1, e2e 6/6, pr-check PASS, gitleaks 0, npm audit 0 | 2026-10-14 |
+| H2 Integração aprovada | PASS | política auto-on-green (aprovada por thomas em 2026-10-13); G5 PASS | 2026-10-28 |
 | G6 Deploy | PENDING | | |
 | G7 Pronto & Docs | PENDING | | |
 
@@ -243,4 +243,4 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 | Emenda v1.2 (escopo, sem mudança de contrato) | 2026-10-14 | touches incluem `tests/README.md`, `deploy/compose.yaml`, `deploy/local/.env.example` e `docs/runbooks/deploy.md` para ligar `Features:SignupOpen` por ambiente (local prod-like) e documentar | Review G4: o Plano de Rollout pede a flag ligada fora de produção e o E2E-01 roda no ambiente local no G6 | — | Architect (sem mudança de contrato) |
 | Emenda v1.1 (correção de teste, sem mudança de contrato) | 2026-10-14 | Helper do IT-01 busca o workspaceId nos bytes do corpo binário do envelope do Wolverine; `web/vite.config.ts` nos touches (proxy /api no desenvolvimento) | IMP-01 (TEST_DEFECT) e necessidade do proxy para a SPA alcançar a API na mesma origem sob o AppHost | — | Architect (sem mudança de contrato) |
 | v1 (sem mudança de contrato) | 2026-10-13 | Smoke de produção e usuário de prova movidos para a SPEC-0009; G6 no ambiente local prod-like | Usuário: nada que gere custo até tudo rodar localmente | SPEC-0009 | thomas (2026-10-13) |
-| v1.4 (escopo, sem mudança de contrato) | 2026-10-14 | `touches` ganha `.gitleaksignore` com os 3 fingerprints exatos das senhas fixas de teste (regra generic-api-key) | CI do PR #13: gitleaks acusou falsos positivos em `acesso.spec.ts`, `TestUser.cs` e `RegisterCommandValidatorTests.cs` | — | (pendente) |
+| v1.4 (escopo, sem mudança de contrato) | 2026-10-14 | `touches` ganha `.gitleaksignore` com os 3 fingerprints exatos das senhas fixas de teste (regra generic-api-key) | CI do PR #13: gitleaks acusou falsos positivos em `acesso.spec.ts`, `TestUser.cs` e `RegisterCommandValidatorTests.cs` | — | thomas (2026-10-28, opção A: exceção por fingerprint) |
