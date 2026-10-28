@@ -1,11 +1,11 @@
 # Índice de Specs
 
-> Gerado por `spec_graph.py index` em 2026-10-14 — não edite manualmente.
+> Gerado por `spec_graph.py index` em 2026-10-28 — não edite manualmente.
 
 ## Saúde
 
-- Validação (G0): **0 erro(s), 6 aviso(s)** — rode `spec_graph.py validate`
-- Specs: approved 3, in-progress 1, implemented 4
+- Validação (G0): **0 erro(s), 7 aviso(s)** — rode `spec_graph.py validate`
+- Specs: approved 4, in-progress 1, implemented 4
 - Impedimentos: **0 aberto(s)**, 5 resolvido(s)
 
 ## Cobertura de Pilares
@@ -44,13 +44,14 @@ Perfil: **padrao**
 | 1 | SPEC-0006 | Walking skeleton: cadastro, login e painel vazio | full/M | in-progress | 🔄 em andamento |  |
 | 2 | SPEC-0007 | Observabilidade de base | full/M | approved | ⛔ aguarda implementação de SPEC-0006 |  |
 | 3 | SPEC-0008 | Segurança de base | full/M | approved | ⛔ aguarda implementação de SPEC-0006 | saiu da onda 2: arquivos em comum com SPEC-0007 |
+| 3 | SPEC-0010 | Avisos de segurança novos em dependências quebram o build da main | lite/S | approved | ✅ pronta | saiu da onda 1: arquivos em comum com SPEC-0006; saiu da onda 2: arquivos em comum com SPEC-0007 |
 | 4 | SPEC-0009 | Provisionamento na nuvem e go-live | full/M | approved | ⛔ aguarda implementação de SPEC-0006; aguarda implementação de SPEC-0007; aguarda implementação de SPEC-0008 |  |
 
 ## Épicos
 
 | Épico | Título | Status | Progresso |
 |---|---|---|---|
-| SPEC-0001 | Fundação da plataforma Vitrine | approved | 4/8 implementadas |
+| SPEC-0001 | Fundação da plataforma Vitrine | approved | 4/9 implementadas |
 
 ## Grafo de Dependências
 
@@ -66,6 +67,7 @@ flowchart LR
     S0007["SPEC-0007<br/>Observabilidade de base"]:::approved
     S0008["SPEC-0008<br/>Segurança de base"]:::approved
     S0009["SPEC-0009<br/>Provisionamento na nuvem e go-live"]:::approved
+    S0010["SPEC-0010<br/>Avisos de segurança novos em dependênci…"]:::approved
   end
   S0004 -. contrato v2 .-> S0005
   S0003 --> S0006
@@ -99,6 +101,7 @@ flowchart LR
 | [SPEC-0007](SPEC-0007-observabilidade-de-base.md) | Observabilidade de base | full | foundation | approved | 2026-10-13 | SPEC-0001 | SPEC-0006 | SPEC-0006@1 |
 | [SPEC-0008](SPEC-0008-seguranca-de-base.md) | Segurança de base | full | foundation | approved | 2026-10-13 | SPEC-0001 | SPEC-0006 | SPEC-0006@1 |
 | [SPEC-0009](SPEC-0009-provisionamento-na-nuvem-e-go-live.md) | Provisionamento na nuvem e go-live | full | foundation | approved | 2026-10-13 | SPEC-0001 | SPEC-0005, SPEC-0006, SPEC-0007, SPEC-0008 | — |
+| [SPEC-0010](SPEC-0010-avisos-de-seguranca-novos-em-dependencias-quebram-o-build-da.md) | Avisos de segurança novos em dependências quebram o build da main | lite | fix | approved | 2026-10-28 | SPEC-0001 | — | — |
 
 ## ADRs
 
