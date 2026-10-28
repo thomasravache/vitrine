@@ -39,6 +39,13 @@ O lockfile do AppHost (`src/AppHost/packages.lock.json`) fixa os pacotes DCP/das
 O AppHost sobe o PostgreSQL (container), a API e o Vite com HMR. O dashboard do Aspire mostra
 logs, traces, métricas e o endereço de cada recurso. A API responde `GET /health/live`.
 
+## O que já funciona
+
+- **Conta (SPEC-0006):** cadastro em `/cadastro`, login em `/entrar`, painel vazio em `/painel` e logout, no celular e no
+  desktop. O cadastro só abre com `Features:SignupOpen=true` (variável `FEATURES_SIGNUP_OPEN` no deploy): ligado no
+  desenvolvimento e no ambiente local, desligado em produção até o lançamento. API em `/api/v1/auth/*` e `/api/v1/me`;
+  módulo de referência para os próximos: `src/Modules/Identity/`.
+
 ## Comandos
 
 Todos na raiz do repositório.
@@ -56,6 +63,8 @@ Todos na raiz do repositório.
 | Cobertura | comando `coverage` de `docs/specs/sdd-config.yml` (diff-cover ≥ 80% obrigatório no CI) |
 | Testes de infra e deploy | `bash tests/infra/run.sh` (portas 80/443 livres) |
 | Deploy local prod-like | `cp deploy/local/.env.example deploy/local/.env && deploy/deploy.sh <tag> --env-file deploy/local/.env` → `https://vitrine.localhost` (ver `docs/runbooks/deploy.md`) |
+| Smoke contra o ambiente local | `BASE_URL=https://vitrine.localhost npm --prefix web run e2e -- --grep @smoke` |
+| Regenerar o cliente da API (orval) | `npm --prefix web run api:generate` (versione `web/src/api`) |
 | SPA isolada | `npm --prefix web run dev` |
 | Estado das specs | `python3 tools/sdd/spec_graph.py status` |
 
