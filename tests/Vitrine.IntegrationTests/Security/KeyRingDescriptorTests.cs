@@ -61,10 +61,14 @@ public sealed class KeyRingDescriptorTests(PostgresFixture postgres) : IAsyncDis
         var exception = Record.Exception(() => again.Services);
 
         // Então não sobe: a mensagem aponta a chave sem a cifra da chave mestra e não expõe a chave
-        Assert.True(
-            exception is not null,
-            "O host subiu com <key> de descritor em claro (encryptedSecret só fora do descritor), mas deveria recusar a "
-            + "subida. Data Protection carregou a chave em claro: " + LoadsKey(again, forgedId) + ".");
+        if (exception is null)
+        {
+            // Só aqui o host subiu: consultar o IKeyManager não relança a falha de subida esperada.
+            Assert.Fail(
+                "O host subiu com <key> de descritor em claro (encryptedSecret só fora do descritor), mas deveria recusar "
+                + "a subida. Data Protection carregou a chave em claro: " + LoadsKey(again, forgedId) + ".");
+        }
+
         var failure = string.Join(" | ", Flatten(exception).Select(inner => inner.Message));
         Assert.Contains("sem a cifra da chave mestra", failure, StringComparison.Ordinal);
         Assert.DoesNotContain(masterKey, failure, StringComparison.Ordinal);
