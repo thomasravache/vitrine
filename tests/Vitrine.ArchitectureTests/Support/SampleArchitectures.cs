@@ -23,7 +23,7 @@ internal static class SampleArchitectures
         .Build());
 
     private static readonly Lazy<Architecture> CommonViolationArchitecture = new(() => new ArchLoader()
-        .LoadAssemblies(typeof(Common.Clock.SystemClock).Assembly, typeof(ModuleB.Application.GetCustomerQuery).Assembly)
+        .LoadAssemblies(typeof(global::Common.Clock.SystemClock).Assembly, typeof(ModuleB.Application.GetCustomerQuery).Assembly)
         .Build());
 
     /// <summary><c>Sample.Domain</c> referencia <c>Sample.Infrastructure</c>.</summary>
