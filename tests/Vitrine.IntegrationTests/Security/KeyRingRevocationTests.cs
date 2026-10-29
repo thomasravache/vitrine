@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.DataProtection.Repositories;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
+using Npgsql;
 using Vitrine.Common.Security;
 using Vitrine.IntegrationTests.Identity.Support;
 using Vitrine.IntegrationTests.Security.Support;
@@ -16,10 +17,14 @@ namespace Vitrine.IntegrationTests.Security;
 /// IT-02 (SPEC-0014): o check do anel na subida fora de Development considera só elementos <c>&lt;key&gt;</c>. Um
 /// <c>&lt;revocation&gt;</c> (gravado sem <c>encryptedSecret</c> pelo próprio <see cref="IKeyManager"/>) não impede a
 /// subida; uma <c>&lt;key&gt;</c> em claro continua impedindo. Chaves mestras e o anel são gerados por execução.
+/// Ao fim de cada caso, os pools de conexão dos bancos dele são esvaziados: os hosts já foram descartados e as conexões
+/// ociosas não ficam ocupando o PostgreSQL compartilhado pela coleção.
 /// </summary>
 [Collection(PostgresTestGroup.Name)]
-public sealed class KeyRingRevocationTests(PostgresFixture postgres)
+public sealed class KeyRingRevocationTests(PostgresFixture postgres) : IAsyncDisposable
 {
+    private readonly List<string> _databases = [];
+
     [Theory]
     [Trait("spec", "SPEC-0014:IT-02")]
     [InlineData(false)]
@@ -27,7 +32,7 @@ public sealed class KeyRingRevocationTests(PostgresFixture postgres)
     public async Task Fora_de_Development_anel_com_revocation_nao_impede_a_subida(bool revokeAll)
     {
         var cancellationToken = TestContext.Current.CancellationToken;
-        var connectionString = await postgres.CreateDatabaseAsync(cancellationToken);
+        var connectionString = await CreateDatabaseAsync(cancellationToken);
         var masterKey = SecuritySettings.NewMasterKey();
 
         // Dado um anel cifrado pela chave mestra no PostgreSQL
@@ -65,7 +70,7 @@ public sealed class KeyRingRevocationTests(PostgresFixture postgres)
     public async Task Fora_de_Development_key_em_claro_no_anel_continua_impedindo_a_subida()
     {
         var cancellationToken = TestContext.Current.CancellationToken;
-        var connectionString = await postgres.CreateDatabaseAsync(cancellationToken);
+        var connectionString = await CreateDatabaseAsync(cancellationToken);
         var masterKey = SecuritySettings.NewMasterKey();
 
         // Dado um anel cifrado pela chave mestra e, ao lado, uma <key> em claro (gerada pelo Data Protection sem
@@ -93,6 +98,24 @@ public sealed class KeyRingRevocationTests(PostgresFixture postgres)
         var failure = string.Join(" | ", Flatten(exception).Select(inner => inner.Message));
         Assert.Contains("sem a cifra da chave mestra", failure, StringComparison.Ordinal);
         Assert.DoesNotContain(masterKey, failure, StringComparison.Ordinal);
+    }
+
+    public ValueTask DisposeAsync()
+    {
+        foreach (var connectionString in _databases)
+        {
+            using var connection = new NpgsqlConnection(connectionString);
+            NpgsqlConnection.ClearPool(connection);
+        }
+
+        return ValueTask.CompletedTask;
+    }
+
+    private async Task<string> CreateDatabaseAsync(CancellationToken cancellationToken)
+    {
+        var connectionString = await postgres.CreateDatabaseAsync(cancellationToken);
+        _databases.Add(connectionString);
+        return connectionString;
     }
 
     private static ApiFactory Host(string connectionString) =>
