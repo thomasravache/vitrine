@@ -184,9 +184,9 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 |---|---|---|---|
 | G0 Spec | PASS | validate: 0 erro(s) — 4602cbe (árvore suja) | 2026-10-13 |
 | G1 Red | PASS | verify G1: PASS; `dotnet test tests/Vitrine.UnitTests && npm --prefix web run test` exit 2 (red: Test run completed with non-success exit code: 2 (see: https://aka.ms/testingplatform/exit) — 890a444 | 2026-10-28 |
-| G2 Green | PASS | build exit 0 (npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts a); test exit 0 (Duration  379ms (environment 59%, transform 21%, import 15%, tests 4%, worker 1%)); lint exit 0 (> tsc --noEmit && tsc --noEmit -p tsconfig.node.json); coverage exit 0 (Coverage: 92%) — ccd38d5 | 2026-10-28 |
-| G3 Arquitetura | PASS | arch_test exit 0 (duration: 1s 154ms) — ccd38d5 | 2026-10-28 |
-| G4 Review | FAIL | Reviewer independente (re-review): CHANGES_REQUESTED em ccd38d5 — M1/M2/m1–m4 confirmados corrigidos; M3 novo: JSON com BOM UTF-8 escapa do limite por e-mail (12 logins sem 429, reproduzido); nits: normalização Unicode (FormC) na partição e anel sem cifra da chave mestra | 2026-10-28 |
+| G2 Green | PASS | build exit 0 (npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts a); test exit 0 (Duration  370ms (environment 59%, import 18%, transform 17%, tests 4%, worker 2%)); lint exit 0 (> tsc --noEmit && tsc --noEmit -p tsconfig.node.json); coverage exit 0 (Coverage: 92%) — 1458fee | 2026-10-28 |
+| G3 Arquitetura | PASS | arch_test exit 0 (duration: 1s 170ms) — 1458fee | 2026-10-28 |
+| G4 Review | PASS | MANUAL: Re-review em 1458fee: M1 (barra final), M2 (email duplicado), M3 (BOM) e m1–m4 fechados; probes repetidos com variações de caminho, charset, Content-Type e forma do corpo — 0 contornos; nits aceitos como pendência (email nulo sem partição por e-mail; elementos <revocation> no check do anel); verify PASS 12/12; dotnet 139/139; lint/build/audit/vulnerable ok; gitleaks 0 | 2026-10-28 |
 | G5 Integração & CI | PENDING | | |
 | H2 Integração aprovada | PENDING | | |
 | G6 Deploy | PENDING | | |
