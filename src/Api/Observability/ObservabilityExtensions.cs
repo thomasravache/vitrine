@@ -121,6 +121,26 @@ internal static class ObservabilityExtensions
             }
         }
 
+        // Valores das chaves sensíveis de Exception.Data (Mechanism.Data), contexts e extras também saem da mensagem,
+        // das exceções e dos breadcrumbs (SPEC-0018): a lista fica completa antes de mascarar qualquer texto.
+        foreach (var exception in sentryEvent.SentryExceptions ?? [])
+        {
+            if (exception.Mechanism is { } mechanism)
+            {
+                SentryDataMasker.CollectSensitiveValues(null, mechanism.Data, sensitiveValues);
+            }
+        }
+
+        foreach (var (key, value) in CustomContexts(sentryEvent.Contexts))
+        {
+            SentryDataMasker.CollectSensitiveValues(key, value, sensitiveValues);
+        }
+
+        foreach (var (key, value) in sentryEvent.Extra)
+        {
+            SentryDataMasker.CollectSensitiveValues(key, value, sensitiveValues);
+        }
+
         if (sentryEvent.Message is { } message)
         {
             message.Formatted = message.Formatted is null ? null : SensitiveDataMasker.MaskText(message.Formatted, sensitiveValues);
@@ -148,29 +168,35 @@ internal static class ObservabilityExtensions
             request.Headers[name] = SensitiveDataMasker.IsSensitiveName(name) ? SensitiveDataMasker.Mask : SensitiveDataMasker.MaskText(value);
         }
 
+        // Extras e contexts próprios (ex.: Exception.Data com prefixo sentry:) com valores de qualquer tipo.
         foreach (var (key, value) in sentryEvent.Extra.ToList())
         {
-            sentryEvent.SetExtra(key, SensitiveDataMasker.IsSensitiveName(key)
-                ? SensitiveDataMasker.Mask
-                : value is string text ? SensitiveDataMasker.MaskText(text, sensitiveValues) : value);
+            sentryEvent.SetExtra(key, SentryDataMasker.MaskValue(key, value, sensitiveValues));
+        }
+
+        foreach (var (key, value) in CustomContexts(sentryEvent.Contexts))
+        {
+            sentryEvent.Contexts[key] = SentryDataMasker.MaskValue(key, value, sensitiveValues)!;
         }
 
         return sentryEvent;
     }
 
+    // Contexts fora dos tipos do próprio SDK (runtime, os, trace...), que têm esquema fixo e não carregam dado do usuário.
+    private static List<KeyValuePair<string, object>> CustomContexts(SentryContexts contexts) =>
+        [.. contexts.Where(entry => entry.Value is not null
+            && entry.Value.GetType().Namespace?.StartsWith("Sentry", StringComparison.Ordinal) != true)];
+
     // Mechanism.Data recebe do SDK as chaves string de Exception.Data (SPEC-0015): chave de nome sensível vira ***;
-    // os demais valores de texto passam pelo mesmo mascaramento da exceção. Chaves são mantidas.
+    // os demais valores (texto, dicionários, objetos, structs) são mascarados pelo SentryDataMasker (SPEC-0018).
+    // Chaves são mantidas.
     private static void MaskMechanismData(IDictionary<string, object> data, IReadOnlyCollection<string> sensitiveValues)
     {
         foreach (var (key, value) in data.ToList())
         {
-            if (SensitiveDataMasker.IsSensitiveName(key))
+            if (SentryDataMasker.MaskValue(key, value, sensitiveValues) is { } masked)
             {
-                data[key] = SensitiveDataMasker.Mask;
-            }
-            else if (value is not null && !value.GetType().IsValueType && SensitiveDataMasker.Text(value) is { } text)
-            {
-                data[key] = SensitiveDataMasker.MaskText(text, sensitiveValues);
+                data[key] = masked;
             }
         }
     }
