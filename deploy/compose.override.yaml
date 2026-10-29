@@ -2,6 +2,8 @@
 #   migrate  : one-shot da mesma imagem com `--migrate` (ADR-0011); roda só via `docker compose run`.
 #   caddy    : HTTPS na frente da API (Let's Encrypt no servidor; CA interna para *.localhost).
 #   postgres : banco em container (perfil `db-container`): ambiente local e staging; produção usa o PostgreSQL gerenciado.
+#   alloy    : Grafana Alloy (perfil `observability`, SPEC-0007): métricas do host para o Grafana Cloud. Não sobe
+#              sem o perfil — o ambiente local não tem credenciais (COMPOSE_PROFILES=db-container,observability liga).
 services:
   api:
     depends_on:
@@ -52,7 +54,35 @@ services:
       timeout: 3s
       retries: 30
 
+  alloy:
+    image: grafana/alloy:v1.20.1
+    restart: unless-stopped
+    profiles: ["observability"]
+    command:
+      - run
+      - --storage.path=/var/lib/alloy/data
+      - --server.http.listen-addr=127.0.0.1:12345
+      - /etc/alloy/config.alloy
+    # Rede do host: métricas de rede reais do droplet (/proc/net segue o namespace de rede); nenhuma porta publicada.
+    # Sem `pid: host`: os coletores leem /proc do host montado em /host/proc.
+    network_mode: host
+    environment:
+      # Credenciais do Grafana Cloud (secrets do Environment); vazias fora do perfil, que só é ligado com elas.
+      GRAFANA_CLOUD_PROMETHEUS_URL: ${GRAFANA_CLOUD_PROMETHEUS_URL:-}
+      GRAFANA_CLOUD_PROMETHEUS_USER: ${GRAFANA_CLOUD_PROMETHEUS_USER:-}
+      GRAFANA_CLOUD_API_KEY: ${GRAFANA_CLOUD_API_KEY:-}
+      DEPLOY_ENVIRONMENT: ${DEPLOY_ENVIRONMENT:-local}
+    volumes:
+      - ./alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - /:/host/root:ro,rslave
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      # Propriedades udev dos discos (rótulos do coletor diskstats).
+      - /run/udev/data:/run/udev/data:ro
+      - alloy_data:/var/lib/alloy/data
+
 volumes:
+  alloy_data:
   caddy_data:
   caddy_config:
   postgres_data:

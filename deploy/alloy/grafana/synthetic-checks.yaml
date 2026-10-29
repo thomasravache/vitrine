@@ -1,0 +1,23 @@
+# SPEC-0007 — verificações sintéticas do Grafana Cloud (Synthetic Monitoring), descritas como código e criadas pela
+# SPEC-0009 (API do Synthetic Monitoring ou provider Terraform). O job vira o rótulo `job` de probe_success, usado
+# nas regras synthetic-ready e synthetic-login-page (alert-rules.yaml). SITE_ADDRESS = host público do ambiente.
+checks:
+  - job: synthetic-ready
+    type: http
+    target: https://${SITE_ADDRESS}/health/ready
+    frequency: 60s
+    timeout: 5s
+    probes: [Atlanta, NorthVirginia, SaoPaulo]
+    expect:
+      status: [200]
+      body_matches: '"status":"Healthy"'
+  - job: synthetic-login-page
+    type: http
+    target: https://${SITE_ADDRESS}/entrar
+    frequency: 60s
+    timeout: 10s
+    probes: [Atlanta, NorthVirginia, SaoPaulo]
+    expect:
+      status: [200]
+      # index.html da SPA servido pela Api (rota da jornada acesso, SPEC-0006).
+      body_matches: '<div id="root">'

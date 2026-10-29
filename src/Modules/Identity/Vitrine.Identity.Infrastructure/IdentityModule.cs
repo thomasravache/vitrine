@@ -9,6 +9,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Infrastructure;
 using Vitrine.Identity.Application.Abstractions;
 using Vitrine.Identity.Application.CurrentUser;
 using Vitrine.Identity.Application.Register;
+using Vitrine.Identity.Infrastructure.Diagnostics;
 using Vitrine.Identity.Infrastructure.Persistence;
 using Vitrine.Identity.Infrastructure.Sessions;
 using Vitrine.Identity.Infrastructure.Users;
@@ -23,6 +24,9 @@ public static class IdentityModule
 {
     /// <summary>Nome do cookie de sessão (HttpOnly, Secure, SameSite=Lax).</summary>
     public const string SessionCookieName = "vitrine.session";
+
+    /// <summary>Meter das métricas da jornada de acesso (<c>vitrine.auth.*</c> — SPEC-0007); o host o assina no OpenTelemetry.</summary>
+    public const string MeterName = "Vitrine.Identity";
 
     /// <summary>Registra os serviços do módulo Identity.</summary>
     public static IServiceCollection AddIdentityModule(this IServiceCollection services, IConfiguration configuration)
@@ -48,6 +52,8 @@ public static class IdentityModule
 
         // Casos de uso e portas da Application.
         services.AddSingleton(TimeProvider.System);
+        services.AddMetrics();
+        services.AddSingleton<IdentityMetrics>();
         services.AddScoped<RegisterCommandHandler>();
         services.AddScoped<IdentityUnitOfWork>();
         services.AddScoped<IIdentityUnitOfWork>(provider => provider.GetRequiredService<IdentityUnitOfWork>());

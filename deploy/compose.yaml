@@ -13,5 +13,16 @@ services:
       ConnectionStrings__vitrine: ${DB_CONNECTION_STRING:?DB_CONNECTION_STRING não definido}
       # Cadastro público (SPEC-0006): desligado salvo se o ambiente ligar (local prod-like e staging).
       Features__SignupOpen: ${FEATURES_SIGNUP_OPEN:-false}
+      # Observabilidade (SPEC-0007, ADR-0009) — opcional: sem endpoint/DSN, nada é exportado (só logs JSON no console).
+      # Endpoint e cabeçalhos OTLP do Grafana Cloud e DSN do Sentry são secrets do Environment (ADR-0006).
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+      OTEL_EXPORTER_OTLP_HEADERS: ${OTEL_EXPORTER_OTLP_HEADERS:-}
+      OTEL_EXPORTER_OTLP_PROTOCOL: ${OTEL_EXPORTER_OTLP_PROTOCOL:-http/protobuf}
+      OTEL_SERVICE_NAME: vitrine-api
+      # Versão = SHA da imagem (IMAGE_TAG gravado pelo deploy/deploy.sh).
+      OTEL_RESOURCE_ATTRIBUTES: deployment.environment=${DEPLOY_ENVIRONMENT:-local},service.version=${IMAGE_TAG}
+      Sentry__Dsn: ${SENTRY_DSN:-}
+      Sentry__Release: ${IMAGE_TAG}
+      Sentry__Environment: ${DEPLOY_ENVIRONMENT:-local}
     expose:
       - "8080"

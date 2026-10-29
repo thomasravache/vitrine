@@ -1,0 +1,170 @@
+# SPEC-0007 — regras de alerta do Grafana Cloud como código (formato de provisionamento de alertas do Grafana).
+# Aplicadas no Grafana Cloud pela SPEC-0009 (nada aqui é aplicado automaticamente). Responsável: thomas.
+# Fonte de dados: Prometheus do Grafana Cloud (UID padrão grafanacloud-prom), que recebe:
+#   - métricas do host pelo Alloy (job="integrations/node_exporter", deploy/alloy/config.alloy);
+#   - métricas OTLP da Api (job="vitrine-api" = service.name; deployment_environment do OTEL_RESOURCE_ATTRIBUTES);
+#   - resultados da verificação sintética (probe_success por job; checks em synthetic-checks.yaml).
+# Cada alerta tem runbook em docs/runbooks/<título>.md e vai para o contato "email-responsavel".
+apiVersion: 1
+groups:
+  - orgId: 1
+    name: vitrine-disponibilidade
+    folder: Vitrine
+    interval: 1m
+    rules:
+      # Verificação sintética de /health/ready a cada 1 min: dispara após 3 falhas seguidas (nenhum sucesso em 3 min).
+      - uid: vitrine-synthetic-ready
+        title: synthetic-ready
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange: { from: 300, to: 0 }
+            datasourceUid: grafanacloud-prom
+            model:
+              refId: A
+              instant: true
+              expr: max by (job) (max_over_time(probe_success{job="synthetic-ready"}[3m]))
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: lt, params: [1] }
+        for: 0s
+        noDataState: Alerting
+        execErrState: Error
+        labels: { severity: critical, owner: thomas, journey: acesso }
+        annotations:
+          summary: /health/ready falhou nas 3 últimas verificações sintéticas (banco ou Api fora).
+          runbook_url: https://github.com/thomasravache/vitrine/blob/main/docs/runbooks/synthetic-ready.md
+        notification_settings: { receiver: email-responsavel }
+
+      # Verificação sintética da página /entrar (jornada acesso) a cada 1 min: 3 falhas seguidas.
+      - uid: vitrine-synthetic-login-page
+        title: synthetic-login-page
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange: { from: 300, to: 0 }
+            datasourceUid: grafanacloud-prom
+            model:
+              refId: A
+              instant: true
+              expr: max by (job) (max_over_time(probe_success{job="synthetic-login-page"}[3m]))
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: lt, params: [1] }
+        for: 0s
+        noDataState: Alerting
+        execErrState: Error
+        labels: { severity: critical, owner: thomas, journey: acesso }
+        annotations:
+          summary: A página /entrar falhou nas 3 últimas verificações sintéticas (SPA, Caddy ou Api fora).
+          runbook_url: https://github.com/thomasravache/vitrine/blob/main/docs/runbooks/synthetic-login-page.md
+        notification_settings: { receiver: email-responsavel }
+
+      # Taxa de respostas 5xx da Api acima de 5% em 5 min (também é o limite de rollback pós-deploy).
+      - uid: vitrine-http-5xx-rate
+        title: http-5xx-rate
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange: { from: 600, to: 0 }
+            datasourceUid: grafanacloud-prom
+            model:
+              refId: A
+              instant: true
+              expr: >-
+                100 * sum by (deployment_environment) (rate(http_server_request_duration_seconds_count{job="vitrine-api",http_response_status_code=~"5.."}[5m]))
+                / sum by (deployment_environment) (rate(http_server_request_duration_seconds_count{job="vitrine-api"}[5m]))
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: gt, params: [5] }
+        for: 0s
+        # Sem tráfego não há taxa: não é incidente (a disponibilidade é coberta pelas verificações sintéticas).
+        noDataState: OK
+        execErrState: Error
+        labels: { severity: critical, owner: thomas }
+        annotations:
+          summary: Mais de 5% das respostas da Api foram 5xx nos últimos 5 min.
+          runbook_url: https://github.com/thomasravache/vitrine/blob/main/docs/runbooks/http-5xx-rate.md
+        notification_settings: { receiver: email-responsavel }
+
+  - orgId: 1
+    name: vitrine-saturacao
+    folder: Vitrine
+    interval: 1m
+    rules:
+      # Disco do droplet acima de 80% (qualquer sistema de arquivos real).
+      - uid: vitrine-disk-80
+        title: disk-80
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange: { from: 600, to: 0 }
+            datasourceUid: grafanacloud-prom
+            model:
+              refId: A
+              instant: true
+              expr: >-
+                100 * (1 - node_filesystem_avail_bytes{job="integrations/node_exporter",fstype!~"tmpfs|overlay|squashfs"}
+                / node_filesystem_size_bytes{job="integrations/node_exporter",fstype!~"tmpfs|overlay|squashfs"})
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: gt, params: [80] }
+        for: 5m
+        noDataState: NoData
+        execErrState: Error
+        labels: { severity: warning, owner: thomas }
+        annotations:
+          summary: Disco {{ $labels.mountpoint }} em {{ $labels.instance }} acima de 80%.
+          runbook_url: https://github.com/thomasravache/vitrine/blob/main/docs/runbooks/disk-80.md
+        notification_settings: { receiver: email-responsavel }
+
+      # Memória do droplet acima de 90% (MemAvailable, que já desconta cache recuperável).
+      - uid: vitrine-memory-90
+        title: memory-90
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange: { from: 600, to: 0 }
+            datasourceUid: grafanacloud-prom
+            model:
+              refId: A
+              instant: true
+              expr: >-
+                100 * (1 - node_memory_MemAvailable_bytes{job="integrations/node_exporter"}
+                / node_memory_MemTotal_bytes{job="integrations/node_exporter"})
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: gt, params: [90] }
+        for: 5m
+        noDataState: NoData
+        execErrState: Error
+        labels: { severity: warning, owner: thomas }
+        annotations:
+          summary: Memória de {{ $labels.instance }} acima de 90%.
+          runbook_url: https://github.com/thomasravache/vitrine/blob/main/docs/runbooks/memory-90.md
+        notification_settings: { receiver: email-responsavel }
