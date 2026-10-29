@@ -91,7 +91,7 @@ public sealed class AuthorizationByDefaultTests(PostgresFixture postgres)
         // Dado a Api; quando cada rota protegida conhecida (endpoints fora da lista, sem parâmetros) é chamada sem cookie
         var protectedRoutes = factory.Services.GetRequiredService<EndpointDataSource>().Endpoints
             .OfType<RouteEndpoint>()
-            .Where(endpoint => !AnonymousEndpoints.IsAllowed(endpoint) && endpoint.RoutePattern.Parameters.Count == 0)
+            .Where(endpoint => !AnonymousEndpoints.IsListedPattern(endpoint) && endpoint.RoutePattern.Parameters.Count == 0)
             .ToList();
         Assert.Contains(protectedRoutes, endpoint => endpoint.RoutePattern.RawText == IdentityApi.MePath);
         Assert.Contains(protectedRoutes, endpoint => endpoint.RoutePattern.RawText == IdentityApi.LogoutPath);

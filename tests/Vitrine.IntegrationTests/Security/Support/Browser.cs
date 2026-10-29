@@ -79,6 +79,22 @@ internal sealed class Browser : IDisposable
         return SendAsync(request, cancellationToken);
     }
 
+    /// <summary>POST com token antiforgery recém-obtido e o conteúdo informado (ex.: JSON cru, corpo grande).</summary>
+    public async Task<HttpResponseMessage> PostContentAsync(string path, HttpContent content, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(content);
+        AntiforgeryToken token;
+        using (var tokenResponse = await GetAntiforgeryAsync(cancellationToken))
+        {
+            await IdentityApi.AssertStatusAsync(HttpStatusCode.NoContent, tokenResponse, cancellationToken);
+            token = AntiforgeryToken.From(tokenResponse);
+        }
+
+        var request = new HttpRequestMessage(HttpMethod.Post, new Uri(path, UriKind.Relative)) { Content = content };
+        request.Headers.Add(token.HeaderName, token.Value);
+        return await SendAsync(request, cancellationToken);
+    }
+
     public Task<HttpResponseMessage> RegisterAsync(TestUser user, CancellationToken cancellationToken) =>
         PostAsync(IdentityApi.RegisterPath, IdentityApi.RegisterBody(user), cancellationToken);
 

@@ -18,8 +18,10 @@ internal static class AnonymousEndpoints
 
     /// <summary>
     /// A lista <c>AnonymousEndpoints</c> do contrato: cadastro, login, antiforgery, health checks e a SPA estática
-    /// (o fallback para o <c>index.html</c> e os fallbacks 404 de <c>/api</c> e <c>/health</c> que a acompanham —
-    /// existem só com a SPA no web root). Os health checks do ServiceDefaults não restringem método.
+    /// (o fallback para o <c>index.html</c>, mapeado só com a SPA no web root). Também anônimos, e conhecidos: os
+    /// fallbacks de <c>/api/{**path}</c> e <c>/health/{**path}</c>, sempre mapeados, que só devolvem 404 (sem eles uma
+    /// rota de API inexistente daria 401 ou o <c>index.html</c>). Entrada com método exige que o endpoint declare só
+    /// esse método: endpoint sem metadado de método (aceita qualquer um) não cumpre a entrada.
     /// </summary>
     public static readonly IReadOnlyList<Entry> Allowed =
     [
@@ -58,13 +60,21 @@ internal static class AnonymousEndpoints
         && policy.Requirements.Count == 1
         && policy.Requirements[0] is DenyAnonymousAuthorizationRequirement;
 
+    /// <summary>O padrão de rota está na lista (sem olhar o método): rotas que o IT-01 não chama esperando 401.</summary>
+    public static bool IsListedPattern(RouteEndpoint endpoint)
+    {
+        ArgumentNullException.ThrowIfNull(endpoint);
+        return Allowed.Any(entry => string.Equals(entry.Pattern, endpoint.RoutePattern.RawText, StringComparison.OrdinalIgnoreCase));
+    }
+
     public static bool IsAllowed(RouteEndpoint endpoint)
     {
         ArgumentNullException.ThrowIfNull(endpoint);
         var methods = Methods(endpoint);
         return Allowed.Any(entry =>
             string.Equals(entry.Pattern, endpoint.RoutePattern.RawText, StringComparison.OrdinalIgnoreCase)
-            && (entry.Method is null || methods is null || methods.All(method => string.Equals(method, entry.Method, StringComparison.OrdinalIgnoreCase))));
+            && (entry.Method is null
+                || (methods is not null && methods.All(method => string.Equals(method, entry.Method, StringComparison.OrdinalIgnoreCase)))));
     }
 
     public static IReadOnlyList<string>? Methods(Endpoint endpoint) =>
