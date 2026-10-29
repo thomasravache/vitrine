@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Net;
 using System.Text.Json;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.RateLimiting;
@@ -45,15 +46,20 @@ internal static class AuthRateLimiting
             .ValidateOnStart();
 
         services.AddRateLimiter(_ => { });
-        services.AddOptions<RateLimiterOptions>().Configure<IOptions<AuthRateLimitOptions>>((options, limits) =>
+        services.AddOptions<RateLimiterOptions>().Configure<IOptions<AuthRateLimitOptions>, IHostEnvironment>((options, limits, environment) =>
         {
             var perIp = limits.Value.AuthPerIp.PermitLimit;
             var perEmail = limits.Value.LoginPerEmail.PermitLimit;
+
+            // Só em Development: a conexão local (Vite do AppHost em 127.0.0.1, onde rodam o E2E e o dev) não conta no
+            // limite por IP — toda a suíte E2E sai do mesmo IP. Fora de Development não há exceção; o limite por e-mail vale sempre.
+            var exemptLoopback = environment.IsDevelopment();
 
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
             options.GlobalLimiter = PartitionedRateLimiter.CreateChained(
                 PartitionedRateLimiter.Create<HttpContext, string>(context =>
                     context.Request.Path.StartsWithSegments(AuthPathPrefix, StringComparison.OrdinalIgnoreCase)
+                    && !(exemptLoopback && context.Connection.RemoteIpAddress is { } local && IPAddress.IsLoopback(local))
                         ? FixedWindow("ip:" + (context.Connection.RemoteIpAddress?.ToString() ?? "desconhecido"), perIp)
                         : RateLimitPartition.GetNoLimiter(string.Empty)),
                 PartitionedRateLimiter.Create<HttpContext, string>(context =>
