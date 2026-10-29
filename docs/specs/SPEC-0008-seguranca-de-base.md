@@ -9,8 +9,8 @@ created: 2026-10-13
 parent: SPEC-0001
 depends_on: [SPEC-0006]
 consumes_contract: [SPEC-0006@1]
-contract_version: 2
-touches: [src/Api/Security/**, src/Api/Program.cs, src/Api/Vitrine.Api.csproj, src/Api/appsettings*.json, src/ServiceDefaults/**, src/Common/Vitrine.Common.Security/**, src/Modules/Identity/Vitrine.Identity.Presentation/**, src/Modules/Identity/Vitrine.Identity.Infrastructure/**, Vitrine.slnx, Directory.Packages.props, "**/packages.lock.json", deploy/compose.yaml, deploy/compose.override.yaml, deploy/Caddyfile, deploy/local/.env.example, tests/Vitrine.UnitTests/Security/**, tests/Vitrine.UnitTests/Vitrine.UnitTests.csproj, tests/Vitrine.IntegrationTests/Security/**, tests/Vitrine.IntegrationTests/Support/**, tests/Vitrine.IntegrationTests/Vitrine.IntegrationTests.csproj, tests/Vitrine.ArchitectureTests/**, docs/runbooks/**, .gitleaksignore]
+contract_version: 3
+touches: [src/Api/Security/**, src/Api/Program.cs, src/Api/Vitrine.Api.csproj, src/Api/appsettings*.json, src/ServiceDefaults/**, src/Common/Vitrine.Common.Security/**, src/Modules/Identity/Vitrine.Identity.Presentation/**, src/Modules/Identity/Vitrine.Identity.Infrastructure/**, Vitrine.slnx, Directory.Packages.props, "**/packages.lock.json", deploy/compose.yaml, deploy/compose.override.yaml, deploy/Caddyfile, deploy/local/.env.example, tests/Vitrine.UnitTests/Security/**, tests/Vitrine.UnitTests/Vitrine.UnitTests.csproj, tests/Vitrine.IntegrationTests/Security/**, tests/Vitrine.IntegrationTests/Support/**, tests/Vitrine.IntegrationTests/Vitrine.IntegrationTests.csproj, tests/Vitrine.ArchitectureTests/**, docs/runbooks/**, .gitleaksignore, web/vite.config.ts]
 adrs: [ADR-0007, ADR-0006]
 external: []
 size: M
@@ -29,7 +29,7 @@ Fecha a base de segurança antes de qualquer dado de cliente: autorização nega
 **Objetivos (dentro do escopo):**
 - `FallbackPolicy = RequireAuthenticatedUser` e lista explícita de endpoints anônimos; teste de arquitetura que falha se surgir endpoint anônimo fora da lista.
 - Cabeçalhos: `Strict-Transport-Security` (produção), `Content-Security-Policy` restritiva para a SPA, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`, `X-Frame-Options: DENY`; remoção de `Server`/`X-Powered-By`.
-- Rate limiting (`Microsoft.AspNetCore.RateLimiting`) em `/api/v1/auth/*`: 10 req/min por IP e 10 req/min por e-mail no login (acima do bloqueio de 5 falhas da SPEC-0006, que responde 423 antes); resposta 429 com `Retry-After`.
+- Rate limiting (`Microsoft.AspNetCore.RateLimiting`) nos POST de cadastro e login: 10 req/min por IP e 10 req/min por e-mail no login (acima do bloqueio de 5 falhas da SPEC-0006, que responde 423 antes); resposta 429 com `Retry-After`.
 - `IFieldProtector` em `src/Common` (AES-256-GCM via Data Protection com propósito por campo) + conversor EF Core `Protected<T>`; chaves do Data Protection persistidas no PostgreSQL e protegidas por chave mestra vinda do ambiente.
 - Configuração do `.env`/Environment para a chave mestra; procedimento de rotação no runbook.
 - Atrás do Caddy: `UseForwardedHeaders` (X-Forwarded-Proto/For só da rede do Compose) para `Request.IsHttps` correto; cookie antiforgery volta a `Secure=Always`; HSTS passa a valer atrás do proxy.
@@ -74,13 +74,16 @@ Autorização: todo endpoint exige usuário autenticado, exceto a lista Anonymou
 Cabeçalhos em toda resposta: Content-Security-Policy (default-src 'self'; script-src 'self'; connect-src 'self' <sentry>; frame-ancestors 'none'),
   X-Content-Type-Options: nosniff, Referrer-Policy: strict-origin-when-cross-origin, Permissions-Policy: camera=(), microphone=(), geolocation=(),
   X-Frame-Options: DENY; em produção também Strict-Transport-Security: max-age=31536000; includeSubDomains
-Rate limit /api/v1/auth/*: 10/min por IP (IP real do cliente, via forwarded headers confiáveis); login 10/min por e-mail -> 429 + Retry-After
+Rate limit: POST /api/v1/auth/register e POST /api/v1/auth/login, 10/min por IP (IP real do cliente, via forwarded headers confiáveis;
+  GET /antiforgery e logout não contam — evitam bloquear quem divide IP por CGNAT); login 10/min por e-mail -> 429 + Retry-After
+  Em Development, conexões de loopback não contam no limite por IP (AppHost/Vite locais)
   Ordem: o bloqueio da SPEC-0006 (5 falhas -> 423) vem antes do limite por e-mail; o limite por e-mail protege e-mails inexistentes e o custo do hash
 src/Common/Security:
   interface IFieldProtector { string Protect(string plaintext, string purpose); string Unprotect(string ciphertext, string purpose); }
   EF Core: builder.Property(x => x.Secret).IsProtected("<purpose>")   // grava cifrado, lê decifrado
   Erro: CryptographicException -> nunca devolve texto parcial
-Config: DataProtection__MasterKey (secret do Environment; 32 bytes aleatórios em Base64)
+Config: DataProtection__MasterKey (secret do Environment; 32 bytes aleatórios em Base64; ausente fora de Development -> a API não sobe)
+  DataProtection__PreviousMasterKey (opcional, só durante a rotação: a API lê com as duas e `--migrate` recifra o anel de chaves)
   RateLimiting__AuthPerIp__PermitLimit (padrão 10), RateLimiting__LoginPerEmail__PermitLimit (padrão 10)
   ForwardedHeaders__KnownNetworks__0 (CIDR da rede do Compose onde está o Caddy)
   CSP connect-src inclui a origem de ingestão do Sentry derivada de Sentry__Dsn quando configurado (backend e SPA usam o mesmo projeto do Sentry)
@@ -96,7 +99,7 @@ Config: DataProtection__MasterKey (secret do Environment; 32 bytes aleatórios e
 | Endpoint sem política | novo endpoint sem `RequireAuthorization` nem na lista anônima | teste de arquitetura falha | UT-01 |
 | Acesso anônimo negado | GET de rota protegida sem cookie | 401 | IT-01 |
 | Cabeçalhos | qualquer resposta | todos os cabeçalhos do contrato presentes; `Server` ausente | IT-02 |
-| Rate limit | 11ª requisição/min do mesmo IP em auth, ou 11º login/min do mesmo e-mail | 429 + Retry-After | IT-03 |
+| Rate limit | 11º POST de cadastro/login por minuto do mesmo IP, ou 11º login/min do mesmo e-mail | 429 + Retry-After; GET /antiforgery não conta | IT-03 |
 | Bloqueio antes do limite | 6ª tentativa após 5 falhas de um e-mail existente | 423 (contrato SPEC-0006), não 429 | IT-03 |
 | Cifra de campo | valor protegido gravado | coluna no banco não contém o texto claro; leitura devolve o original | UT-02, IT-04 |
 | Propósito errado / adulteração | decifrar com propósito diferente ou texto alterado | CryptographicException | UT-03 |
@@ -118,7 +121,7 @@ Config: DataProtection__MasterKey (secret do Environment; 32 bytes aleatórios e
 ### 7.3 Testes de Integração
 - **IT-01** — Dado a API, quando cada rota protegida conhecida é chamada sem cookie, então 401; e cada rota da lista anônima responde sem exigir login.
 - **IT-02** — Dado a API em ambiente `Production` simulado, quando `GET /` e `GET /api/v1/me`, então as respostas trazem todos os cabeçalhos do contrato (incluindo HSTS) e não trazem `Server`.
-- **IT-03** — Dado a API, quando 11 requisições de auth do mesmo IP chegam em um minuto, então a 11ª recebe 429 com `Retry-After`; e 11 tentativas de login para o mesmo e-mail (inexistente) de IPs diferentes resultam em 429 na 11ª; e, para um e-mail existente, a 6ª tentativa após 5 falhas continua 423 (contrato da SPEC-0006).
+- **IT-03** — Dado a API, quando 11 POST de cadastro/login do mesmo IP chegam em um minuto, então o 11º recebe 429 com `Retry-After` e `GET /antiforgery` do mesmo IP não é limitado; e 11 tentativas de login para o mesmo e-mail (inexistente) de IPs diferentes resultam em 429 na 11ª; e, para um e-mail existente, a 6ª tentativa após 5 falhas continua 423 (contrato da SPEC-0006).
 - **IT-04** — Dado uma entidade de teste com campo `IsProtected`, quando gravada no Postgres real, então a coluna lida por SQL cru não contém o texto claro e a leitura via EF devolve o original.
 - **IT-05** — Dado sessão ativa e um campo cifrado gravado, quando o host é reiniciado com a mesma chave mestra, então a sessão continua válida e o campo é decifrado.
 - **IT-06** — Dado a API configurada para confiar só na rede do proxy, quando chega `GET /api/v1/auth/antiforgery` com `X-Forwarded-Proto: https` de um IP confiável, então o cookie antiforgery sai com `Secure`; e o mesmo cabeçalho vindo de IP não confiável é ignorado.
@@ -174,7 +177,7 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 | Gate | Status | Evidência | Data |
 |---|---|---|---|
 | G0 Spec | PASS | validate: 0 erro(s) — 4602cbe (árvore suja) | 2026-10-13 |
-| G1 Red | PENDING | | |
+| G1 Red | PASS | verify G1: PASS; `dotnet test tests/Vitrine.UnitTests && npm --prefix web run test` exit 2 (red: Test run completed with non-success exit code: 2 (see: https://aka.ms/testingplatform/exit) — 890a444 | 2026-10-28 |
 | G2 Green | PENDING | | |
 | G3 Arquitetura | PENDING | | |
 | G4 Review | PENDING | | |
@@ -227,6 +230,7 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 <!-- Mudança em spec aprovada: uma linha por emenda. Mudou o contrato? Incremente `contract_version` e rode `spec_graph.py impacted SPEC-0008`. -->
 | Versão do contrato | Data | Mudança | Motivo | Specs impactadas | Aprovado por |
 |---|---|---|---|---|---|
+| v3 | 2026-10-29 | Limite por IP só nos POST de cadastro/login (GET /antiforgery e logout fora); isenção de loopback em Development; rotação com `DataProtection__PreviousMasterKey`; chave mestra obrigatória fora de Development; `web/vite.config.ts` no escopo para não embutir fontes como `data:` (CSP estrita mantida) | Implementer: o smoke do deploy (2 projetos Playwright) estourava 10/min porque a SPA busca o token antiforgery antes de cada POST — mesmo risco para usuários atrás de CGNAT; fonte embutida bloqueada pela CSP; rotação sem chave anterior perderia os dados cifrados | nenhuma | thomas (2026-10-29, piloto automático) |
 | v2 | 2026-10-29 | Limite de login por e-mail 5/min → 10/min, com o bloqueio da SPEC-0006 (423) antes dele; chaves de configuração formalizadas (`DataProtection__MasterKey` Base64 de 32 bytes, `RateLimiting__*`, `ForwardedHeaders__KnownNetworks__0`, origem do Sentry na CSP a partir de `Sentry__Dsn`); IT-03 ajustado | SPEC_DEFECT do Test-writer: 5/min por e-mail e o bloqueio de 5 falhas disparavam juntos na 6ª tentativa (429 × 423), quebrando o contrato SPEC-0006@1 | nenhuma (SPEC-0006 mantém o 423) | thomas (2026-10-29, piloto automático) |
 | v1.1 (escopo, sem mudança de contrato) | 2026-10-29 | `touches` alinhado ao código real: projeto novo `src/Common/Vitrine.Common.Security` (+ `Vitrine.slnx`), rate limit e antiforgery onde já estão (`Identity.Presentation`/`Infrastructure`, `Api/Program.cs`), csproj/appsettings da API, suporte e csproj de testes, `.env.example`/override do Compose (chave mestra), lockfiles e `.gitleaksignore` (valores falsos de teste); pacote `Microsoft.AspNetCore.DataProtection.EntityFrameworkCore` 10.0.13 registrado no ADR-0006; seção 7.5 deixa de citar ID de teste de outra spec | A spec foi escrita antes do módulo Identity e de qualquer projeto em `src/Common` existirem | — | thomas (2026-10-29, piloto automático) |
 | v1 (escopo, sem mudança de contrato) | 2026-10-14 | Inclui forwarded headers atrás do Caddy com antiforgery `Secure=Always`, e health checks anônimos por metadado; touches ganham `src/ServiceDefaults/**` e `deploy/compose.yaml` | Review G4 da SPEC-0006 (desvios aceitos lá para serem fechados aqui); testes IT-06 e IT-07 | — | thomas (2026-10-14) |
