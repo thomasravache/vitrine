@@ -23,6 +23,9 @@ namespace Vitrine.IntegrationTests.Security;
 [Collection(PostgresTestGroup.Name)]
 public sealed class KeyRingDescriptorTests(PostgresFixture postgres) : IAsyncDisposable
 {
+    private const string NullXmlDecryptorType =
+        "Microsoft.AspNetCore.DataProtection.XmlEncryption.NullXmlDecryptor, Microsoft.AspNetCore.DataProtection";
+
     private static readonly XNamespace DataProtectionNamespace = "http://schemas.asp.net/2015/03/dataProtection";
 
     private readonly List<string> _databases = [];
@@ -72,6 +75,89 @@ public sealed class KeyRingDescriptorTests(PostgresFixture postgres) : IAsyncDis
         var failure = string.Join(" | ", Flatten(exception).Select(inner => inner.Message));
         Assert.Contains("sem a cifra da chave mestra", failure, StringComparison.Ordinal);
         Assert.DoesNotContain(masterKey, failure, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Emenda v1.2: um <c>encryptedSecret</c> cujo <c>decryptorType</c> é o <c>NullXmlDecryptor</c> (que devolve o
+    /// conteúdo sem decifrar) não é cifra da chave mestra, mesmo com um <c>masterKeyEncrypted</c> dentro. O anel também
+    /// tem chave legítima (que a chave mestra decifra), então a recusa não vem da checagem de chave errada.
+    /// </summary>
+    [Theory]
+    [Trait("spec", "SPEC-0017:IT-01")]
+    [InlineData(NullDecryptorForgery.Isolated)]
+    [InlineData(NullDecryptorForgery.CopiedFromLegitimate)]
+    [InlineData(NullDecryptorForgery.BesidePlaintextMasterKey)]
+    public async Task Fora_de_Development_key_com_encryptedSecret_do_NullXmlDecryptor_impede_a_subida(NullDecryptorForgery forgery)
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var connectionString = await CreateDatabaseAsync(cancellationToken);
+        var masterKey = SecuritySettings.NewMasterKey();
+
+        // Dado um anel com uma chave legítima, cifrada pela chave mestra
+        var legitimate = await LegitimateEncryptedSecretAsync(connectionString, masterKey, cancellationToken);
+
+        // E uma <key> real cujo descritor tem um encryptedSecret do NullXmlDecryptor com o segredo em claro
+        var forged = PlaintextKey();
+        var descriptor = Assert.Single(forged.Element("descriptor")!.Elements());
+        var plainMasterKey = descriptor.Element("masterKey")!;
+        var strippedMasterKey = new XElement(plainMasterKey);
+        strippedMasterKey.Attributes().Where(attribute => attribute.Name.LocalName == "requiresEncryption"
+            || attribute.IsNamespaceDeclaration).Remove();
+        Assert.NotNull(strippedMasterKey.Element("value"));
+
+        switch (forgery)
+        {
+            case NullDecryptorForgery.Isolated:
+                // (a) o encryptedSecret Null no lugar do <masterKey>, com o segredo em claro dentro de masterKeyEncrypted
+                plainMasterKey.ReplaceWith(NullEncryptedSecret(new XElement("masterKeyEncrypted", strippedMasterKey)));
+                break;
+            case NullDecryptorForgery.CopiedFromLegitimate:
+                // (b) cópia do encryptedSecret legítimo com o decryptorType trocado e o conteúdo trocado pelo segredo em claro
+                var copied = new XElement(legitimate);
+                copied.SetAttributeValue("decryptorType", NullXmlDecryptorType);
+                var encryptedMasterKey = copied.Element("masterKeyEncrypted")!;
+                encryptedMasterKey.RemoveNodes();
+                encryptedMasterKey.Add(strippedMasterKey);
+                plainMasterKey.ReplaceWith(copied);
+                break;
+            case NullDecryptorForgery.BesidePlaintextMasterKey:
+                // (c) <masterKey> em claro sem o atributo requiresEncryption, ao lado de um encryptedSecret Null
+                plainMasterKey.ReplaceWith(
+                    strippedMasterKey,
+                    NullEncryptedSecret(new XElement("masterKeyEncrypted", new XElement("value", Convert.ToBase64String(Guid.NewGuid().ToByteArray())))));
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(forgery), forgery, null);
+        }
+
+        Assert.DoesNotContain(forged.Descendants(), element => element.Attributes().Any(attribute => attribute.Name.LocalName == "requiresEncryption"));
+        Assert.Single(descriptor.Elements(DataProtectionNamespace + "encryptedSecret"));
+        var forgedId = Guid.Parse(forged.Attribute("id")!.Value);
+        await StoreAsync(connectionString, masterKey, forged);
+
+        // Quando o host sobe em Production com a mesma chave mestra
+        await using var again = Host(connectionString).WithMasterKey(masterKey);
+        var exception = Record.Exception(() => again.Services);
+
+        // Então não sobe: a mensagem aponta a chave sem a cifra da chave mestra e não expõe a chave
+        if (exception is null)
+        {
+            // Só aqui o host subiu: consultar o IKeyManager não relança a falha de subida esperada.
+            Assert.Fail(
+                "O host subiu com <key> de encryptedSecret do NullXmlDecryptor (" + forgery + "), mas deveria recusar a "
+                + "subida. Data Protection carregou a chave: " + LoadsKey(again, forgedId) + ".");
+        }
+
+        var failure = string.Join(" | ", Flatten(exception).Select(inner => inner.Message));
+        Assert.Contains("sem a cifra da chave mestra", failure, StringComparison.Ordinal);
+        Assert.DoesNotContain(masterKey, failure, StringComparison.Ordinal);
+    }
+
+    public enum NullDecryptorForgery
+    {
+        Isolated,
+        CopiedFromLegitimate,
+        BesidePlaintextMasterKey,
     }
 
     /// <summary>
@@ -183,6 +269,24 @@ public sealed class KeyRingDescriptorTests(PostgresFixture postgres) : IAsyncDis
         Assert.NotNull(repository);
         repository.StoreElement(element, "spec-0017-" + Guid.NewGuid().ToString("N"));
     }
+
+    /// <summary>Cria no PostgreSQL uma chave legítima cifrada pela chave mestra e devolve o encryptedSecret dela.</summary>
+    private static async Task<XElement> LegitimateEncryptedSecretAsync(string connectionString, string masterKey, CancellationToken cancellationToken)
+    {
+        await using (var first = Host(connectionString).WithMasterKey(masterKey))
+        {
+            first.Services.GetRequiredService<IKeyManager>()
+                .CreateNewKey(DateTimeOffset.UtcNow.AddMinutes(-1), DateTimeOffset.UtcNow.AddDays(90));
+        }
+
+        var ring = await DataProtectionKeys.ReadXmlAsync(connectionString, cancellationToken);
+        return ring.Select(XElement.Parse).Where(element => element.Name == "key")
+            .SelectMany(element => element.Descendants(DataProtectionNamespace + "encryptedSecret"))
+            .First(element => element.Element("masterKeyEncrypted") is not null);
+    }
+
+    private static XElement NullEncryptedSecret(XElement content) =>
+        new(DataProtectionNamespace + "encryptedSecret", new XAttribute("decryptorType", NullXmlDecryptorType), content);
 
     private static bool LoadsKey(ApiFactory host, Guid keyId) =>
         host.Services.GetRequiredService<IKeyManager>().GetAllKeys().Any(key => key.KeyId == keyId);
