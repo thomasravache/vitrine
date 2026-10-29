@@ -7,6 +7,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="OpenTelemetry.Exporter.InMemory" />
     <PackageReference Include="coverlet.MTP" />
     <PackageReference Include="xunit.v3" />
   </ItemGroup>
@@ -16,6 +17,11 @@
     <ProjectReference Include="..\..\src\Modules\Identity\Vitrine.Identity.Application\Vitrine.Identity.Application.csproj" />
     <ProjectReference Include="..\..\src\Modules\Identity\Vitrine.Identity.Domain\Vitrine.Identity.Domain.csproj" />
     <ProjectReference Include="..\..\src\Modules\Identity\Vitrine.Identity.Infrastructure\Vitrine.Identity.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <!-- Observabilidade (SPEC-0007): padrões de serviço compartilhados (OpenTelemetry e mascaramento de logs). -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\ServiceDefaults\Vitrine.ServiceDefaults.csproj" />
   </ItemGroup>
 
   <ItemGroup>

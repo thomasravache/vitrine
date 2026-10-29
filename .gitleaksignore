@@ -3,3 +3,14 @@
 88a35f3fd3713501d4cf161ae68e6309791d3de1:web/e2e/acesso.spec.ts:generic-api-key:24
 e0e91328a5ac9390b506c52b26e237f75690a79d:tests/Vitrine.IntegrationTests/Identity/Support/TestUser.cs:generic-api-key:6
 8cd0ebbb47e0c0c7f9d2d6945017ae2a5a7dadb8:tests/Vitrine.UnitTests/Identity/RegisterCommandValidatorTests.cs:generic-api-key:9
+
+# SPEC-0007: valores falsos de senha/token dos testes de mascaramento (os testes precisam deles para provar a máscara).
+17ca2a82e2d7f4729a3e468ece3fb8879ddae707:tests/Vitrine.IntegrationTests/Observability/SentryMaskingTests.cs:generic-api-key:33
+17ca2a82e2d7f4729a3e468ece3fb8879ddae707:tests/Vitrine.IntegrationTests/Observability/SentryMaskingTests.cs:generic-api-key:34
+17ca2a82e2d7f4729a3e468ece3fb8879ddae707:tests/Vitrine.UnitTests/Observability/MaskingEdgeCasesTests.cs:generic-api-key:21
+434024a25a7d741ea021d0844c39e6611cab950a:tests/Vitrine.IntegrationTests/Observability/SentryMaskingTests.cs:generic-api-key:46
+434024a25a7d741ea021d0844c39e6611cab950a:web/src/observability/sentry.test.tsx:generic-api-key:28
+434024a25a7d741ea021d0844c39e6611cab950a:web/src/observability/sentry.test.tsx:generic-api-key:29
+434024a25a7d741ea021d0844c39e6611cab950a:web/src/observability/sentry.test.tsx:generic-api-key:85
+889eea85078ca1c46ec1986be6e1c84a69e58ee4:tests/Vitrine.IntegrationTests/Observability/LogMaskingTests.cs:generic-api-key:20
+889eea85078ca1c46ec1986be6e1c84a69e58ee4:tests/Vitrine.UnitTests/Observability/SensitiveDataMaskingTests.cs:generic-api-key:19

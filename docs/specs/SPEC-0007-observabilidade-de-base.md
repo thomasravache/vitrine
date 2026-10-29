@@ -4,13 +4,13 @@ title: Observabilidade de base
 tier: full
 type: foundation
 user_facing: false
-status: approved
+status: in-progress
 created: 2026-10-13
 parent: SPEC-0001
 depends_on: [SPEC-0006]
 consumes_contract: [SPEC-0006@1]
 contract_version: 1
-touches: [src/ServiceDefaults/**, src/Api/Observability/**, src/Api/Program.cs, src/Modules/Identity/Infrastructure/Metrics/**, web/src/observability/**, deploy/alloy/**, deploy/compose.override.yaml, docs/runbooks/**, tests/Vitrine.IntegrationTests/Observability/**, tests/Vitrine.UnitTests/Observability/**, Directory.Packages.props]
+touches: [src/ServiceDefaults/**, src/Api/Observability/**, src/Api/Program.cs, src/Api/appsettings*.json, src/Api/Vitrine.Api.csproj, src/Modules/Identity/Vitrine.Identity.Infrastructure/**, src/Modules/Identity/Vitrine.Identity.Presentation/**, web/src/observability/**, web/src/main.tsx, web/src/vite-env.d.ts, web/package.json, web/package-lock.json, deploy/alloy/**, deploy/compose.yaml, deploy/compose.override.yaml, deploy/local/.env.example, docs/runbooks/**, tests/Vitrine.IntegrationTests/Observability/**, tests/Vitrine.IntegrationTests/Support/**, tests/Vitrine.UnitTests/Observability/**, tests/Vitrine.UnitTests/Vitrine.UnitTests.csproj, tests/Vitrine.IntegrationTests/Vitrine.IntegrationTests.csproj, Directory.Packages.props, "**/packages.lock.json", .gitleaksignore]
 adrs: [ADR-0009, ADR-0006, ADR-0004]
 external: []
 size: M
@@ -93,6 +93,8 @@ Alertas (Grafana): synthetic-ready, synthetic-login-page, disk-80, memory-90, ht
 | Pronto com banco | GET /health/ready, banco ok | 200 Healthy | IT-01 |
 | Banco fora | GET /health/ready, banco parado | 503 Unhealthy sem detalhes internos | IT-02 |
 | Mascaramento | log com e-mail, senha, token, cookie | valores mascarados no JSON emitido | UT-01, IT-03 |
+| Mascaramento no Sentry | evento/breadcrumb/log com e-mail, senha, token, cabeçalhos, cookies, query e corpo (inclusive tags vindas de propriedades de log) | mascarados ou removidos antes do envio; sem DSN, Sentry desligado | UT-02 |
+| Mascaramento no Sentry da SPA | evento/breadcrumb com e-mail ou Bearer | mascarados; sem DSN, Sentry não inicializa | UT-03 |
 | Destino de telemetria fora | endpoint OTLP inacessível | requisições seguem normais | IT-04 |
 | Métricas de login | logins ok/falha/bloqueio | contadores com a tag `result` correta | IT-05 |
 | Contrato de auth | login de prova via API | métricas e trace com spans de HTTP e banco | CT-01 |
@@ -105,6 +107,8 @@ Alertas (Grafana): synthetic-ready, synthetic-login-page, disk-80, memory-90, ht
 
 ### 7.2 Testes Unitários
 - **UT-01** — Dado o enriquecedor de mascaramento, quando recebe propriedades com e-mail, `password`, `access_token`, `Authorization` e `Cookie`, então emite os valores mascarados (`***`) e mantém os demais campos.
+- **UT-02** — Dado a configuração do Sentry do backend com DSN definido, quando um evento traz e-mail na mensagem e na exceção, cabeçalhos `Authorization`/`Cookie`, cookies, query string com token e corpo da requisição, e um breadcrumb com e-mail, então o evento enviado tem esses valores mascarados ou removidos, `SendDefaultPii=false`, e release/ambiente vêm da configuração; sem DSN, o Sentry não é registrado.
+- **UT-03** — Dado o Sentry da SPA inicializado com DSN de teste, quando um evento ou breadcrumb (console, fetch, navegação) traz e-mail ou `Bearer` na mensagem, nos valores de exceção, na URL ou nos dados, então eles saem mascarados (`***`) e cookies, cabeçalhos, corpo e query continuam removidos; sem `VITE_SENTRY_DSN`, o Sentry não é inicializado.
 
 ### 7.3 Testes de Integração
 - **IT-01** — Dado a API com Postgres real, quando `GET /health/live` e `GET /health/ready`, então ambos 200 e o corpo não contém host, connection string nem stack trace.
@@ -113,13 +117,13 @@ Alertas (Grafana): synthetic-ready, synthetic-login-page, disk-80, memory-90, ht
 - **IT-04** — Dado `OTEL_EXPORTER_OTLP_ENDPOINT` apontando para porta fechada, quando 50 requisições são feitas, então todas respondem com sucesso e latência p95 dentro de +10% da linha de base.
 - **IT-05** — Dado um `MeterListener` de teste, quando ocorrem um login bem-sucedido, um falho e um bloqueio, então `vitrine.auth.logins` registra `success`, `failure` e `locked` e `vitrine.auth.lockouts` incrementa.
 - **IT-06** — Dado o host sem `OTEL_EXPORTER_OTLP_ENDPOINT` nem `Sentry__Dsn`, quando a API sobe e atende requisições, então nenhum erro de configuração ocorre e o exportador do Aspire (`DOTNET_DASHBOARD_OTLP_ENDPOINT_URL`) recebe os traces.
-- Alerta em produção e telemetria em staging: provados na SPEC-0009 (IT-06, IT-07).
+- Alerta em produção e telemetria em staging: provados pelos testes de integração da SPEC-0009.
 
 ### 7.4 Testes de Contrato
 - **CT-01** — Dado o contrato SPEC-0006@1, quando um login de prova é feito via `POST /api/v1/auth/login`, então o trace exportado (exportador em memória) contém span HTTP da rota e span de banco filhos do mesmo `trace_id`, e a métrica `vitrine.auth.logins{result=success}` incrementa.
 
 ### 7.5 Testes E2E
-- N/A — `user_facing: false`: sem mudança de jornada; a jornada `acesso` continua coberta por SPEC-0006:E2E-01, usada aqui como verificação sintética.
+- N/A — `user_facing: false`: sem mudança de jornada; a jornada `acesso` continua coberta pelo E2E de acesso da SPEC-0006, usado aqui como verificação sintética.
 
 ### 7.6 Outros
 - N/A
@@ -168,10 +172,10 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 | Gate | Status | Evidência | Data |
 |---|---|---|---|
 | G0 Spec | PASS | validate: 0 erro(s) — 4602cbe (árvore suja) | 2026-10-13 |
-| G1 Red | PENDING | | |
-| G2 Green | PENDING | | |
-| G3 Arquitetura | PENDING | | |
-| G4 Review | PENDING | | |
+| G1 Red | PASS | verify G1: PASS; `dotnet test tests/Vitrine.UnitTests && npm --prefix web run test` exit 2 (red: Test run completed with non-success exit code: 2 (see: https://aka.ms/testingplatform/exit) — 889eea8 | 2026-10-28 |
+| G2 Green | PASS | build exit 0 (npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts a); test exit 0 (Duration  364ms (environment 62%, import 16%, transform 16%, tests 5%, worker 1%)); lint exit 0 (> tsc --noEmit && tsc --noEmit -p tsconfig.node.json); coverage exit 0 (Coverage: 93%) — 7b791ed | 2026-10-28 |
+| G3 Arquitetura | PASS | arch_test exit 0 (duration: 1s 056ms) — 7b791ed | 2026-10-28 |
+| G4 Review | PASS | MANUAL: Re-review em 7b791ed após CHANGES_REQUESTED: B1 e M1 resolvidos (probe repetido: 0 ocorrências de e-mail e tokens nas tags/logentry/breadcrumbs), m1/m2/m3 resolvidos; minor aceito como pendência (exceção repassada ao Sentry com segredo não-credencial repetido em propriedade sensível) e nit (detecção do provider do Sentry por namespace, coberta pelo UT-02); verify PASS 10/10 testes rastreados; dotnet 94/94; vitest 6/6; lint/build ok | 2026-10-28 |
 | G5 Integração & CI | PENDING | | |
 | H2 Integração aprovada | PENDING | | |
 | G6 Deploy | PENDING | | |
@@ -221,4 +225,9 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 <!-- Mudança em spec aprovada: uma linha por emenda. Mudou o contrato? Incremente `contract_version` e rode `spec_graph.py impacted SPEC-0007`. -->
 | Versão do contrato | Data | Mudança | Motivo | Specs impactadas | Aprovado por |
 |---|---|---|---|---|---|
+| v1.5 (escopo, sem mudança de contrato) | 2026-10-29 | `touches` ganha `.gitleaksignore` com os 9 fingerprints exatos dos valores falsos de senha/token usados pelos testes de mascaramento (UT-01, UT-02, UT-03, IT-03) | CI do PR #30: gitleaks (generic-api-key) acusou os valores de teste; mesma política da opção A aprovada na SPEC-0006 (exceção só por fingerprint) | — | thomas (2026-10-29, piloto automático, política da opção A) |
+| v1.4 (plano de testes, sem mudança de contrato) | 2026-10-28 | UT-02 passa a cobrir logs via `ILogger` (tags, logentry, breadcrumbs); IT-03 cobre exceção com e-mail no caminho OTLP; IT-05 cobre `vitrine.auth.signups`; inclui UT-03 (Sentry da SPA) | G4 CHANGES_REQUESTED: vazamento reproduzido de propriedades de log como tags do Sentry (B1), exceção não mascarada no OTLP (M1), SPA sem máscara e sem teste (m1) | — | thomas (2026-10-28, piloto automático) |
+| v1.3 (plano de testes, sem mudança de contrato) | 2026-10-28 | Inclui UT-02: mascaramento do Sentry do backend (`BeforeSend`/`BeforeBreadcrumb`) e registro só com DSN | G2: cobertura das linhas alteradas 79% (< 80%), com a configuração do Sentry em `ObservabilityExtensions.cs` sem teste — proteção de dados pessoais (ADR-0006) precisa de prova | — | thomas (2026-10-28, piloto automático) |
+| v1.2 (escopo, sem mudança de contrato) | 2026-10-28 | `touches` ganha os csproj de `Vitrine.UnitTests` e `Vitrine.IntegrationTests` (pacote InMemory e referência ao ServiceDefaults); seção 7 deixa de citar IDs de testes de outras specs | `verify` do G1: arquivos fora do escopo e IDs de outras specs lidos como do plano | — | thomas (2026-10-28, piloto automático) |
+| v1.1 (escopo, sem mudança de contrato) | 2026-10-28 | `touches` alinhado ao código real: projetos `Vitrine.Identity.Infrastructure`/`Presentation` (o login fica em `IdentityEndpoints` e `CookieSessions`), suporte de testes de integração, `appsettings`, csproj da API, `web/package.json`/`main.tsx` (Sentry na SPA), `deploy/compose.yaml` e `.env.example` (variáveis opcionais), lockfiles. Versões: Sentry.AspNetCore 6.12.1, @sentry/react 11.7.0, grafana/alloy v1.20.1, OpenTelemetry.Exporter.InMemory 1.19.1 (testes), Npgsql.OpenTelemetry 10.0.3 — registradas no ADR-0009 | A spec foi escrita antes do módulo Identity existir; o caminho `src/Modules/Identity/Infrastructure/Metrics/**` não corresponde à estrutura criada na SPEC-0006 | — | thomas (2026-10-28, piloto automático) |
 | v1 (sem mudança de contrato) | 2026-10-13 | IT-06/IT-07 de produção/staging movidos para a SPEC-0009; novo IT-06 (exportação opcional); alertas como código, aplicados na SPEC-0009 | Usuário: nada que gere custo até tudo rodar localmente | SPEC-0009 | thomas (2026-10-13) |

@@ -1,0 +1,13 @@
+# SPEC-0007 — contato dos alertas (formato de provisionamento do Grafana). Aplicado pela SPEC-0009.
+# O endereço do responsável não é versionado (repositório público, ADR-0006): ALERT_EMAIL é substituído na
+# aplicação a partir de um secret do Environment.
+apiVersion: 1
+contactPoints:
+  - orgId: 1
+    name: email-responsavel
+    receivers:
+      - uid: vitrine-email-responsavel
+        type: email
+        settings:
+          addresses: ${ALERT_EMAIL}
+          singleEmail: true
