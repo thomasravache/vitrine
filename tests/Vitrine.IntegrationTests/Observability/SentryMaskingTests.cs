@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Concurrent;
 using System.Text;
 using System.Text.Json;
@@ -62,6 +63,9 @@ public sealed partial class SentryMaskingTests(PostgresFixture postgres)
     private const string AnonymousPassword = "anon-pw-PROBE";
     private const string RecordPassword = "record-pw-PROBE";
     private const string PairPassword = "kvp-pw-PROBE";
+
+    // Categoria dos casos de formato difícil da SPEC-0018:IT-02.
+    private const string HardDataCaseCategory = "Vitrine.Testes.SentryExceptionDataDificil";
 
     private static readonly string[] LogSecrets = [Email, LogPassword, LogAccessToken, LogBreadcrumbTokenValue];
 
@@ -363,6 +367,163 @@ public sealed partial class SentryMaskingTests(PostgresFixture postgres)
         }
     }
 
+    [Theory]
+    [Trait("spec", "SPEC-0018:IT-02")]
+    [InlineData("delimitadores-no-valor")]
+    [InlineData("objeto-aninhado-sob-nome-sensivel")]
+    [InlineData("valor-de-objeto-na-mensagem")]
+    [InlineData("json-element")]
+    public async Task Objetos_de_Exception_Data_de_formato_dificil_nao_vazam_segredo_para_o_Sentry(string caso)
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+
+        // Dado a configuração do Sentry da Api com DSN definido (falso) e o transporte de teste
+        var transport = new RecordingTransport();
+        await using var factory = IdentityHost.Create(await postgres.CreateDatabaseAsync(cancellationToken))
+            .WithSetting("Sentry:Dsn", FakeDsn)
+            .WithServices(services => services.PostConfigure<SentryAspNetCoreOptions>(options => options.Transport = transport));
+        var hub = factory.Services.GetRequiredService<IHub>();
+        var category = $"{HardDataCaseCategory}.{caso}";
+        var logger = factory.Services.GetRequiredService<ILoggerFactory>().CreateLogger(category);
+
+        // Quando a aplicação registra um erro (sem propriedade sensível no log) com a exceção do caso
+        var (exception, secrets) = HardDataCase(caso);
+        LogErrorWithStep(logger, exception, caso);
+        await hub.FlushAsync(FlushTimeout);
+        await Eventually.TrueAsync(
+            () => transport.EventEnvelopes().Any(json => json.Contains(category, StringComparison.Ordinal)),
+            FlushTimeout,
+            $"o Sentry não entregou ao transporte o evento do caso {caso}",
+            cancellationToken);
+
+        // Então nenhum envelope de evento carrega os segredos do caso
+        foreach (var sent in transport.EventEnvelopes())
+        {
+            foreach (var secret in secrets)
+            {
+                Assert.False(sent.Contains(secret, StringComparison.OrdinalIgnoreCase), $"\"{secret}\" foi enviado ao Sentry:\n{sent}");
+            }
+        }
+
+        // E o evento foi de fato enviado, com a exceção
+        var envelope = transport.EventEnvelopes().Single(json => json.Contains(category, StringComparison.Ordinal));
+        Assert.Contains("InvalidOperationException", envelope, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    [Trait("spec", "SPEC-0018:IT-02")]
+    public async Task Colecao_cuja_enumeracao_lanca_em_Exception_Data_nao_quebra_o_LogError_e_o_evento_e_enviado()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+
+        // Dado a configuração do Sentry da Api com DSN definido (falso) e o transporte de teste
+        var transport = new RecordingTransport();
+        await using var factory = IdentityHost.Create(await postgres.CreateDatabaseAsync(cancellationToken))
+            .WithSetting("Sentry:Dsn", FakeDsn)
+            .WithServices(services => services.PostConfigure<SentryAspNetCoreOptions>(options => options.Transport = transport));
+        var hub = factory.Services.GetRequiredService<IHub>();
+        var category = $"{HardDataCaseCategory}.colecao-que-lanca";
+        var logger = factory.Services.GetRequiredService<ILoggerFactory>().CreateLogger(category);
+
+        // Quando a exceção registrada traz em Exception.Data uma coleção cuja enumeração lança (ex.: já descartada)
+        var exception = new InvalidOperationException("falha com colecao descartada");
+        exception.Data["Itens"] = new DisposedEnumerable();
+        var thrown = Record.Exception(() => LogErrorWithStep(logger, exception, "colecao-que-lanca"));
+
+        // Então o LogError não lança
+        Assert.Null(thrown);
+
+        // E o evento é enviado
+        await hub.FlushAsync(FlushTimeout);
+        await Eventually.TrueAsync(
+            () => transport.EventEnvelopes().Any(json => json.Contains(category, StringComparison.Ordinal)),
+            FlushTimeout,
+            "o Sentry não entregou ao transporte o evento da coleção que lança",
+            cancellationToken);
+    }
+
+    [Fact]
+    [Trait("spec", "SPEC-0018:IT-02")]
+    public async Task Valores_numericos_ou_curtos_sob_nome_sensivel_nao_corrompem_a_mensagem_nem_o_HResult()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+
+        // Dado a configuração do Sentry da Api com DSN definido (falso) e o transporte de teste
+        var transport = new RecordingTransport();
+        await using var factory = IdentityHost.Create(await postgres.CreateDatabaseAsync(cancellationToken))
+            .WithSetting("Sentry:Dsn", FakeDsn)
+            .WithServices(services => services.PostConfigure<SentryAspNetCoreOptions>(options => options.Transport = transport));
+        var hub = factory.Services.GetRequiredService<IHub>();
+        var category = $"{HardDataCaseCategory}.valores-curtos";
+        var logger = factory.Services.GetRequiredService<ILoggerFactory>().CreateLogger(category);
+
+        // Quando a exceção registrada traz, sob nomes sensíveis, valores numéricos curtos que aparecem em outros textos
+        const string OriginalMessage = "falha ao processar 13 itens do lote 2031";
+        var exception = new InvalidOperationException(OriginalMessage);
+        exception.Data["TokenTtl"] = 1;
+        exception.Data["PasswordMinLength"] = 3;
+        var expectedHResult = $"0x{exception.HResult:X8}";
+        LogErrorWithStep(logger, exception, "valores-curtos");
+        await hub.FlushAsync(FlushTimeout);
+        await Eventually.TrueAsync(
+            () => transport.EventEnvelopes().Any(json => json.Contains(category, StringComparison.Ordinal)),
+            FlushTimeout,
+            "o Sentry não entregou ao transporte o evento dos valores curtos",
+            cancellationToken);
+
+        // Então exception.value sai igual ao original (sem *** no meio das palavras) e mechanism.data.HResult intacto
+        var envelope = transport.EventEnvelopes().Single(json => json.Contains(category, StringComparison.Ordinal));
+        Assert.Equal([OriginalMessage], ExceptionValues(envelope));
+        Assert.Equal(expectedHResult, MechanismData(envelope).GetValueOrDefault("HResult"));
+    }
+
+    /// <summary>Monta a exceção e os segredos de cada caso de formato difícil da SPEC-0018:IT-02.</summary>
+    private static (Exception Exception, string[] Secrets) HardDataCase(string caso)
+    {
+        switch (caso)
+        {
+            case "delimitadores-no-valor":
+                {
+                    // (a) Senhas com os delimitadores do ToString de record/anônimo: }, ], ", Nome =" e quebra de linha.
+                    var exception = new InvalidOperationException("falha com delimitadores");
+                    exception.Data["Registro"] = new ProbeCredential("usuario-chave", "Abc}def-PROBE01");
+                    exception.Data["Detalhe"] = new { Password = "Xy[zz-PROBE01b]" };
+                    exception.Data["Outro"] = new ProbeCredential("usuario-virgula", "a, Foo = comma-PROBE17");
+                    exception.Data["Linha"] = new { Password = "linha1\nnl-PROBE17" };
+                    return (exception, ["def-PROBE01", "Xy[zz", "zz-PROBE01b", "comma-PROBE17", "nl-PROBE17"]);
+                }
+
+            case "objeto-aninhado-sob-nome-sensivel":
+                {
+                    // (b) Objeto aninhado sob nome sensível: o segredo está numa propriedade de nome comum.
+                    var exception = new InvalidOperationException("falha com objeto aninhado");
+                    exception.Data["Detalhe"] = new { Credentials = new { Valor = "nested-PROBE02" } };
+                    return (exception, ["nested-PROBE02"]);
+                }
+
+            case "valor-de-objeto-na-mensagem":
+                {
+                    // (c) Password de objeto repetido no texto da exceção.
+                    const string Valor = "objmsg-PROBE03";
+                    var exception = new InvalidOperationException($"falha com {Valor} no texto");
+                    exception.Data["Detalhe"] = new { Password = Valor };
+                    return (exception, [Valor]);
+                }
+
+            case "json-element":
+                {
+                    // (d) JsonElement objeto com "password".
+                    var exception = new InvalidOperationException("falha com json anexado");
+                    using var document = JsonDocument.Parse("{\"password\":\"je-PROBE13\"}");
+                    exception.Data["Corpo"] = document.RootElement.Clone();
+                    return (exception, ["je-PROBE13"]);
+                }
+
+            default:
+                throw new ArgumentOutOfRangeException(nameof(caso), caso, "caso desconhecido");
+        }
+    }
+
     [Fact]
     [Trait("spec", "SPEC-0007:UT-02")]
     public async Task Sem_ambiente_configurado_o_Sentry_usa_o_ambiente_do_host()
@@ -420,6 +581,23 @@ public sealed partial class SentryMaskingTests(PostgresFixture postgres)
 
     /// <summary>Record com segredo usado no caso (c) da SPEC-0018:IT-01.</summary>
     private sealed record ProbeCredential(string Usuario, string Password);
+
+    /// <summary>Coleção já descartada: a enumeração lança (caso (e) da SPEC-0018:IT-02).</summary>
+    private sealed class DisposedEnumerable : IEnumerable<string>
+    {
+        public IEnumerator<string> GetEnumerator() => throw new ObjectDisposedException(nameof(DisposedEnumerable));
+
+        IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+    }
+
+    /// <summary>Lê, do item de evento do envelope, os <c>exception.values[].value</c>.</summary>
+    private static List<string?> ExceptionValues(string envelope)
+    {
+        var eventJson = envelope.Split('\n').Single(line => line.Contains("\"exception\"", StringComparison.Ordinal));
+        using var document = JsonDocument.Parse(eventJson);
+        return [.. document.RootElement.GetProperty("exception").GetProperty("values").EnumerateArray()
+            .Select(value => value.TryGetProperty("value", out var text) ? text.GetString() : null)];
+    }
 
     /// <summary>Lê, do item de evento do envelope, as chaves de <c>exception.values[].mechanism.data</c>.</summary>
     private static Dictionary<string, string?> MechanismData(string envelope)
