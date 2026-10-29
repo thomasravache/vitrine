@@ -21,6 +21,8 @@ internal sealed class DataProtectionKeyRingCheck(IServiceScopeFactory scopes, IH
         "O anel do Data Protection no banco tem chave sem a cifra da chave mestra (DataProtection__MasterKey): entrada "
         + "gravada sem proteção ou por outro meio. Remova-a (docs/runbooks/rotacao-chave-mestra.md) antes de subir a Api.";
 
+    private const string KeyElementName = "key";
+
     private static readonly XName EncryptedSecret = XName.Get("encryptedSecret", "http://schemas.asp.net/2015/03/dataProtection");
 
     // Antes de qualquer StartAsync: o serviço hospedado do Data Protection carrega o anel na subida e, sem chave que o
@@ -48,8 +50,10 @@ internal sealed class DataProtectionKeyRingCheck(IServiceScopeFactory scopes, IH
         }
 
         // Toda chave do anel precisa estar cifrada pela chave mestra: entrada em claro (ou cifrada por outro meio) no
-        // banco fora de Development é recusada.
-        var keys = ring.Where(xml => !string.IsNullOrEmpty(xml)).Select(xml => XElement.Parse(xml!)).ToList();
+        // banco fora de Development é recusada. Só elementos <key> carregam segredo; <revocation> (gravado sem
+        // encryptedSecret pelo IKeyManager) é ignorado (SPEC-0014).
+        var keys = ring.Where(xml => !string.IsNullOrEmpty(xml)).Select(xml => XElement.Parse(xml!))
+            .Where(element => element.Name.LocalName == KeyElementName).ToList();
         var encrypted = new List<XElement>(keys.Count);
         foreach (var key in keys)
         {

@@ -86,7 +86,8 @@ internal static class AuthRateLimiting
     /// <summary>
     /// Nos endpoints de login e cadastro (pelo endpoint roteado): lê o corpo com teto de <see cref="MaxBodyBytes"/>
     /// (413 sem ler além do teto, com ou sem <c>Content-Length</c>), recusa JSON com <c>email</c> repetido (400) e, no
-    /// login, guarda o e-mail normalizado para a partição por e-mail. O corpo lido volta para o model binding.
+    /// login, recusa JSON sem exatamente um <c>email</c> string não vazio (400, SPEC-0014) e guarda o e-mail normalizado
+    /// para a partição por e-mail. O corpo lido volta para o model binding.
     /// JSON que o limitador não consegue ler (ou que não é um objeto) responde 400 aqui: falha fechada.
     /// </summary>
     public static IApplicationBuilder UseLoginEmailPartition(this IApplicationBuilder app) =>
@@ -138,8 +139,17 @@ internal static class AuthRateLimiting
                     return;
                 }
 
-                if (endpointName == LoginEndpointName && emails.Count == 1 && Normalize(emails[0]) is { } email)
+                if (endpointName == LoginEndpointName)
                 {
+                    // SPEC-0014: login sem exatamente um e-mail string não vazio não tem partição por e-mail — 400 aqui,
+                    // sem chegar ao Identity.
+                    if (emails.Count != 1 || Normalize(emails[0]) is not { } email)
+                    {
+                        await WriteProblemAsync(context, StatusCodes.Status400BadRequest, "Dados inválidos.", ValidationFailedCode,
+                            new Dictionary<string, string[]>(StringComparer.Ordinal) { ["email"] = ["Informe o e-mail."] });
+                        return;
+                    }
+
                     context.Items[LoginEmailKey] = email;
                 }
             }
