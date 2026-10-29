@@ -3,7 +3,7 @@
 # tem o passo de verificação de drift do cliente OpenAPI depois do build.
 #
 # Local (lê .github/workflows/ci.yml). Passo de drift = passo de `build-lint` cujo `run` regenera o
-# cliente (`api:generate`) e compara `web/src/api` com `git diff --exit-code`. Tem de vir depois do passo
+# cliente (`api:generate`) e compara `web/src/api` (`git diff --exit-code` ou `git status --porcelain`). Tem de vir depois do passo
 # de build (comando `build` do sdd-config), não pode ter `continue-on-error` nem `if:` que o pule no PR,
 # e o `run` cita a correção (`npm run api:generate`).
 set -euo pipefail
@@ -26,7 +26,7 @@ build_idx="$(build_step_index)"
 
 drift_idx="$(drift_step_index)"
 [[ -n "$drift_idx" ]] \
-  || fail "job '$BUILD_LINT_JOB' has no OpenAPI client drift step (run with 'api:generate' + 'git diff --exit-code $DRIFT_CLIENT_DIR') in $rel"
+  || fail "job '$BUILD_LINT_JOB' $DRIFT_STEP_MISSING in $rel"
 
 step="$(drift_step_json "$drift_idx")"
 name="$(jq -r '.name // "(unnamed)"' <<<"$step")"
