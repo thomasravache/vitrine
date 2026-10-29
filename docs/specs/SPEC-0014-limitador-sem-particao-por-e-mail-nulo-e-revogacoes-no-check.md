@@ -4,7 +4,7 @@ title: Limitador sem partição por e-mail nulo e revogações no check do anel
 tier: lite
 type: fix
 user_facing: false
-status: in-progress
+status: implemented
 created: 2026-10-29
 parent: SPEC-0001
 depends_on: [SPEC-0008]
@@ -58,15 +58,15 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 ## 7. Checklist de Implementação
 <!-- Preenchido na fase PLAN, após a aprovação. -->
 **Fase 1: Regressão e correção**
-- [ ] Red: escrever IT-01, IT-02 com a tag `SPEC-0014:<ID>` e confirmar que falham pelo motivo certo
-- [ ] Green: 400 `VALIDATION_FAILED` no login sem e-mail válido; check do anel considera só `<key>`
-- [ ] Validar: build + suíte completa + arquitetura (G2/G3)
+- [x] Red: escrever IT-01, IT-02 com a tag `SPEC-0014:<ID>` e confirmar que falham pelo motivo certo
+- [x] Green: 400 `VALIDATION_FAILED` no login sem e-mail válido; check do anel considera só `<key>`
+- [x] Validar: build + suíte completa + arquitetura (G2/G3)
 
 **Fase final: Integração, entrega e documentação**
-- [ ] Review independente (G4)
-- [ ] Integração + CI verde (G5) e aprovação (H2)
-- [ ] Deploy no ambiente local prod-like com smoke (G6)
-- [ ] Relatório de Entrega, docs raiz e CHANGELOG (G7)
+- [x] Review independente (G4)
+- [x] Integração + CI verde (G5) e aprovação (H2)
+- [x] Deploy no ambiente local prod-like com smoke (G6)
+- [x] Relatório de Entrega, docs raiz e CHANGELOG (G7)
 
 ## 8. Registro de Gates
 <!-- Status: PENDING | PASS | FAIL | N/A. PASS e N/A exigem evidência. -->
@@ -77,10 +77,10 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 | G2 Green | PASS | build exit 0 (npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts a); test exit 0 (Duration  349ms (environment 60%, transform 21%, import 14%, tests 4%, worker 1%)); lint exit 0 (> tsc --noEmit && tsc --noEmit -p tsconfig.node.json); coverage exit 0 (Coverage: 100%) — 0af6002 | 2026-10-29 |
 | G3 Arquitetura | PASS | arch_test exit 0 (duration: 1s 259ms) — 0af6002 | 2026-10-29 |
 | G4 Review | PASS | verify G1+G4: PASS; revisão: APPROVED (Reviewer independente) em 0af6002: red 9156efa reproduzido (7/9 pelo motivo certo, 2 guardas); ~20 sondas de login sem e-mail → 400 VALIDATION_FAILED sem chegar ao Identity; regressões da SPEC-0008 intactas; revogações sobem, <key> em claro bloqueia; suíte completa 96/96 2x sem 53300; asserts inalterados por 0af6002; minor pré-existente (encryptedSecret aceito em qualquer posição do <key>) vira spec; nits: XName sem namespace, contagem do log de rotação — 0af6002 | 2026-10-29 |
-| G5 Integração & CI | PENDING | | |
-| H2 Integração aprovada | PENDING | | |
-| G6 Deploy | PENDING | | |
-| G7 Pronto & Docs | PENDING | | |
+| G5 Integração & CI | PASS | MANUAL: PR #36 (sdd/int-wave-0011-0014 @ 361f23f): CI 7/7 verde + CodeQL (runs/40941406441); local no integrado: build 0 avisos, format/lint ok, dotnet 153/153, vitest 6/6, tests/ci 3/3, e2e 30/30, drift do api:generate limpo, npm audit sem high, gitleaks 0 | 2026-10-29 |
+| H2 Integração aprovada | PASS | política auto-on-green (aprovada por thomas em 2026-10-13); G5 PASS | 2026-10-29 |
+| G6 Deploy | PASS | smoke_test exit 0 (2 passed (2.4s)) — 96ce8e8 (árvore suja) | 2026-10-29 |
+| G7 Pronto & Docs | PASS | Relatório de Entrega e Definição de Pronto: ok — 96ce8e8 (árvore suja) | 2026-10-29 |
 
 ## 9. Registro de Impedimentos
 <!-- Toda parada é registrada pelo Architect com `spec_graph.py impede` e fechada com `resolve` — não edite à mão. Tipos: spec (spec errada/incompleta → resolve com Emenda) | decisão (só o humano decide → resposta ou ADR) | trabalho (falta algo que exige código → SPEC-NNNN nova) | externo (acesso, ambiente, terceiro → ação tomada) | falha (3 FAILs seguidos no mesmo gate → diagnóstico e decisão). Com impedimento aberto a spec aparece como parada no INDEX e não pode ser fechada. -->
@@ -92,28 +92,37 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 <!-- Preenchido no CLOSE (G7). Para status implemented o validate exige tudo preenchido, todo teste do plano com PASS + evidência e a Definição de Pronto marcada. -->
 
 ### O que foi entregue
+Login sem e-mail válido (nulo, vazio, só espaços, não-string, ausente) responde 400 `VALIDATION_FAILED` com erro em `email`, sem chegar ao Identity. Elementos `<revocation>` no anel do Data Protection não impedem mais a subida fora de Development; `<key>` em claro continua impedindo.
 
 ### Como foi feito
+`AuthRateLimiting.cs` (`UseLoginEmailPartition`): no login, sem exatamente um `email` string não vazio → `WriteProblemAsync` 400 (mesmo padrão do `email` duplicado). `DataProtectionKeyRingCheck.cs`: só elementos `key` exigem `encryptedSecret`. Os testes novos esgotavam conexões do Postgres compartilhado (IMP-01): IT-01 passou a usar um host compartilhado e IT-02 limpa os pools; causa de raiz nas fixtures virou a SPEC-0016. Review APPROVED com ~20 sondas.
 
 ### Prova de Correção
 <!-- type fix: teste de regressão falhou antes (commit red + saída) e passa depois (commit green + execução). Outros tipos: "N/A". -->
+Red 9156efa: 7/9 falhavam pelo motivo certo (401/400 BAD_REQUEST em vez de 400 VALIDATION_FAILED; host recusava subir com `<revocation>`), 2 guardas passavam. Green bc5f371 + ajuste de teste 0af6002: 9/9, suíte de integração completa 96/96 três vezes sem `53300`.
 
 ### Verificação
 | Teste | Comportamento | Resultado | Evidência |
 |---|---|---|---|
+| IT-01 | Login sem e-mail válido → 400 VALIDATION_FAILED; login válido 401/204 inalterado | PASS | CI PR #36 run 40941406441 (361f23f); main run 40942228466 (96ce8e8) |
+| IT-02 | `<revocation>` não impede a subida; `<key>` em claro impede | PASS | CI PR #36 run 40941406441 (361f23f); main run 40942228466 (96ce8e8) |
 
 ### Definição de Pronto
-- [ ] Teste de regressão falhou antes e passa depois da correção
-- [ ] Suíte completa, arquitetura e CI verdes (G2, G3, G5)
-- [ ] Review independente sem achados blocker/major (G4)
-- [ ] Padrão existente mantido
-- [ ] Disponível no ambiente-alvo via pipeline (G6)
-- [ ] Documentação/CHANGELOG atualizados quando aplicável (G7)
-- [ ] Outras ocorrências registradas como novas specs (ou nenhuma)
+- [x] Teste de regressão falhou antes e passa depois da correção
+- [x] Suíte completa, arquitetura e CI verdes (G2, G3, G5)
+- [x] Review independente sem achados blocker/major (G4)
+- [x] Padrão existente mantido
+- [x] Disponível no ambiente-alvo via pipeline (G6)
+- [x] Documentação/CHANGELOG atualizados quando aplicável (G7)
+- [x] Outras ocorrências registradas como novas specs (ou nenhuma)
 
 ### Deploy
+Ambiente local prod-like: imagem `ghcr.io/thomasravache/vitrine-api:96ce8e8` (commit de merge do PR #36) da CI da `main` (run 40942228466) via `deploy/deploy.sh`, health 200 em 3 s, smoke `@smoke` 2/2 (2026-10-29).
 
 ### Pendências
+- SPEC-0016 — fixtures de integração não liberam os pools do Postgres compartilhado (causa de raiz do IMP-01).
+- SPEC-0017 — a checagem do anel aceita `encryptedSecret` fora do descritor da chave (minor pré-existente achado na review).
+- Nits aceitos: filtro por `LocalName` em vez do `XName` sem namespace (falha fechado; tratado na SPEC-0017); contagem de revogações no log de rotação.
 
 ## 11. Emendas
 <!-- Mudança em spec aprovada: uma linha por emenda, aprovada pelo humano. -->

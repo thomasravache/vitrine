@@ -75,7 +75,7 @@ Todos na raiz do repositório.
 | Testes de infra e deploy | `bash tests/infra/run.sh` (portas 80/443 livres) |
 | Deploy local prod-like | `cp deploy/local/.env.example deploy/local/.env && deploy/deploy.sh <tag> --env-file deploy/local/.env` → `https://vitrine.localhost` (ver `docs/runbooks/deploy.md`) |
 | Smoke contra o ambiente local | `BASE_URL=https://vitrine.localhost npm --prefix web run e2e -- --grep @smoke` |
-| Regenerar o cliente da API (orval) | `npm --prefix web run api:generate` (versione `web/src/api`) |
+| Regenerar o cliente da API (orval) | `npm --prefix web run api:generate` (versione `web/src/api`; sem banco nem chave mestra; o CI reprova o PR se o cliente estiver desatualizado) |
 | SPA isolada | `npm --prefix web run dev` |
 | Estado das specs | `python3 tools/sdd/spec_graph.py status` |
 
