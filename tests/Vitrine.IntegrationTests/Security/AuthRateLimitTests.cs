@@ -7,8 +7,8 @@ using Vitrine.IntegrationTests.Support;
 namespace Vitrine.IntegrationTests.Security;
 
 /// <summary>
-/// Rate limiting de <c>/api/v1/auth/*</c> (contrato v2 da SPEC-0008), com os limites reais do contrato: 10 req/min
-/// por IP e 10 logins/min por e-mail, com 429 + <c>Retry-After</c>; o bloqueio da SPEC-0006 (5 falhas → 423) vem antes
+/// Rate limiting de auth (contrato v3 da SPEC-0008), com os limites reais do contrato: 10 POST de cadastro/login por
+/// minuto por IP (GET /antiforgery e logout não contam) e 10 logins/min por e-mail, com 429 + <c>Retry-After</c>; o bloqueio da SPEC-0006 (5 falhas → 423) vem antes
 /// do limite por e-mail. Os IPs são simulados como em produção: a conexão TCP vem do proxy confiável
 /// (IP gravado em <c>RemoteIpAddress</c> pelo <see cref="TestRemoteIpStartupFilter"/>) e o IP do cliente vem em
 /// <c>X-Forwarded-For</c> — então o limite por IP só funciona se a Api particionar pelo IP real do cliente (depois
@@ -23,37 +23,67 @@ public sealed class AuthRateLimitTests(PostgresFixture postgres)
 
     [Fact]
     [Trait("spec", "SPEC-0008:IT-03")]
-    public async Task A_11a_requisicao_de_auth_do_mesmo_IP_no_minuto_recebe_429_com_Retry_After()
+    public async Task O_11o_POST_de_cadastro_ou_login_do_mesmo_IP_no_minuto_recebe_429_com_Retry_After()
     {
         var cancellationToken = TestContext.Current.CancellationToken;
         await using var factory = await CreateHostAsync(cancellationToken);
         using var client = ProxiedClients.ViaTrustedProxy(factory, TestAddresses.Client(0));
 
-        // Dado a Api; quando 10 requisições de auth do mesmo IP chegam (GET antiforgery + POST login, alternados)
-        var statuses = new List<HttpStatusCode>();
-        for (var pair = 0; pair < PerIpLimit / 2; pair++)
+        // O token antiforgery é buscado uma vez, anunciando outro IP: só os POST contam no IP do cliente, seja qual
+        // for a regra do GET. Logins que falham não mudam a identidade, então o mesmo token vale para todos os POST.
+        client.ExtraHeaders["X-Forwarded-For"] = TestAddresses.Client(50).ToString();
+        AntiforgeryToken token;
+        using (var tokenResponse = await client.GetAntiforgeryAsync(cancellationToken))
         {
-            using (var token = await client.GetAntiforgeryAsync(cancellationToken))
-            {
-                statuses.Add(token.StatusCode);
-            }
+            await IdentityApi.AssertStatusAsync(HttpStatusCode.NoContent, tokenResponse, cancellationToken);
+            token = AntiforgeryToken.From(tokenResponse);
+        }
 
-            using var login = await client.LoginAsync(UnknownEmail(), "senha-qualquer-" + Guid.NewGuid().ToString("N"), cancellationToken);
+        client.ExtraHeaders["X-Forwarded-For"] = TestAddresses.Client(0).ToString();
+
+        // Dado a Api; quando 10 POST de login chegam do mesmo IP no minuto (e-mails inexistentes distintos: 401)
+        var statuses = new List<HttpStatusCode>();
+        for (var attempt = 0; attempt < PerIpLimit; attempt++)
+        {
+            using var login = await client.PostWithTokenAsync(
+                IdentityApi.LoginPath, new { email = UnknownEmail(), password = "senha-qualquer-" + Guid.NewGuid().ToString("N") }, token, cancellationToken);
             statuses.Add(login.StatusCode);
         }
 
         Assert.True(
-            statuses.Count >= PerIpLimit && statuses.All(status => status != HttpStatusCode.TooManyRequests),
-            "As 10 primeiras requisições de auth do IP não podem ser limitadas: " + string.Join(", ", statuses.Select(status => (int)status)));
+            statuses.All(status => status == HttpStatusCode.Unauthorized),
+            "Os 10 primeiros POST de auth do IP deveriam ser atendidos (401): " + string.Join(", ", statuses.Select(status => (int)status)));
 
-        // Então a 11ª recebe 429 com Retry-After
-        using var eleventh = await client.GetAntiforgeryAsync(cancellationToken);
+        // Então o 11º POST — de cadastro, que divide o limite com o login — recebe 429 com Retry-After
+        using var eleventh = await client.PostWithTokenAsync(IdentityApi.RegisterPath, IdentityApi.RegisterBody(TestUser.New()), token, cancellationToken);
         AssertTooManyRequests(eleventh);
 
         // E outro IP (mesmo proxy) continua sendo atendido: o limite é por IP do cliente, não global nem do proxy
         using var otherClient = ProxiedClients.ViaTrustedProxy(factory, TestAddresses.Client(1));
-        using var other = await otherClient.GetAntiforgeryAsync(cancellationToken);
-        await IdentityApi.AssertStatusAsync(HttpStatusCode.NoContent, other, cancellationToken);
+        using var other = await otherClient.LoginAsync(UnknownEmail(), "senha-qualquer-" + Guid.NewGuid().ToString("N"), cancellationToken);
+        await IdentityApi.AssertStatusAsync(HttpStatusCode.Unauthorized, other, cancellationToken);
+    }
+
+    [Fact]
+    [Trait("spec", "SPEC-0008:IT-03")]
+    public async Task GET_antiforgery_do_mesmo_IP_nao_conta_no_limite_e_segue_204_alem_de_10_por_minuto()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var factory = await CreateHostAsync(cancellationToken);
+        using var client = ProxiedClients.ViaTrustedProxy(factory, TestAddresses.Client(2));
+
+        // Dado a Api; quando 15 GET /antiforgery chegam do mesmo IP no minuto (ex.: vários usuários atrás de um CGNAT)
+        var statuses = new List<HttpStatusCode>();
+        for (var request = 0; request < PerIpLimit + 5; request++)
+        {
+            using var response = await client.GetAntiforgeryAsync(cancellationToken);
+            statuses.Add(response.StatusCode);
+        }
+
+        // Então todos 204: o GET do token não é limitado
+        Assert.True(
+            statuses.All(status => status == HttpStatusCode.NoContent),
+            "GET /api/v1/auth/antiforgery não deveria contar no limite por IP: " + string.Join(", ", statuses.Select(status => (int)status)));
     }
 
     [Fact]

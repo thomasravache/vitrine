@@ -67,6 +67,18 @@ internal sealed class Browser : IDisposable
         return await SendAsync(request, cancellationToken);
     }
 
+    /// <summary>POST com o token informado (sem buscar outro): o mesmo token vale enquanto a identidade não muda.</summary>
+    public Task<HttpResponseMessage> PostWithTokenAsync(string path, object? body, AntiforgeryToken token, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(token);
+        var request = new HttpRequestMessage(HttpMethod.Post, new Uri(path, UriKind.Relative))
+        {
+            Content = body is null ? null : JsonContent.Create(body),
+        };
+        request.Headers.Add(token.HeaderName, token.Value);
+        return SendAsync(request, cancellationToken);
+    }
+
     public Task<HttpResponseMessage> RegisterAsync(TestUser user, CancellationToken cancellationToken) =>
         PostAsync(IdentityApi.RegisterPath, IdentityApi.RegisterBody(user), cancellationToken);
 
