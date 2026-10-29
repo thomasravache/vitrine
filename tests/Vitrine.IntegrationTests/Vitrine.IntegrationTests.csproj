@@ -19,6 +19,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Api\Vitrine.Api.csproj" />
+    <!-- SPEC-0008: entidade de teste com campo IsProtected (IT-04/IT-05). -->
+    <ProjectReference Include="..\..\src\Common\Vitrine.Common.Security\Vitrine.Common.Security.csproj" />
   </ItemGroup>
 
   <!-- Configuração de cobertura única (coverlet.MTP), mantida em Vitrine.UnitTests/testconfig.json. -->

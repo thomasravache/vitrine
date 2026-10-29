@@ -19,6 +19,11 @@
     <ProjectReference Include="..\..\src\Modules\Identity\Vitrine.Identity.Infrastructure\Vitrine.Identity.Infrastructure.csproj" />
   </ItemGroup>
 
+  <!-- Segurança (SPEC-0008): cifra de campos (IFieldProtector e conversor EF Core). -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Common\Vitrine.Common.Security\Vitrine.Common.Security.csproj" />
+  </ItemGroup>
+
   <!-- Observabilidade (SPEC-0007): padrões de serviço compartilhados (OpenTelemetry e mascaramento de logs). -->
   <ItemGroup>
     <ProjectReference Include="..\..\src\ServiceDefaults\Vitrine.ServiceDefaults.csproj" />

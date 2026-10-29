@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Cifra de campos sensíveis (SPEC-0008, ADR-0006): IFieldProtector sobre o ASP.NET Core Data Protection e o
+       conversor EF Core IsProtected. Building block sem dependência de módulos (ADR-0001). -->
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+
+    <PackageReference Include="Microsoft.EntityFrameworkCore" />
+  </ItemGroup>
+
+</Project>
