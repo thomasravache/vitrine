@@ -4,7 +4,7 @@ title: Exception.Data repassado cru ao Sentry em mechanism.data
 tier: lite
 type: fix
 user_facing: false
-status: approved
+status: in-progress
 created: 2026-10-29
 parent: SPEC-0001
 depends_on: [SPEC-0013]

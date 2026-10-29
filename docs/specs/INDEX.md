@@ -4,8 +4,8 @@
 
 ## Saúde
 
-- Validação (G0): **0 erro(s), 25 aviso(s)** — rode `spec_graph.py validate`
-- Specs: approved 5, implemented 11
+- Validação (G0): **0 erro(s), 22 aviso(s)** — rode `spec_graph.py validate`
+- Specs: approved 2, in-progress 3, implemented 11
 - Impedimentos: **0 aberto(s)**, 7 resolvido(s)
 
 ## Cobertura de Pilares
@@ -35,17 +35,17 @@ Perfil: **padrao**
 
 ## Plano de Execução
 
-**Em andamento:** —  
+**Em andamento:** SPEC-0015, SPEC-0016, SPEC-0017  
 **Paradas por impedimento:** —  
-**Próximo lote:** SPEC-0009, SPEC-0015, SPEC-0016
+**Próximo lote:** —
 
 | Onda | Spec | Título | Tier/Tam. | Status | Prontidão | Observação |
 |---|---|---|---|---|---|---|
-| 1 | SPEC-0009 | Provisionamento na nuvem e go-live | full/M | approved | ✅ pronta |  |
-| 1 | SPEC-0015 | Exception.Data repassado cru ao Sentry em mechanism.data | lite/S | approved | ✅ pronta |  |
-| 1 | SPEC-0016 | Fixture de integração não libera pools do Postgres compartilhado | lite/S | approved | ✅ pronta |  |
-| 2 | SPEC-0012 | Testes de infra deixam a stack local rodando | lite/S | approved | ✅ pronta | saiu da onda 1: arquivos em comum com SPEC-0009 |
-| 2 | SPEC-0017 | Checagem do anel aceita encryptedSecret fora do descritor da chave | lite/S | approved | ✅ pronta | saiu da onda 1: max_parallel=3 |
+| 1 | SPEC-0015 | Exception.Data repassado cru ao Sentry em mechanism.data | lite/S | in-progress | 🔄 em andamento |  |
+| 1 | SPEC-0016 | Fixture de integração não libera pools do Postgres compartilhado | lite/S | in-progress | 🔄 em andamento |  |
+| 1 | SPEC-0017 | Checagem do anel aceita encryptedSecret fora do descritor da chave | lite/S | in-progress | 🔄 em andamento |  |
+| 2 | SPEC-0009 | Provisionamento na nuvem e go-live | full/M | approved | ✅ pronta | saiu da onda 1: max_parallel=3 |
+| 3 | SPEC-0012 | Testes de infra deixam a stack local rodando | lite/S | approved | ✅ pronta | saiu da onda 1: max_parallel=3; saiu da onda 2: arquivos em comum com SPEC-0009 |
 
 ## Épicos
 
@@ -68,9 +68,9 @@ flowchart LR
     S0012["SPEC-0012<br/>Testes de infra deixam a stack local ro…"]:::approved
     S0013["SPEC-0013<br/>Exceção repassada ao Sentry com segredo…"]:::implemented
     S0014["SPEC-0014<br/>Limitador sem partição por e-mail nulo …"]:::implemented
-    S0015["SPEC-0015<br/>Exception.Data repassado cru ao Sentry …"]:::approved
-    S0016["SPEC-0016<br/>Fixture de integração não libera pools …"]:::approved
-    S0017["SPEC-0017<br/>Checagem do anel aceita encryptedSecret…"]:::approved
+    S0015["SPEC-0015<br/>Exception.Data repassado cru ao Sentry …"]:::inprogress
+    S0016["SPEC-0016<br/>Fixture de integração não libera pools …"]:::inprogress
+    S0017["SPEC-0017<br/>Checagem do anel aceita encryptedSecret…"]:::inprogress
   end
   S0005 --> S0006
   S0006 --> S0007
@@ -109,9 +109,9 @@ flowchart LR
 | [SPEC-0012](SPEC-0012-testes-de-infra-deixam-a-stack-local-rodando.md) | Testes de infra deixam a stack local rodando | lite | fix | approved | 2026-10-28 | SPEC-0001 | — | — |
 | [SPEC-0013](SPEC-0013-excecao-repassada-ao-sentry-com-segredo-repetido-em-propried.md) | Exceção repassada ao Sentry com segredo repetido em propriedade sensível | lite | fix | implemented | 2026-10-28 | SPEC-0001 | — | — |
 | [SPEC-0014](SPEC-0014-limitador-sem-particao-por-e-mail-nulo-e-revogacoes-no-check.md) | Limitador sem partição por e-mail nulo e revogações no check do anel | lite | fix | implemented | 2026-10-29 | SPEC-0001 | SPEC-0008 | — |
-| [SPEC-0015](SPEC-0015-exception-data-repassado-cru-ao-sentry-em-mechanism-data.md) | Exception.Data repassado cru ao Sentry em mechanism.data | lite | fix | approved | 2026-10-29 | SPEC-0001 | SPEC-0013 | — |
-| [SPEC-0016](SPEC-0016-fixture-de-integracao-nao-libera-pools-do-postgres-compartil.md) | Fixture de integração não libera pools do Postgres compartilhado | lite | fix | approved | 2026-10-29 | SPEC-0001 | — | — |
-| [SPEC-0017](SPEC-0017-checagem-do-anel-aceita-encryptedsecret-fora-do-descritor-da.md) | Checagem do anel aceita encryptedSecret fora do descritor da chave | lite | fix | approved | 2026-10-29 | SPEC-0001 | SPEC-0014 | — |
+| [SPEC-0015](SPEC-0015-exception-data-repassado-cru-ao-sentry-em-mechanism-data.md) | Exception.Data repassado cru ao Sentry em mechanism.data | lite | fix | in-progress | 2026-10-29 | SPEC-0001 | SPEC-0013 | — |
+| [SPEC-0016](SPEC-0016-fixture-de-integracao-nao-libera-pools-do-postgres-compartil.md) | Fixture de integração não libera pools do Postgres compartilhado | lite | fix | in-progress | 2026-10-29 | SPEC-0001 | — | — |
+| [SPEC-0017](SPEC-0017-checagem-do-anel-aceita-encryptedsecret-fora-do-descritor-da.md) | Checagem do anel aceita encryptedSecret fora do descritor da chave | lite | fix | in-progress | 2026-10-29 | SPEC-0001 | SPEC-0014 | — |
 
 ## ADRs
 
