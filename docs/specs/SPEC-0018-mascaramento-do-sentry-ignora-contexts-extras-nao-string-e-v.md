@@ -77,7 +77,7 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 | G1 Red | PASS | verify G1: PASS; `dotnet test tests/Vitrine.UnitTests && npm --prefix web run test` exit 127 (red: sh: 1: vitest: not found) — 8957016 | 2026-10-29 |
 | G2 Green | PASS | build exit 0 (npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts a); test exit 0 (Duration  336ms (environment 64%, import 16%, transform 15%, tests 4%, worker 1%)); lint exit 0 (> tsc --noEmit && tsc --noEmit -p tsconfig.node.json); coverage exit 0 (Coverage: 80%) — fdcad52 | 2026-10-29 |
 | G3 Arquitetura | PASS | arch_test exit 0 (duration: 1s 411ms) — fdcad52 | 2026-10-29 |
-| G4 Review | PENDING | | |
+| G4 Review | FAIL | CHANGES_REQUESTED (Reviewer independente) em fdcad52: MAJOR M1 — objetos mascarados pelo parse do ToString vazam (senha com }/{/[/], valor com ', Nome =' ou quebra de linha, objeto aninhado sob nome sensível, segredo de objeto repetido na mensagem); MAJOR M2 — LogError da aplicação passa a lançar (IEnumerable em Exception.Data enumerado sem proteção) e o evento some; minors: mascaramento excessivo de valores curtos/numéricos, breadcrumbs do evento não remascarados, JsonElement em chave neutra vaza. 168/168; verify PASS | 2026-10-29 |
 | G5 Integração & CI | PENDING | | |
 | H2 Integração aprovada | PENDING | | |
 | G6 Deploy | PENDING | | |
