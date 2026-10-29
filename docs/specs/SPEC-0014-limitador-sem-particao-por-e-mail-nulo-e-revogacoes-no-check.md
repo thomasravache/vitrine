@@ -4,7 +4,7 @@ title: Limitador sem partição por e-mail nulo e revogações no check do anel
 tier: lite
 type: fix
 user_facing: false
-status: approved
+status: in-progress
 created: 2026-10-29
 parent: SPEC-0001
 depends_on: [SPEC-0008]
@@ -57,6 +57,16 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 
 ## 7. Checklist de Implementação
 <!-- Preenchido na fase PLAN, após a aprovação. -->
+**Fase 1: Regressão e correção**
+- [ ] Red: escrever IT-01, IT-02 com a tag `SPEC-0014:<ID>` e confirmar que falham pelo motivo certo
+- [ ] Green: 400 `VALIDATION_FAILED` no login sem e-mail válido; check do anel considera só `<key>`
+- [ ] Validar: build + suíte completa + arquitetura (G2/G3)
+
+**Fase final: Integração, entrega e documentação**
+- [ ] Review independente (G4)
+- [ ] Integração + CI verde (G5) e aprovação (H2)
+- [ ] Deploy no ambiente local prod-like com smoke (G6)
+- [ ] Relatório de Entrega, docs raiz e CHANGELOG (G7)
 
 ## 8. Registro de Gates
 <!-- Status: PENDING | PASS | FAIL | N/A. PASS e N/A exigem evidência. -->
