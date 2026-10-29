@@ -76,9 +76,9 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 |---|---|---|---|
 | G0 Spec | PASS | validate: 0 erro(s) — 927c0df (árvore suja) | 2026-10-29 |
 | G1 Red | PASS | verify G1: PASS; `dotnet test tests/Vitrine.UnitTests && npm --prefix web run test` exit 127 (red: sh: 1: vitest: not found) — 8957016 | 2026-10-29 |
-| G2 Green | FAIL | build exit 0 (npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts a); test exit 0 (Duration  369ms (environment 61%, transform 17%, import 16%, tests 5%, worker 1%)); lint exit 0 (> tsc --noEmit && tsc --noEmit -p tsconfig.node.json); coverage exit 1 (Failure. Coverage is below 80%.) — dc05a6c | 2026-10-29 |
-| G3 Arquitetura | PASS | arch_test exit 0 (duration: 1s 411ms) — fdcad52 | 2026-10-29 |
-| G4 Review | FAIL | CHANGES_REQUESTED (Reviewer independente) em fdcad52: MAJOR M1 — objetos mascarados pelo parse do ToString vazam (senha com }/{/[/], valor com ', Nome =' ou quebra de linha, objeto aninhado sob nome sensível, segredo de objeto repetido na mensagem); MAJOR M2 — LogError da aplicação passa a lançar (IEnumerable em Exception.Data enumerado sem proteção) e o evento some; minors: mascaramento excessivo de valores curtos/numéricos, breadcrumbs do evento não remascarados, JsonElement em chave neutra vaza. 168/168; verify PASS | 2026-10-29 |
+| G2 Green | PASS | build exit 0 (npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts a); test exit 0 (Duration  356ms (environment 61%, transform 17%, import 17%, tests 4%, worker 1%)); lint exit 0 (> tsc --noEmit && tsc --noEmit -p tsconfig.node.json); coverage exit 0 (Coverage: 88%) — c2a5a6d | 2026-10-29 |
+| G3 Arquitetura | PASS | arch_test exit 0 (duration: 1s 331ms) — c2a5a6d | 2026-10-29 |
+| G4 Review | PASS | verify G1+G4: PASS; revisão: APPROVED (Reviewer independente, 3ª rodada) em c2a5a6d: 1ª rodada CHANGES_REQUESTED (2 majors: parse do ToString vazava, LogError lançava) corrigida; IT-01+IT-02 25/25, os 3 casos novos falhavam em dc05a6c; sondas sem vazamento em objetos/records/JsonElement/coleções preguiçosas/ciclos/DAG/Uri com credencial; limites registrados no Relatório: orçamento global do Collect estourado antes do segredo, credencial %-escapada repetida na mensagem, Uri relativa, Uri só com usuário mascara demais, segredo ≤3 chars — c2a5a6d | 2026-10-29 |
 | G5 Integração & CI | PENDING | | |
 | H2 Integração aprovada | PENDING | | |
 | G6 Deploy | PENDING | | |
