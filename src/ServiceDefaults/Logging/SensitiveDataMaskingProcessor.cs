@@ -10,8 +10,8 @@ namespace Vitrine.ServiceDefaults.Logging;
 /// </summary>
 /// <remarks>
 /// Escopos não são reescritos (o OpenTelemetry os lê do provedor de escopos na exportação); os escopos do ASP.NET
-/// Core carregam caminho da requisição e IDs de correlação, não dados pessoais. Para a exceção vale o mesmo: a mensagem
-/// de exceções da aplicação não deve conter dado pessoal.
+/// Core carregam caminho da requisição e IDs de correlação, não dados pessoais. A exceção com dado sensível é trocada
+/// por uma <see cref="MaskedException"/>.
 /// </remarks>
 internal sealed class SensitiveDataMaskingProcessor : BaseProcessor<LogRecord>
 {
@@ -34,6 +34,12 @@ internal sealed class SensitiveDataMaskingProcessor : BaseProcessor<LogRecord>
         if (data.Body is { } body)
         {
             data.Body = SensitiveDataMasker.MaskText(body, sensitiveValues);
+        }
+
+        // Exceção com dado sensível na mensagem/pilha vira uma cópia mascarada (tipo original na mensagem).
+        if (data.Exception is { } exception)
+        {
+            data.Exception = MaskedException.MaskIfNeeded(exception, sensitiveValues);
         }
     }
 }
