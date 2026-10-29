@@ -41,7 +41,7 @@ A checagem exige o `encryptedSecret` (com `masterKeyEncrypted`) exatamente na po
 <!-- Mínimo: um teste de regressão que reproduz o problema e FALHA antes da correção, no nível em que o defeito aparece (IT para fronteiras de I/O, E2E para jornadas de usuário). Código sem cobertura: primeiro CH-xx fixando o comportamento atual. Tag no código: `SPEC-0017:<ID>`. Modo privado: sem tag no código; aponte o teste no fim da linha com `→ caminho::nome` (ex.: `→ tests/test_soma.py::test_soma`). Categoria sem teste: "N/A — motivo" SEM ID. -->
 - Caracterização: N/A — área já coberta pelos testes de chave mestra e de revogação das SPEC-0008/0014.
 - Unitários: N/A — o defeito aparece na subida do host com o anel real no PostgreSQL.
-- - **IT-01** — Dado um anel no PostgreSQL com uma `<key>` de descritor em claro contendo, fora do descritor, um `encryptedSecret` válido copiado de outra chave, quando o host sobe fora de Development, então a subida falha com a mensagem de chave sem a cifra da chave mestra; e um anel válido (com e sem revogações) continua subindo.
+- - **IT-01** — Dado um anel no PostgreSQL com uma `<key>` de descritor em claro contendo, fora do descritor, um `encryptedSecret` válido copiado de outra chave, quando o host sobe fora de Development, então a subida falha com a mensagem de chave sem a cifra da chave mestra; um `<key>` em claro em outro namespace é ignorado como pelo Data Protection (o host sobe e a chave não é carregada); e um anel válido (com e sem revogações) continua subindo.
 
 ## 5. Questões em Aberto
 <!-- Dúvidas que impedem fechar a spec, respondidas ANTES do H1. Aberta: `- [ ] pergunta (quem responde)`. Respondida: `- [x] pergunta — resposta (quem, data)`. Com alguma aberta o G0 reprova. Sem dúvidas: escreva "Nenhuma". Dúvida que surge depois da aprovação vira impedimento (seção Registro de Impedimentos). -->
@@ -68,7 +68,7 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 | Gate | Status | Evidência | Data |
 |---|---|---|---|
 | G0 Spec | PASS | validate: 0 erro(s) — d36c0ff (árvore suja) | 2026-10-29 |
-| G1 Red | PENDING | | |
+| G1 Red | PASS | verify G1: PASS; `dotnet test tests/Vitrine.UnitTests && npm --prefix web run test` exit 127 (red: sh: 1: vitest: not found) — d47fe37 | 2026-10-29 |
 | G2 Green | PENDING | | |
 | G3 Arquitetura | PENDING | | |
 | G4 Review | PENDING | | |
@@ -113,3 +113,4 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 <!-- Mudança em spec aprovada: uma linha por emenda, aprovada pelo humano. -->
 | Versão | Data | Mudança | Motivo | Specs impactadas | Aprovado por |
 |---|---|---|---|---|---|
+| v1.1 (esclarecimento) | 2026-10-29 | IT-01 explicita o caso do `<key>` em outro namespace, consequência do filtro pelo `XName` `key` sem namespace já previsto na Mudança Proposta | Test-writer: o caso derivava da seção 3 mas não estava no texto do teste | nenhuma | thomas (2026-10-29, piloto automático) |
