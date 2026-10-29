@@ -4,7 +4,7 @@ title: Limitador sem partição por e-mail nulo e revogações no check do anel
 tier: lite
 type: fix
 user_facing: false
-status: approved
+status: in-progress
 created: 2026-10-29
 parent: SPEC-0001
 depends_on: [SPEC-0008]
@@ -43,9 +43,9 @@ No login, o middleware do limitador responde 400 `VALIDATION_FAILED` (`errors.em
 
 ## 4. Plano de Testes (TDD)
 <!-- Mínimo: um teste de regressão que reproduz o problema e FALHA antes da correção, no nível em que o defeito aparece (IT para fronteiras de I/O, E2E para jornadas de usuário). Código sem cobertura: primeiro CH-xx fixando o comportamento atual. Tag no código: `SPEC-0014:<ID>`. Modo privado: sem tag no código; aponte o teste no fim da linha com `→ caminho::nome` (ex.: `→ tests/test_soma.py::test_soma`). Categoria sem teste: "N/A — motivo" SEM ID. -->
-- Caracterização: N/A — área já coberta pelos IT-03 e IT-08 da SPEC-0008.
+- Caracterização: N/A — área já coberta pelos testes de limite e de chave mestra da SPEC-0008.
 - Unitários: N/A — os dois defeitos aparecem na fronteira HTTP e no banco; a regressão é de integração.
-- - **IT-01** — Dado a API, quando `POST /api/v1/auth/login` chega com `email` nulo, `""`, `"   "`, `123` ou sem a propriedade, então responde 400 `VALIDATION_FAILED` com erro em `email`, e um login válido continua 401/204 como antes.
+- **IT-01** — Dado a API, quando `POST /api/v1/auth/login` chega com `email` nulo, `""`, `"   "`, `123` ou sem a propriedade, então responde 400 `VALIDATION_FAILED` com erro em `email`, e um login válido continua 401/204 como antes.
 - **IT-02** — Dado um anel de chaves cifrado pela chave mestra com um elemento `<revocation>` gravado no PostgreSQL, quando o host sobe fora de Development, então sobe normalmente; e uma `<key>` em claro continua impedindo a subida.
 
 ## 5. Questões em Aberto
@@ -57,16 +57,26 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 
 ## 7. Checklist de Implementação
 <!-- Preenchido na fase PLAN, após a aprovação. -->
+**Fase 1: Regressão e correção**
+- [ ] Red: escrever IT-01, IT-02 com a tag `SPEC-0014:<ID>` e confirmar que falham pelo motivo certo
+- [ ] Green: 400 `VALIDATION_FAILED` no login sem e-mail válido; check do anel considera só `<key>`
+- [ ] Validar: build + suíte completa + arquitetura (G2/G3)
+
+**Fase final: Integração, entrega e documentação**
+- [ ] Review independente (G4)
+- [ ] Integração + CI verde (G5) e aprovação (H2)
+- [ ] Deploy no ambiente local prod-like com smoke (G6)
+- [ ] Relatório de Entrega, docs raiz e CHANGELOG (G7)
 
 ## 8. Registro de Gates
 <!-- Status: PENDING | PASS | FAIL | N/A. PASS e N/A exigem evidência. -->
 | Gate | Status | Evidência | Data |
 |---|---|---|---|
 | G0 Spec | PASS | validate: 0 erro(s) — 443e943 (árvore suja) | 2026-10-29 |
-| G1 Red | PENDING | | |
-| G2 Green | PENDING | | |
-| G3 Arquitetura | PENDING | | |
-| G4 Review | PENDING | | |
+| G1 Red | PASS | verify G1: PASS; `dotnet test tests/Vitrine.UnitTests && npm --prefix web run test` exit 127 (red: sh: 1: vitest: not found) — 9156efa | 2026-10-29 |
+| G2 Green | PASS | build exit 0 (npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts a); test exit 0 (Duration  349ms (environment 60%, transform 21%, import 14%, tests 4%, worker 1%)); lint exit 0 (> tsc --noEmit && tsc --noEmit -p tsconfig.node.json); coverage exit 0 (Coverage: 100%) — 0af6002 | 2026-10-29 |
+| G3 Arquitetura | PASS | arch_test exit 0 (duration: 1s 259ms) — 0af6002 | 2026-10-29 |
+| G4 Review | PASS | verify G1+G4: PASS; revisão: APPROVED (Reviewer independente) em 0af6002: red 9156efa reproduzido (7/9 pelo motivo certo, 2 guardas); ~20 sondas de login sem e-mail → 400 VALIDATION_FAILED sem chegar ao Identity; regressões da SPEC-0008 intactas; revogações sobem, <key> em claro bloqueia; suíte completa 96/96 2x sem 53300; asserts inalterados por 0af6002; minor pré-existente (encryptedSecret aceito em qualquer posição do <key>) vira spec; nits: XName sem namespace, contagem do log de rotação — 0af6002 | 2026-10-29 |
 | G5 Integração & CI | PENDING | | |
 | H2 Integração aprovada | PENDING | | |
 | G6 Deploy | PENDING | | |
@@ -76,6 +86,7 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 <!-- Toda parada é registrada pelo Architect com `spec_graph.py impede` e fechada com `resolve` — não edite à mão. Tipos: spec (spec errada/incompleta → resolve com Emenda) | decisão (só o humano decide → resposta ou ADR) | trabalho (falta algo que exige código → SPEC-NNNN nova) | externo (acesso, ambiente, terceiro → ação tomada) | falha (3 FAILs seguidos no mesmo gate → diagnóstico e decisão). Com impedimento aberto a spec aparece como parada no INDEX e não pode ser fechada. -->
 | ID | Aberto em | Fase/Gate | Tipo | Descrição | Tentativas | Responsável | Resolução | Fechado em |
 |---|---|---|---|---|---|---|---|---|
+| IMP-01 | 2026-10-29 | G2 | trabalho | TEST_DEFECT: os 9 testes novos (LoginWithoutEmailTests, KeyRingRevocationTests) sobem host/banco próprios e estouram max_connections do Postgres compartilhado (53300 too many clients) na suíte de integração completa; em c6ce8cd 87/87 sem 53300, no red 9156efa já aparece | Implementer: 49/49 no namespace Security, 93/96 na suíte completa (3x 53300, não asserção) | Test-writer | SPEC-0016 — causa de raiz nas fixtures; nesta spec, Test-writer 0af6002: IT-01 com um host compartilhado e IT-02 limpando pools; suíte completa 96/96 3x sem 53300 | 2026-10-29 |
 
 ## 10. Relatório de Entrega
 <!-- Preenchido no CLOSE (G7). Para status implemented o validate exige tudo preenchido, todo teste do plano com PASS + evidência e a Definição de Pronto marcada. -->

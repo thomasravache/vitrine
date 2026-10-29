@@ -4,9 +4,9 @@
 
 ## Saúde
 
-- Validação (G0): **0 erro(s), 21 aviso(s)** — rode `spec_graph.py validate`
-- Specs: approved 5, implemented 8
-- Impedimentos: **0 aberto(s)**, 5 resolvido(s)
+- Validação (G0): **0 erro(s), 22 aviso(s)** — rode `spec_graph.py validate`
+- Specs: approved 5, in-progress 3, implemented 8
+- Impedimentos: **0 aberto(s)**, 7 resolvido(s)
 
 ## Cobertura de Pilares
 
@@ -35,23 +35,26 @@ Perfil: **padrao**
 
 ## Plano de Execução
 
-**Em andamento:** —  
+**Em andamento:** SPEC-0011, SPEC-0013, SPEC-0014  
 **Paradas por impedimento:** —  
-**Próximo lote:** SPEC-0009, SPEC-0011, SPEC-0013
+**Próximo lote:** —
 
 | Onda | Spec | Título | Tier/Tam. | Status | Prontidão | Observação |
 |---|---|---|---|---|---|---|
-| 1 | SPEC-0009 | Provisionamento na nuvem e go-live | full/M | approved | ✅ pronta |  |
-| 1 | SPEC-0011 | Checagem de drift do cliente OpenAPI no CI | lite/S | approved | ✅ pronta |  |
-| 1 | SPEC-0013 | Exceção repassada ao Sentry com segredo repetido em propriedade sensível | lite/S | approved | ✅ pronta |  |
-| 2 | SPEC-0012 | Testes de infra deixam a stack local rodando | lite/S | approved | ✅ pronta | saiu da onda 1: arquivos em comum com SPEC-0009 |
-| 2 | SPEC-0014 | Limitador sem partição por e-mail nulo e revogações no check do anel | lite/S | approved | ✅ pronta | saiu da onda 1: max_parallel=3 |
+| 1 | SPEC-0011 | Checagem de drift do cliente OpenAPI no CI | lite/S | in-progress | 🔄 em andamento |  |
+| 1 | SPEC-0013 | Exceção repassada ao Sentry com segredo repetido em propriedade sensível | lite/S | in-progress | 🔄 em andamento |  |
+| 1 | SPEC-0014 | Limitador sem partição por e-mail nulo e revogações no check do anel | lite/S | in-progress | 🔄 em andamento |  |
+| 2 | SPEC-0009 | Provisionamento na nuvem e go-live | full/M | approved | ✅ pronta | saiu da onda 1: max_parallel=3 |
+| 2 | SPEC-0015 | Exception.Data repassado cru ao Sentry em mechanism.data | lite/S | approved | ⛔ aguarda implementação de SPEC-0013 |  |
+| 2 | SPEC-0016 | Fixture de integração não libera pools do Postgres compartilhado | lite/S | approved | ✅ pronta | saiu da onda 1: max_parallel=3 |
+| 3 | SPEC-0012 | Testes de infra deixam a stack local rodando | lite/S | approved | ✅ pronta | saiu da onda 1: max_parallel=3; saiu da onda 2: arquivos em comum com SPEC-0009 |
+| 3 | SPEC-0017 | Checagem do anel aceita encryptedSecret fora do descritor da chave | lite/S | approved | ⛔ aguarda implementação de SPEC-0014 | saiu da onda 2: max_parallel=3 |
 
 ## Épicos
 
 | Épico | Título | Status | Progresso |
 |---|---|---|---|
-| SPEC-0001 | Fundação da plataforma Vitrine | approved | 8/13 implementadas |
+| SPEC-0001 | Fundação da plataforma Vitrine | approved | 8/16 implementadas |
 
 ## Grafo de Dependências
 
@@ -65,10 +68,13 @@ flowchart LR
     S0007["SPEC-0007<br/>Observabilidade de base"]:::implemented
     S0008["SPEC-0008<br/>Segurança de base"]:::implemented
     S0009["SPEC-0009<br/>Provisionamento na nuvem e go-live"]:::approved
-    S0011["SPEC-0011<br/>Checagem de drift do cliente OpenAPI no…"]:::approved
+    S0011["SPEC-0011<br/>Checagem de drift do cliente OpenAPI no…"]:::inprogress
     S0012["SPEC-0012<br/>Testes de infra deixam a stack local ro…"]:::approved
-    S0013["SPEC-0013<br/>Exceção repassada ao Sentry com segredo…"]:::approved
-    S0014["SPEC-0014<br/>Limitador sem partição por e-mail nulo …"]:::approved
+    S0013["SPEC-0013<br/>Exceção repassada ao Sentry com segredo…"]:::inprogress
+    S0014["SPEC-0014<br/>Limitador sem partição por e-mail nulo …"]:::inprogress
+    S0015["SPEC-0015<br/>Exception.Data repassado cru ao Sentry …"]:::approved
+    S0016["SPEC-0016<br/>Fixture de integração não libera pools …"]:::approved
+    S0017["SPEC-0017<br/>Checagem do anel aceita encryptedSecret…"]:::approved
   end
   S0005 --> S0006
   S0006 --> S0007
@@ -80,6 +86,8 @@ flowchart LR
   S0007 --> S0009
   S0008 --> S0009
   S0008 --> S0014
+  S0013 --> S0015
+  S0014 --> S0017
   classDef proposed fill:#fef3c7,stroke:#d97706,color:#111
   classDef approved fill:#dbeafe,stroke:#2563eb,color:#111
   classDef inprogress fill:#ede9fe,stroke:#7c3aed,color:#111
@@ -101,10 +109,13 @@ flowchart LR
 | [SPEC-0008](SPEC-0008-seguranca-de-base.md) | Segurança de base | full | foundation | implemented | 2026-10-13 | SPEC-0001 | SPEC-0006 | SPEC-0006@1 |
 | [SPEC-0009](SPEC-0009-provisionamento-na-nuvem-e-go-live.md) | Provisionamento na nuvem e go-live | full | foundation | approved | 2026-10-13 | SPEC-0001 | SPEC-0005, SPEC-0006, SPEC-0007, SPEC-0008 | — |
 | [SPEC-0010](SPEC-0010-avisos-de-seguranca-novos-em-dependencias-quebram-o-build-da.md) | Avisos de segurança novos em dependências quebram o build da main | lite | fix | implemented | 2026-10-28 | SPEC-0001 | — | — |
-| [SPEC-0011](SPEC-0011-checagem-de-drift-do-cliente-openapi-no-ci.md) | Checagem de drift do cliente OpenAPI no CI | lite | feature | approved | 2026-10-28 | SPEC-0001 | — | — |
+| [SPEC-0011](SPEC-0011-checagem-de-drift-do-cliente-openapi-no-ci.md) | Checagem de drift do cliente OpenAPI no CI | lite | feature | in-progress | 2026-10-28 | SPEC-0001 | — | — |
 | [SPEC-0012](SPEC-0012-testes-de-infra-deixam-a-stack-local-rodando.md) | Testes de infra deixam a stack local rodando | lite | fix | approved | 2026-10-28 | SPEC-0001 | — | — |
-| [SPEC-0013](SPEC-0013-excecao-repassada-ao-sentry-com-segredo-repetido-em-propried.md) | Exceção repassada ao Sentry com segredo repetido em propriedade sensível | lite | fix | approved | 2026-10-28 | SPEC-0001 | — | — |
-| [SPEC-0014](SPEC-0014-limitador-sem-particao-por-e-mail-nulo-e-revogacoes-no-check.md) | Limitador sem partição por e-mail nulo e revogações no check do anel | lite | fix | approved | 2026-10-29 | SPEC-0001 | SPEC-0008 | — |
+| [SPEC-0013](SPEC-0013-excecao-repassada-ao-sentry-com-segredo-repetido-em-propried.md) | Exceção repassada ao Sentry com segredo repetido em propriedade sensível | lite | fix | in-progress | 2026-10-28 | SPEC-0001 | — | — |
+| [SPEC-0014](SPEC-0014-limitador-sem-particao-por-e-mail-nulo-e-revogacoes-no-check.md) | Limitador sem partição por e-mail nulo e revogações no check do anel | lite | fix | in-progress | 2026-10-29 | SPEC-0001 | SPEC-0008 | — |
+| [SPEC-0015](SPEC-0015-exception-data-repassado-cru-ao-sentry-em-mechanism-data.md) | Exception.Data repassado cru ao Sentry em mechanism.data | lite | fix | approved | 2026-10-29 | SPEC-0001 | SPEC-0013 | — |
+| [SPEC-0016](SPEC-0016-fixture-de-integracao-nao-libera-pools-do-postgres-compartil.md) | Fixture de integração não libera pools do Postgres compartilhado | lite | fix | approved | 2026-10-29 | SPEC-0001 | — | — |
+| [SPEC-0017](SPEC-0017-checagem-do-anel-aceita-encryptedsecret-fora-do-descritor-da.md) | Checagem do anel aceita encryptedSecret fora do descritor da chave | lite | fix | approved | 2026-10-29 | SPEC-0001 | SPEC-0014 | — |
 
 ## ADRs
 

@@ -3,6 +3,7 @@ using JasperFx;
 using JasperFx.Resources;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
+using Vitrine.Api;
 using Vitrine.Api.Observability;
 using Vitrine.Api.Security;
 using Vitrine.Identity.Infrastructure;
@@ -14,8 +15,9 @@ using Wolverine.Postgresql;
 const string MigrateArgument = "--migrate";
 var migrateOnly = args.Contains(MigrateArgument, StringComparer.Ordinal);
 
-// Geração do documento OpenAPI no build (GetDocument.Insider sobe o host): sem banco nem mensageria.
-var generatingOpenApi = Assembly.GetEntryAssembly()?.GetName().Name == "GetDocument.Insider";
+// Geração do documento OpenAPI no build (GetDocument.Insider sobe o host): sem banco, mensageria nem chave mestra
+// (SPEC-0011), em qualquer ambiente — `npm run api:generate` e o passo de drift do CI rodam sem PostgreSQL.
+var generatingOpenApi = OpenApiGeneration.IsGeneratingDocument(Assembly.GetEntryAssembly());
 
 var builder = WebApplication.CreateBuilder(args.Where(arg => arg != MigrateArgument).ToArray());
 
@@ -47,7 +49,8 @@ builder.Services.AddAntiforgery(options =>
 });
 
 // Segurança de base (SPEC-0008): forwarded headers, cabeçalhos, rate limiting de auth, Data Protection e cifra de campos.
-builder.AddSecurity();
+// Na geração do OpenAPI (SPEC-0011): Data Protection efêmero, sem chave mestra nem banco, e contêiner sem ValidateOnBuild.
+OpenApiGeneration.Configure(builder, generatingOpenApi);
 
 // Módulos (ADR-0001).
 builder.Services.AddIdentityModule(builder.Configuration);

@@ -4,7 +4,7 @@ title: Exceção repassada ao Sentry com segredo repetido em propriedade sensív
 tier: lite
 type: fix
 user_facing: false
-status: approved
+status: in-progress
 created: 2026-10-28
 parent: SPEC-0001
 depends_on: []
@@ -35,13 +35,13 @@ Muda: o decorador passa ao Sentry os valores sensíveis do registro junto com a 
 
 **Rollback:** revert do commit
 
-**Outras ocorrências:** Nenhuma — o caminho OTLP já trata (IT-03 da SPEC-0007).
+**Outras ocorrências:** Nenhuma — o caminho OTLP já trata (coberto pelos testes de integração da SPEC-0007).
 
 ## 4. Plano de Testes (TDD)
 <!-- Mínimo: um teste de regressão que reproduz o problema e FALHA antes da correção, no nível em que o defeito aparece (IT para fronteiras de I/O, E2E para jornadas de usuário). Código sem cobertura: primeiro CH-xx fixando o comportamento atual. Tag no código: `SPEC-0013:<ID>`. Modo privado: sem tag no código; aponte o teste no fim da linha com `→ caminho::nome` (ex.: `→ tests/test_soma.py::test_soma`). Categoria sem teste: "N/A — motivo" SEM ID. -->
-- Caracterização: N/A — área coberta pelos testes UT-02/IT-03 da SPEC-0007.
+- Caracterização: N/A — área coberta pelos testes de mascaramento da SPEC-0007.
 - **UT-01** — Dado a API com Sentry configurado (transporte de teste), quando `LogError(new InvalidOperationException("falhou para pw-PROBE-123"), "{Password}", "pw-PROBE-123")`, então nenhum envelope enviado contém `pw-PROBE-123` (exceção, mensagem, tags) e o evento é enviado.
-- Integração/E2E: N/A — o UT-01 já roda no host real da API (mesmo padrão do UT-02 da SPEC-0007).
+- Integração/E2E: N/A — o UT-01 já roda no host real da API (mesmo padrão dos testes de Sentry da SPEC-0007).
 
 ## 5. Questões em Aberto
 <!-- Dúvidas que impedem fechar a spec, respondidas ANTES do H1. Aberta: `- [ ] pergunta (quem responde)`. Respondida: `- [x] pergunta — resposta (quem, data)`. Com alguma aberta o G0 reprova. Sem dúvidas: escreva "Nenhuma". Dúvida que surge depois da aprovação vira impedimento (seção Registro de Impedimentos). -->
@@ -52,16 +52,26 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 
 ## 7. Checklist de Implementação
 <!-- Preenchido na fase PLAN, após a aprovação. -->
+**Fase 1: Regressão e correção**
+- [ ] Red: escrever UT-01 com a tag `SPEC-0013:<ID>` e confirmar que falham pelo motivo certo
+- [ ] Green: `MaskingLoggerProvider` repassa ao Sentry a exceção com os valores das propriedades sensíveis mascarados
+- [ ] Validar: build + suíte completa + arquitetura (G2/G3)
+
+**Fase final: Integração, entrega e documentação**
+- [ ] Review independente (G4)
+- [ ] Integração + CI verde (G5) e aprovação (H2)
+- [ ] Deploy no ambiente local prod-like com smoke (G6)
+- [ ] Relatório de Entrega, docs raiz e CHANGELOG (G7)
 
 ## 8. Registro de Gates
 <!-- Status: PENDING | PASS | FAIL | N/A. PASS e N/A exigem evidência. -->
 | Gate | Status | Evidência | Data |
 |---|---|---|---|
 | G0 Spec | PASS | validate: 0 erro(s) — 58742a0 (árvore suja) | 2026-10-28 |
-| G1 Red | PENDING | | |
-| G2 Green | PENDING | | |
-| G3 Arquitetura | PENDING | | |
-| G4 Review | PENDING | | |
+| G1 Red | PASS | verify G1: PASS; `dotnet test tests/Vitrine.UnitTests && npm --prefix web run test` exit 127 (red: sh: 1: vitest: not found) — 549eeaa | 2026-10-29 |
+| G2 Green | PASS | build exit 0 (npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts a); test exit 0 (Duration  388ms (environment 58%, import 18%, transform 18%, tests 4%, worker 2%)); lint exit 0 (> tsc --noEmit && tsc --noEmit -p tsconfig.node.json); coverage exit 0 (Coverage: 100%) — c468645 | 2026-10-29 |
+| G3 Arquitetura | PASS | arch_test exit 0 (duration: 1s 530ms) — c468645 | 2026-10-29 |
+| G4 Review | PASS | verify G1+G4: PASS; revisão: APPROVED (Reviewer independente) em c468645: red 549eeaa e green reproduzidos; 8 sondas sem vazamento (AggregateException, breadcrumb do evento seguinte, Warning, 64 logs paralelos, pilha preservada); ThreadStatic+finally conferido no SDK 6.12.1; Observability 14/14; minors pré-existentes viram pendência (Exception.Data em mechanism.data; segredo só em escopo/CaptureException direto) — c468645 | 2026-10-29 |
 | G5 Integração & CI | PENDING | | |
 | H2 Integração aprovada | PENDING | | |
 | G6 Deploy | PENDING | | |

@@ -46,6 +46,9 @@ public sealed partial class SentryMaskingTests(PostgresFixture postgres)
     private const string LogAccessToken = "tok-PROBE-456";
     private const string LogBreadcrumbTokenValue = "tok-PROBE-BC-999";
 
+    // Categoria do log de erro com exceção (SPEC-0013:UT-01).
+    private const string ExceptionLogCategory = "Vitrine.Testes.SentryExcecaoComSegredo";
+
     private static readonly string[] LogSecrets = [Email, LogPassword, LogAccessToken, LogBreadcrumbTokenValue];
 
     private static readonly TimeSpan FlushTimeout = TimeSpan.FromSeconds(10);
@@ -166,6 +169,42 @@ public sealed partial class SentryMaskingTests(PostgresFixture postgres)
     }
 
     [Fact]
+    [Trait("spec", "SPEC-0013:UT-01")]
+    public async Task Excecao_com_o_mesmo_segredo_de_propriedade_sensivel_sai_mascarada_no_Sentry()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+
+        // Dado a configuração do Sentry da Api com DSN definido (falso) e o transporte de teste
+        var transport = new RecordingTransport();
+        await using var factory = IdentityHost.Create(await postgres.CreateDatabaseAsync(cancellationToken))
+            .WithSetting("Sentry:Dsn", FakeDsn)
+            .WithServices(services => services.PostConfigure<SentryAspNetCoreOptions>(options => options.Transport = transport));
+        var hub = factory.Services.GetRequiredService<IHub>();
+        var logger = factory.Services.GetRequiredService<ILoggerFactory>().CreateLogger(ExceptionLogCategory);
+
+        // Quando a aplicação registra um erro cuja exceção repete, no texto, o valor de uma propriedade sensível
+        // (sem formato de e-mail, Bearer/Basic nem nome=valor)
+        LogPasswordWithException(logger, new InvalidOperationException($"falhou para {LogPassword}"), LogPassword);
+        await hub.FlushAsync(FlushTimeout);
+        await Eventually.TrueAsync(
+            () => transport.EventEnvelopes().Any(json => json.Contains(ExceptionLogCategory, StringComparison.Ordinal)),
+            FlushTimeout,
+            "o Sentry não entregou ao transporte o evento do LogError com exceção",
+            cancellationToken);
+
+        // Então nenhum envelope de evento carrega o valor — nem na exceção, nem na mensagem, nem nas tags
+        foreach (var sent in transport.EventEnvelopes())
+        {
+            Assert.False(sent.Contains(LogPassword, StringComparison.OrdinalIgnoreCase), $"\"{LogPassword}\" foi enviado ao Sentry:\n{sent}");
+        }
+
+        // E o evento foi de fato enviado, com a exceção (o teste não passa por omissão)
+        var envelope = transport.EventEnvelopes().Single(json => json.Contains(ExceptionLogCategory, StringComparison.Ordinal));
+        Assert.Contains("InvalidOperationException", envelope, StringComparison.Ordinal);
+        Assert.Contains("falhou para", envelope, StringComparison.Ordinal);
+    }
+
+    [Fact]
     [Trait("spec", "SPEC-0007:UT-02")]
     public async Task Sem_ambiente_configurado_o_Sentry_usa_o_ambiente_do_host()
     {
@@ -210,6 +249,9 @@ public sealed partial class SentryMaskingTests(PostgresFixture postgres)
 
     [LoggerMessage(EventId = 2, Level = LogLevel.Warning, Message = "breadcrumb token {Token}")]
     private static partial void LogBreadcrumbToken(ILogger logger, string token);
+
+    [LoggerMessage(EventId = 3, Level = LogLevel.Error, Message = "{Password}")]
+    private static partial void LogPasswordWithException(ILogger logger, Exception exception, string password);
 
     /// <summary>Transporte do SDK que guarda cada envelope serializado (o que seria enviado), sem rede.</summary>
     private sealed class RecordingTransport : ITransport
