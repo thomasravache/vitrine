@@ -14,34 +14,14 @@ internal sealed class MasterKeyXmlEncryptor(DataProtectionMasterKey masterKey) :
     public EncryptedXmlInfo Encrypt(XElement plaintextElement)
     {
         ArgumentNullException.ThrowIfNull(plaintextElement);
-
-        var plaintext = Encoding.UTF8.GetBytes(plaintextElement.ToString(SaveOptions.DisableFormatting));
-        try
-        {
-            var payload = new byte[MasterKeyXml.NonceSize + MasterKeyXml.TagSize + plaintext.Length];
-            var nonce = payload.AsSpan(0, MasterKeyXml.NonceSize);
-            var tag = payload.AsSpan(MasterKeyXml.NonceSize, MasterKeyXml.TagSize);
-            var ciphertext = payload.AsSpan(MasterKeyXml.NonceSize + MasterKeyXml.TagSize);
-            RandomNumberGenerator.Fill(nonce);
-
-            using var aes = new AesGcm(masterKey.Bytes, MasterKeyXml.TagSize);
-            aes.Encrypt(nonce, plaintext, ciphertext, tag, MasterKeyXml.AssociatedData);
-
-            var element = new XElement(
-                MasterKeyXml.ElementName,
-                new XAttribute(MasterKeyXml.VersionAttribute, MasterKeyXml.Version),
-                new XComment(" Chave do Data Protection cifrada com a chave mestra (AES-256-GCM) — SPEC-0008. "),
-                new XElement(MasterKeyXml.ValueElementName, Convert.ToBase64String(payload)));
-            return new EncryptedXmlInfo(element, typeof(MasterKeyXmlDecryptor));
-        }
-        finally
-        {
-            CryptographicOperations.ZeroMemory(plaintext);
-        }
+        return new EncryptedXmlInfo(MasterKeyXml.Encrypt(plaintextElement, masterKey.Current), typeof(MasterKeyXmlDecryptor));
     }
 }
 
-/// <summary>Decifra as chaves gravadas por <see cref="MasterKeyXmlEncryptor"/> (instanciado pelo Data Protection).</summary>
+/// <summary>
+/// Decifra as chaves gravadas por <see cref="MasterKeyXmlEncryptor"/> (instanciado pelo Data Protection) com a chave
+/// mestra atual ou, durante a rotação, com a anterior.
+/// </summary>
 internal sealed class MasterKeyXmlDecryptor : IXmlDecryptor
 {
     private readonly DataProtectionMasterKey _masterKey;
@@ -56,40 +36,94 @@ internal sealed class MasterKeyXmlDecryptor : IXmlDecryptor
     public XElement Decrypt(XElement encryptedElement)
     {
         ArgumentNullException.ThrowIfNull(encryptedElement);
+        return MasterKeyXml.Decrypt(encryptedElement, _masterKey, out _);
+    }
+}
 
-        if (encryptedElement.Name != MasterKeyXml.ElementName
-            || (string?)encryptedElement.Attribute(MasterKeyXml.VersionAttribute) != MasterKeyXml.Version
-            || encryptedElement.Element(MasterKeyXml.ValueElementName)?.Value is not { } value)
+/// <summary>Formato do XML cifrado pela chave mestra: <c>&lt;masterKeyEncrypted version="1"&gt;&lt;value&gt;nonce|tag|cifra&lt;/value&gt;</c>.</summary>
+internal static class MasterKeyXml
+{
+    public const int NonceSize = 12;
+    public const int TagSize = 16;
+    public const string Version = "1";
+
+    public static readonly XName ElementName = "masterKeyEncrypted";
+
+    private static readonly XName VersionAttribute = "version";
+    private static readonly XName ValueElementName = "value";
+
+    /// <summary>Dados associados: amarram o conteúdo cifrado a este uso (não decifra como outra coisa).</summary>
+    private static readonly byte[] AssociatedData = Encoding.UTF8.GetBytes("Vitrine.DataProtection.KeyRing.v1");
+
+    public static XElement Encrypt(XElement plaintextElement, byte[] key)
+    {
+        var plaintext = Encoding.UTF8.GetBytes(plaintextElement.ToString(SaveOptions.DisableFormatting));
+        try
+        {
+            var payload = new byte[NonceSize + TagSize + plaintext.Length];
+            var nonce = payload.AsSpan(0, NonceSize);
+            RandomNumberGenerator.Fill(nonce);
+
+            using var aes = new AesGcm(key, TagSize);
+            aes.Encrypt(nonce, plaintext, payload.AsSpan(NonceSize + TagSize), payload.AsSpan(NonceSize, TagSize), AssociatedData);
+
+            return new XElement(
+                ElementName,
+                new XAttribute(VersionAttribute, Version),
+                new XComment(" Chave do Data Protection cifrada com a chave mestra (AES-256-GCM) - SPEC-0008. "),
+                new XElement(ValueElementName, Convert.ToBase64String(payload)));
+        }
+        finally
+        {
+            CryptographicOperations.ZeroMemory(plaintext);
+        }
+    }
+
+    /// <summary>
+    /// Decifra com a chave atual e, se ela não servir, com a anterior (<paramref name="usedPrevious"/>). Formato
+    /// desconhecido, conteúdo alterado ou nenhuma chave que sirva: <see cref="CryptographicException"/>.
+    /// </summary>
+    public static XElement Decrypt(XElement encryptedElement, DataProtectionMasterKey masterKey, out bool usedPrevious)
+    {
+        if (encryptedElement.Name != ElementName
+            || (string?)encryptedElement.Attribute(VersionAttribute) != Version
+            || encryptedElement.Element(ValueElementName)?.Value is not { } value)
         {
             throw new CryptographicException("Chave do Data Protection em formato desconhecido.");
         }
 
-        byte[] payload;
-        try
-        {
-            payload = Convert.FromBase64String(value);
-        }
-        catch (FormatException exception)
-        {
-            throw new CryptographicException("Chave do Data Protection corrompida.", exception);
-        }
-
-        if (payload.Length <= MasterKeyXml.NonceSize + MasterKeyXml.TagSize)
+        var payload = new byte[value.Length];
+        if (!Convert.TryFromBase64String(value, payload, out var length) || length <= NonceSize + TagSize)
         {
             throw new CryptographicException("Chave do Data Protection corrompida.");
         }
 
-        var plaintext = new byte[payload.Length - MasterKeyXml.NonceSize - MasterKeyXml.TagSize];
+        payload = payload[..length];
         try
         {
-            using var aes = new AesGcm(_masterKey.Bytes, MasterKeyXml.TagSize);
+            usedPrevious = false;
+            return Decrypt(payload, masterKey.Current);
+        }
+        catch (AuthenticationTagMismatchException) when (masterKey.Previous is not null)
+        {
+            usedPrevious = true;
+            return Decrypt(payload, masterKey.Previous);
+        }
+    }
+
+    private static XElement Decrypt(byte[] payload, byte[] key)
+    {
+        var plaintext = new byte[payload.Length - NonceSize - TagSize];
+        try
+        {
+            using var aes = new AesGcm(key, TagSize);
             // Chave mestra diferente ou conteúdo alterado: AuthenticationTagMismatchException (uma CryptographicException).
             aes.Decrypt(
-                payload.AsSpan(0, MasterKeyXml.NonceSize),
-                payload.AsSpan(MasterKeyXml.NonceSize + MasterKeyXml.TagSize),
-                payload.AsSpan(MasterKeyXml.NonceSize, MasterKeyXml.TagSize),
+                payload.AsSpan(0, NonceSize),
+                payload.AsSpan(NonceSize + TagSize),
+                payload.AsSpan(NonceSize, TagSize),
                 plaintext,
-                MasterKeyXml.AssociatedData);
+                AssociatedData);
             return XElement.Parse(Encoding.UTF8.GetString(plaintext));
         }
         finally
@@ -97,18 +131,4 @@ internal sealed class MasterKeyXmlDecryptor : IXmlDecryptor
             CryptographicOperations.ZeroMemory(plaintext);
         }
     }
-}
-
-internal static class MasterKeyXml
-{
-    public const int NonceSize = 12;
-    public const int TagSize = 16;
-    public const string Version = "1";
-    public const string VersionAttribute = "version";
-
-    public static readonly XName ElementName = "masterKeyEncrypted";
-    public static readonly XName ValueElementName = "value";
-
-    /// <summary>Dados associados: amarram o conteúdo cifrado a este uso (não decifra como outra coisa).</summary>
-    public static readonly byte[] AssociatedData = Encoding.UTF8.GetBytes("Vitrine.DataProtection.KeyRing.v1");
 }

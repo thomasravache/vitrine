@@ -85,7 +85,8 @@ internal static class SecurityExtensions
                 (options, environment) => !string.IsNullOrWhiteSpace(options.MasterKey) || environment.IsDevelopment(),
                 DataProtectionMasterKey.MissingMessage)
             .Validate(
-                options => string.IsNullOrWhiteSpace(options.MasterKey) || DataProtectionMasterKey.IsValid(options.MasterKey),
+                options => (string.IsNullOrWhiteSpace(options.MasterKey) || DataProtectionMasterKey.IsValid(options.MasterKey))
+                    && (string.IsNullOrWhiteSpace(options.PreviousMasterKey) || DataProtectionMasterKey.IsValid(options.PreviousMasterKey)),
                 DataProtectionMasterKey.InvalidMessage)
             .ValidateOnStart();
         services.AddSingleton<DataProtectionMasterKey>();

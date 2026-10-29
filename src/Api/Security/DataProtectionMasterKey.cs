@@ -10,6 +10,12 @@ internal sealed class DataProtectionMasterKeyOptions
 
     /// <summary>32 bytes aleatórios em Base64 (<c>openssl rand -base64 32</c>). Secret do Environment (ADR-0006).</summary>
     public string? MasterKey { get; set; }
+
+    /// <summary>
+    /// Só durante a rotação (runbook <c>rotacao-chave-mestra</c>): a chave mestra anterior, ainda aceita para ler o anel de
+    /// chaves; o modo <c>--migrate</c> recifra com <see cref="MasterKey"/> tudo o que ainda estiver sob ela.
+    /// </summary>
+    public string? PreviousMasterKey { get; set; }
 }
 
 /// <summary>
@@ -22,41 +28,46 @@ internal sealed class DataProtectionMasterKey
 {
     public const int KeySizeInBytes = 32;
 
+    public const string MissingMessage =
+        "DataProtection:MasterKey (variável DataProtection__MasterKey) não configurada: obrigatória fora de Development. "
+        + "Gere 32 bytes aleatórios em Base64 (openssl rand -base64 32) e grave como secret do Environment "
+        + "(docs/runbooks/rotacao-chave-mestra.md).";
+
+    public const string InvalidMessage =
+        "DataProtection:MasterKey/PreviousMasterKey (variáveis DataProtection__MasterKey/__PreviousMasterKey) inválida: "
+        + "deve ser Base64 de exatamente 32 bytes (openssl rand -base64 32).";
+
     public DataProtectionMasterKey(IOptions<DataProtectionMasterKeyOptions> options, IHostEnvironment environment, ILogger<DataProtectionMasterKey> logger)
     {
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(environment);
 
-        var configured = options.Value.MasterKey;
-        if (!string.IsNullOrWhiteSpace(configured))
+        var configured = options.Value;
+        if (!string.IsNullOrWhiteSpace(configured.MasterKey))
         {
-            Bytes = TryDecode(configured) ?? throw new InvalidOperationException(InvalidMessage);
-            return;
+            Current = TryDecode(configured.MasterKey) ?? throw new InvalidOperationException(InvalidMessage);
         }
-
-        if (!environment.IsDevelopment())
+        else if (environment.IsDevelopment())
+        {
+            Current = RandomNumberGenerator.GetBytes(KeySizeInBytes);
+            DataProtectionLog.EphemeralMasterKey(logger);
+        }
+        else
         {
             throw new InvalidOperationException(MissingMessage);
         }
 
-        Bytes = RandomNumberGenerator.GetBytes(KeySizeInBytes);
-        IsEphemeral = true;
-        DataProtectionLog.EphemeralMasterKey(logger);
+        if (!string.IsNullOrWhiteSpace(configured.PreviousMasterKey))
+        {
+            Previous = TryDecode(configured.PreviousMasterKey) ?? throw new InvalidOperationException(InvalidMessage);
+        }
     }
 
-    public const string MissingMessage =
-        "DataProtection:MasterKey (variável DataProtection__MasterKey) não configurada: obrigatória fora de Development. "
-        + "Gere 32 bytes aleatórios em Base64 (openssl rand -base64 32) e grave como secret do Environment (runbook rotacao-chave-mestra).";
+    /// <summary>A chave que cifra as chaves novas (32 bytes; nunca logada).</summary>
+    internal byte[] Current { get; }
 
-    public const string InvalidMessage =
-        "DataProtection:MasterKey (variável DataProtection__MasterKey) inválida: deve ser Base64 de exatamente 32 bytes "
-        + "(openssl rand -base64 32).";
-
-    /// <summary>Os 32 bytes da chave (nunca logados).</summary>
-    internal byte[] Bytes { get; }
-
-    /// <summary>Chave gerada por processo (só Development sem chave configurada).</summary>
-    public bool IsEphemeral { get; }
+    /// <summary>A chave anterior, aceita só para leitura durante a rotação.</summary>
+    internal byte[]? Previous { get; }
 
     /// <summary>Valida o formato sem guardar a chave (usado na validação de opções na subida).</summary>
     public static bool IsValid(string? value) => TryDecode(value) is not null;
@@ -80,4 +91,8 @@ internal static partial class DataProtectionLog
     [LoggerMessage(EventId = 8001, Level = LogLevel.Warning,
         Message = "DataProtection:MasterKey ausente em Development: usando chave mestra efêmera (sessões não sobrevivem ao reinício).")]
     public static partial void EphemeralMasterKey(ILogger logger);
+
+    [LoggerMessage(EventId = 8002, Level = LogLevel.Information,
+        Message = "Rotação da chave mestra: {Reencrypted} chave(s) do Data Protection recifrada(s) com a chave atual; {Current} já estava(m) nela.")]
+    public static partial void Reencrypted(ILogger logger, int reencrypted, int current);
 }
