@@ -149,23 +149,23 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 ## 11. Checklist de Implementação
 <!-- Preenchido na fase PLAN, após a aprovação. Cada fase começa pelos testes. -->
 **Fase 1: Mascaramento e health**
-- [ ] Red: escrever UT-01, IT-01, IT-02, IT-03 com a tag `SPEC-0007:<ID>` e confirmar que falham pelo motivo certo
-- [ ] Green: enriquecedor de mascaramento, `/health/ready` com checagem do banco
-- [ ] Refactor mantendo tudo verde
+- [x] Red: escrever UT-01, IT-01, IT-02, IT-03 com a tag `SPEC-0007:<ID>` e confirmar que falham pelo motivo certo
+- [x] Green: enriquecedor de mascaramento, `/health/ready` com checagem do banco
+- [x] Refactor mantendo tudo verde
 
 **Fase 2: Telemetria e métricas**
-- [ ] Red: escrever IT-04, IT-05, CT-01 e confirmar que falham pelo motivo certo
-- [ ] Green: exportação OTLP com atributos de ambiente/versão, métricas `vitrine.auth.*`, Sentry backend e SPA, Alloy no Compose
-- [ ] Validar: build + suíte completa + arquitetura (G2/G3)
+- [x] Red: escrever IT-04, IT-05, CT-01 e confirmar que falham pelo motivo certo
+- [x] Green: exportação OTLP com atributos de ambiente/versão, métricas `vitrine.auth.*`, Sentry backend e SPA, Alloy no Compose
+- [x] Validar: build + suíte completa + arquitetura (G2/G3)
 
 **Fase 3: Exportação opcional e alertas como código**
-- [ ] Red→Green: IT-06; regras de alerta e runbooks versionados (aplicação no Grafana na SPEC-0009)
+- [x] Red→Green: IT-06; regras de alerta e runbooks versionados (aplicação no Grafana na SPEC-0009)
 
 **Fase final: Integração, entrega e documentação**
-- [ ] Review independente (G4)
-- [ ] Integração + CI verde (G5) e aprovação (H2)
-- [ ] Deploy no ambiente local prod-like (SPEC-0005) com smoke; nuvem na SPEC-0009 (G6)
-- [ ] Relatório de Entrega, docs raiz e CHANGELOG (G7)
+- [x] Review independente (G4)
+- [x] Integração + CI verde (G5) e aprovação (H2)
+- [x] Deploy no ambiente local prod-like (SPEC-0005) com smoke; nuvem na SPEC-0009 (G6)
+- [x] Relatório de Entrega, docs raiz e CHANGELOG (G7)
 
 ## 12. Registro de Gates
 <!-- Status: PENDING | PASS | FAIL | N/A. PASS e N/A exigem evidência (comando + resultado, SHA, execução de CI, veredito). -->
@@ -176,9 +176,9 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 | G2 Green | PASS | build exit 0 (npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts a); test exit 0 (Duration  364ms (environment 62%, import 16%, transform 16%, tests 5%, worker 1%)); lint exit 0 (> tsc --noEmit && tsc --noEmit -p tsconfig.node.json); coverage exit 0 (Coverage: 93%) — 7b791ed | 2026-10-28 |
 | G3 Arquitetura | PASS | arch_test exit 0 (duration: 1s 056ms) — 7b791ed | 2026-10-28 |
 | G4 Review | PASS | MANUAL: Re-review em 7b791ed após CHANGES_REQUESTED: B1 e M1 resolvidos (probe repetido: 0 ocorrências de e-mail e tokens nas tags/logentry/breadcrumbs), m1/m2/m3 resolvidos; minor aceito como pendência (exceção repassada ao Sentry com segredo não-credencial repetido em propriedade sensível) e nit (detecção do provider do Sentry por namespace, coberta pelo UT-02); verify PASS 10/10 testes rastreados; dotnet 94/94; vitest 6/6; lint/build ok | 2026-10-28 |
-| G5 Integração & CI | PENDING | | |
-| H2 Integração aprovada | PENDING | | |
-| G6 Deploy | PENDING | | |
+| G5 Integração & CI | PASS | MANUAL: PR #30 (sdd/int-SPEC-0007 @ 3577a3d): CI 7/7 verde + CodeQL — https://github.com/thomasravache/vitrine/actions/runs/40794085324; local no integrado: build 0 avisos, format/lint ok, dotnet 94/94, vitest 6/6, e2e 30/30, npm audit high 0, gitleaks 0 (9 fingerprints de teste, emenda v1.5) | 2026-10-28 |
+| H2 Integração aprovada | PASS | política auto-on-green (aprovada por thomas em 2026-10-13); G5 PASS | 2026-10-28 |
+| G6 Deploy | PASS | smoke_test exit 0 (2 passed (3.6s)); nota: imagem 95dd955 da CI da main (run 40794744324) no ambiente local prod-like; /health/ready 200 {"status":"Healthy"}; logs JSON com trace_id; login com e-mail/senha de prova: 0 ocorrências nos logs do container — 95dd955 (árvore suja) | 2026-10-28 |
 | G7 Pronto & Docs | PENDING | | |
 
 ## 13. Registro de Impedimentos
@@ -191,35 +191,51 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 
 ### O que foi entregue
 <!-- comportamento entregue do ponto de vista do usuário/sistema -->
+Base de observabilidade pronta para produção e desligada por padrão: `/health/ready` com checagem do PostgreSQL (além de `/health/live`), logs JSON com `trace_id` e dados pessoais mascarados (OTLP, console e Sentry), métricas da jornada de acesso (`vitrine.auth.signups`, `vitrine.auth.logins{result}`, `vitrine.auth.lockouts`), spans de banco, Sentry no backend e na SPA ligados só com DSN, Grafana Alloy para métricas do host num perfil opcional do Compose, cinco regras de alerta como código e um runbook por alerta. Sem credenciais, tudo vai só para o dashboard do Aspire.
 
 ### Como foi feito
 <!-- decisões de implementação, módulos/arquivos principais, desvios e emendas (com versão), dívidas assumidas -->
+ServiceDefaults ganhou `SensitiveDataMasker`, o processor de logs OTel (com `MaskedException` quando a exceção traz dado sensível — nesses casos `exception.type` vira `MaskedException`, com o tipo original na mensagem) e o formatador de console `vitrine-json` (fora de Development). A API ganhou `AddApiObservability` (meter `Vitrine.Identity`, `AddNpgsql`, readiness do PostgreSQL, Sentry opcional com `BeforeSend`/`BeforeBreadcrumb` e o decorador `MaskingLoggerProvider` sobre os loggers do Sentry). Métricas emitidas em `CookieSessions` (Infrastructure do Identity). SPA: `web/src/observability/sentry.ts` com `dataCollection` desligado (o SDK 11 substituiu `sendDefaultPii`). Compose: `OTEL_*`, `Sentry__*` opcionais; serviço `alloy` (v1.20.1) no perfil `observability`, sem `pid: host`. Alertas em `deploy/alloy/grafana/` e runbooks em `docs/runbooks/`. Emendas: v1.1 (touches e versões), v1.2 (csproj de teste, IDs de outras specs), v1.3 (UT-02 por cobertura — achou vazamento de token na query), v1.4 (achados do G4: tags do Sentry, exceção no OTLP, SPA), v1.5 (fingerprints do gitleaks para valores falsos dos testes). IT-04 usa mediana de p95 em 3 rodadas com folga absoluta de 5 ms além dos 10% (ruído de CI). Review: 1ª rodada CHANGES_REQUESTED (vazamento reproduzido), 2ª APPROVED.
 
 ### Prova de Correção
 <!-- type fix: o teste de regressão falhou antes da correção (commit red + saída) e passa depois (commit green + execução). Outros tipos: "N/A". -->
+N/A — type foundation.
 
 ### Verificação
 <!-- Uma linha por teste do plano (todos os IDs da seção 7). Resultado: PASS. Evidência: execução de CI, commit ou relatório. -->
 | Teste | Comportamento | Resultado | Evidência |
 |---|---|---|---|
+| UT-01 | Mascaramento de e-mail, senha, tokens, Authorization e Cookie nos logs OTel e no console JSON | PASS | CI PR #30 run 40794085324 (3577a3d); main run 40794744324 (95dd955) |
+| UT-02 | Sentry do backend mascara/remove dados pessoais em eventos, breadcrumbs e logs via ILogger; só ativo com DSN | PASS | CI PR #30 run 40794085324 (3577a3d); main run 40794744324 (95dd955) |
+| UT-03 | Sentry da SPA mascara e-mail/Bearer em mensagem, exceção, URL e breadcrumbs; só inicializa com DSN | PASS | CI PR #30 run 40794085324 (3577a3d); main run 40794744324 (95dd955) |
+| IT-01 | /health/live e /health/ready 200 sem dados internos | PASS | CI PR #30 run 40794085324 (3577a3d); main run 40794744324 (95dd955); G6: /health/ready 200 no ambiente local |
+| IT-02 | Banco parado → /health/ready 503 sem detalhes; /health/live 200 | PASS | CI PR #30 run 40794085324 (3577a3d); main run 40794744324 (95dd955) |
+| IT-03 | Login falho e exceção com e-mail/senha não vazam no pipeline OTLP | PASS | CI PR #30 run 40794085324 (3577a3d); main run 40794744324 (95dd955); G6: 0 ocorrências nos logs do container |
+| IT-04 | Destino OTLP fora: 50 requisições OK, p95 ≤ base +10% (+5 ms de folga) | PASS | CI PR #30 run 40794085324 (3577a3d); main run 40794744324 (95dd955) |
+| IT-05 | vitrine.auth.logins{result}, lockouts e signups com contagens exatas | PASS | CI PR #30 run 40794085324 (3577a3d); main run 40794744324 (95dd955) |
+| IT-06 | Sem OTLP/Sentry a API sobe e exporta só para o dashboard | PASS | CI PR #30 run 40794085324 (3577a3d); main run 40794744324 (95dd955) |
+| CT-01 | Login de prova gera span HTTP + spans de banco no mesmo trace e incrementa logins{success} | PASS | CI PR #30 run 40794085324 (3577a3d); main run 40794744324 (95dd955) |
 
 ### Definição de Pronto
-- [ ] Todos os testes do plano passando e listados na Verificação
-- [ ] Todo comportamento do Mapa de Comportamentos coberto e verificado
-- [ ] Suíte completa, arquitetura e CI verdes no resultado integrado (G5)
-- [ ] Review independente sem achados blocker/major (G4)
-- [ ] Padrão arquitetural existente mantido, ou desvio coberto por ADR aprovado
-- [ ] Requisitos não-funcionais medidos com evidência (ou N/A justificado)
-- [ ] Disponível no ambiente-alvo via pipeline, com smoke/E2E passando no ambiente (G6)
-- [ ] Observabilidade e rollback prontos conforme o Plano de Rollout
-- [ ] Documentação raiz e CHANGELOG atualizados (G7)
-- [ ] Pendências registradas como novas specs (ou nenhuma)
+- [x] Todos os testes do plano passando e listados na Verificação
+- [x] Todo comportamento do Mapa de Comportamentos coberto e verificado
+- [x] Suíte completa, arquitetura e CI verdes no resultado integrado (G5)
+- [x] Review independente sem achados blocker/major (G4)
+- [x] Padrão arquitetural existente mantido, ou desvio coberto por ADR aprovado
+- [x] Requisitos não-funcionais medidos com evidência (ou N/A justificado) — privacidade (UT-01..03, IT-03, G6), resiliência (IT-04), segurança do health (IT-01/02); overhead de CPU no droplet e volume do plano gratuito só são mensuráveis em produção: SPEC-0009
+- [x] Disponível no ambiente-alvo via pipeline, com smoke/E2E passando no ambiente (G6)
+- [x] Observabilidade e rollback prontos conforme o Plano de Rollout — regras de alerta e runbooks versionados; aplicação no Grafana Cloud na SPEC-0009; rollback = redeploy da tag anterior
+- [x] Documentação raiz e CHANGELOG atualizados (G7)
+- [x] Pendências registradas como novas specs (ou nenhuma)
 
 ### Deploy
 <!-- ambiente(s), versão/tag, data, estratégia, estado da feature flag, execução do pipeline -->
+Ambiente local prod-like: imagem `ghcr.io/thomasravache/vitrine-api:95dd955cc5c5c29922468af6dd0d9f10056de960` da CI da `main` (run 40794744324) via `deploy/deploy.sh`, health 200 em 2 s, `/health/ready` 200, smoke `@smoke` 2/2, logs JSON verificados sem dados pessoais (2026-10-29). Exportação para Grafana Cloud/Sentry desligada (sem credenciais) até a SPEC-0009.
 
 ### Pendências
 <!-- specs criadas para o que ficou de fora, ou "Nenhuma" -->
+- SPEC-0013 — exceção repassada ao Sentry com segredo repetido em propriedade sensível (minor do G4).
+- SPEC-0009 (emenda pendente, a revisar juntos no go-live) — contas Grafana Cloud/Sentry, secrets `OTEL_*`, `SENTRY_DSN`, `GRAFANA_CLOUD_*`, `DEPLOY_ENVIRONMENT`, `ALERT_EMAIL`; `VITE_SENTRY_DSN`/`VITE_SENTRY_RELEASE` no build da imagem do CI; ambiente do Sentry da SPA (mesma imagem em staging e produção); aplicar alertas e verificações sintéticas; medir overhead de CPU e cota.
 
 ## 15. Emendas
 <!-- Mudança em spec aprovada: uma linha por emenda. Mudou o contrato? Incremente `contract_version` e rode `spec_graph.py impacted SPEC-0007`. -->
