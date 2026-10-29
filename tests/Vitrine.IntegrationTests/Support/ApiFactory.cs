@@ -14,21 +14,17 @@ namespace Vitrine.IntegrationTests.Support;
 /// Na subida, o host aplica todo recurso com estado registrado (schema do Wolverine e migrações dos módulos,
 /// registradas como <c>IStatefulResource</c> — ADR-0011), já que o banco do teste nasce vazio.
 /// Segurança (SPEC-0008): cada host recebe uma chave mestra do Data Protection gerada por execução
-/// (<see cref="MasterKey"/>) e limites de requisição de auth folgados, para que testes que não são sobre o limite
-/// (vários logins/cadastros no mesmo minuto) não recebam 429; <see cref="WithContractRateLimits"/> volta aos limites
-/// do contrato. O IP de origem de cada requisição pode ser simulado com <see cref="TestRemoteIpHandler"/>.
+/// (<see cref="MasterKey"/>) e roda com os limites de requisição de auth do contrato (nada é relaxado). O IP de origem
+/// é simulado pelo <see cref="TestRemoteIpStartupFilter"/>: o cliente que não informa IP (<see cref="TestRemoteIpHandler"/>)
+/// chega de um IP novo a cada requisição, então o limite por IP só pesa nos testes que fixam o IP de propósito.
 /// Configure (WithSetting/WithServices/RedirectToWireMock) antes do primeiro uso de Services ou CreateClient.
 /// </summary>
 public sealed class ApiFactory(string connectionString) : WebApplicationFactory<Program>
 {
-    // Limite folgado para os testes que não exercitam o rate limiting de auth.
-    private const string RelaxedAuthPermitLimit = "100000";
-
     private readonly List<KeyValuePair<string, string?>> _settings = [];
     private readonly List<Action<IServiceCollection>> _serviceConfigurations = [];
     private readonly List<string> _redirectedClients = [];
     private readonly Lazy<WireMockServer> _externalServices = new(() => WireMockServer.Start());
-    private bool _contractRateLimits;
     private string? _environment;
     private string? _webRoot;
 
@@ -54,13 +50,6 @@ public sealed class ApiFactory(string connectionString) : WebApplicationFactory<
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(masterKey);
         MasterKey = masterKey;
-        return this;
-    }
-
-    /// <summary>Mantém os limites de requisição de auth do contrato (10/min por IP, 5 logins/min por e-mail).</summary>
-    public ApiFactory WithContractRateLimits()
-    {
-        _contractRateLimits = true;
         return this;
     }
 
@@ -104,12 +93,6 @@ public sealed class ApiFactory(string connectionString) : WebApplicationFactory<
         // O banco do teste nasce vazio: o host cria o schema do Wolverine em qualquer ambiente de teste.
         builder.UseSetting("Wolverine:AutoBuildMessageStorageOnStartup", "true");
         builder.UseSetting(SecuritySettings.MasterKey, MasterKey);
-        if (!_contractRateLimits)
-        {
-            builder.UseSetting(SecuritySettings.AuthPerIpPermitLimit, RelaxedAuthPermitLimit);
-            builder.UseSetting(SecuritySettings.LoginPerEmailPermitLimit, RelaxedAuthPermitLimit);
-        }
-
         if (_environment is not null)
         {
             builder.UseEnvironment(_environment);

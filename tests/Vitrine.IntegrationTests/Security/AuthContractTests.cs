@@ -22,7 +22,7 @@ public sealed class AuthContractTests(PostgresFixture postgres)
     {
         var cancellationToken = TestContext.Current.CancellationToken;
         var connectionString = await postgres.CreateDatabaseAsync(cancellationToken);
-        await using var factory = IdentityHost.Create(connectionString).WithContractRateLimits();
+        await using var factory = IdentityHost.Create(connectionString);
         var user = TestUser.New();
 
         // Dado o contrato SPEC-0006@1 sob as novas políticas; quando o cadastro é feito pelo fluxo da SPA
@@ -58,8 +58,7 @@ public sealed class AuthContractTests(PostgresFixture postgres)
             await IdentityApi.AssertProblemAsync(HttpStatusCode.Unauthorized, "INVALID_CREDENTIALS", wrong, cancellationToken);
         }
 
-        // E conta bloqueada (bloqueio gravado direto no banco: 5 falhas seguidas esbarrariam no limite por e-mail
-        // antes de mostrar o 423): 423 LOCKED_OUT
+        // E conta bloqueada (bloqueio gravado direto no banco; o caminho de 5 falhas seguidas é coberto no IT-03): 423 LOCKED_OUT
         await LockOutAsync(connectionString, user.Email, cancellationToken);
         using (var lockedOut = new Browser(factory, TestAddresses.Client(4)))
         {

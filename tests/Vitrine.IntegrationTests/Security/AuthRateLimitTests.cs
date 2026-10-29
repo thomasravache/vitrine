@@ -1,4 +1,5 @@
 using System.Net;
+using Microsoft.AspNetCore.Http;
 using Vitrine.IntegrationTests.Identity.Support;
 using Vitrine.IntegrationTests.Security.Support;
 using Vitrine.IntegrationTests.Support;
@@ -6,8 +7,9 @@ using Vitrine.IntegrationTests.Support;
 namespace Vitrine.IntegrationTests.Security;
 
 /// <summary>
-/// Rate limiting de <c>/api/v1/auth/*</c> (contrato da SPEC-0008): 10 req/min por IP e 5 logins/min por e-mail,
-/// com 429 + <c>Retry-After</c>. Os IPs são simulados como em produção: a conexão TCP vem do proxy confiável
+/// Rate limiting de <c>/api/v1/auth/*</c> (contrato v2 da SPEC-0008), com os limites reais do contrato: 10 req/min
+/// por IP e 10 logins/min por e-mail, com 429 + <c>Retry-After</c>; o bloqueio da SPEC-0006 (5 falhas → 423) vem antes
+/// do limite por e-mail. Os IPs são simulados como em produção: a conexão TCP vem do proxy confiável
 /// (IP gravado em <c>RemoteIpAddress</c> pelo <see cref="TestRemoteIpStartupFilter"/>) e o IP do cliente vem em
 /// <c>X-Forwarded-For</c> — então o limite por IP só funciona se a Api particionar pelo IP real do cliente (depois
 /// dos forwarded headers), e não pelo IP do Caddy, que é o mesmo para todos.
@@ -16,7 +18,8 @@ namespace Vitrine.IntegrationTests.Security;
 public sealed class AuthRateLimitTests(PostgresFixture postgres)
 {
     private const int PerIpLimit = 10;
-    private const int PerEmailLimit = 5;
+    private const int PerEmailLimit = 10;
+    private const int MaxFailedAttempts = 5;
 
     [Fact]
     [Trait("spec", "SPEC-0008:IT-03")]
@@ -55,7 +58,7 @@ public sealed class AuthRateLimitTests(PostgresFixture postgres)
 
     [Fact]
     [Trait("spec", "SPEC-0008:IT-03")]
-    public async Task O_6o_login_do_mesmo_email_no_minuto_vindo_de_IPs_diferentes_recebe_429()
+    public async Task O_11o_login_do_mesmo_email_inexistente_no_minuto_vindo_de_IPs_diferentes_recebe_429()
     {
         var cancellationToken = TestContext.Current.CancellationToken;
         await using var factory = await CreateHostAsync(cancellationToken);
@@ -63,7 +66,7 @@ public sealed class AuthRateLimitTests(PostgresFixture postgres)
         // Dado um e-mail (inexistente: nenhum bloqueio de conta interfere — todo login dele é 401)
         var email = UnknownEmail();
 
-        // Quando 5 tentativas de login desse e-mail chegam, cada uma de um IP diferente
+        // Quando 10 tentativas de login desse e-mail chegam, cada uma de um IP diferente
         for (var attempt = 0; attempt < PerEmailLimit; attempt++)
         {
             using var client = ProxiedClients.ViaTrustedProxy(factory, TestAddresses.Client(10 + attempt));
@@ -71,7 +74,7 @@ public sealed class AuthRateLimitTests(PostgresFixture postgres)
             await IdentityApi.AssertStatusAsync(HttpStatusCode.Unauthorized, login, cancellationToken);
         }
 
-        // Então a 6ª, de mais um IP novo, recebe 429 com Retry-After
+        // Então a 11ª, de mais um IP novo, recebe 429 com Retry-After
         using (var sixthClient = ProxiedClients.ViaTrustedProxy(factory, TestAddresses.Client(10 + PerEmailLimit)))
         {
             using var sixth = await sixthClient.LoginAsync(email, "senha-errada-" + Guid.NewGuid().ToString("N"), cancellationToken);
@@ -82,6 +85,37 @@ public sealed class AuthRateLimitTests(PostgresFixture postgres)
         using var otherClient = ProxiedClients.ViaTrustedProxy(factory, TestAddresses.Client(30));
         using var other = await otherClient.LoginAsync(UnknownEmail(), "senha-errada-" + Guid.NewGuid().ToString("N"), cancellationToken);
         await IdentityApi.AssertStatusAsync(HttpStatusCode.Unauthorized, other, cancellationToken);
+    }
+
+    [Fact]
+    [Trait("spec", "SPEC-0008:IT-03")]
+    public async Task Para_email_existente_a_6a_tentativa_apos_5_falhas_continua_423_e_nao_429()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var factory = await CreateHostAsync(cancellationToken);
+        var user = TestUser.New();
+        using (var owner = ProxiedClients.ViaTrustedProxy(factory, TestAddresses.Client(40)))
+        {
+            using var register = await owner.RegisterAsync(user, cancellationToken);
+            await IdentityApi.AssertStatusAsync(HttpStatusCode.Created, register, cancellationToken);
+        }
+
+        // Dado um e-mail existente com 5 falhas seguidas de login (cada uma de um IP; a 5ª já pode responder 423)
+        for (var attempt = 0; attempt < MaxFailedAttempts; attempt++)
+        {
+            using var client = ProxiedClients.ViaTrustedProxy(factory, TestAddresses.Client(41 + attempt));
+            using var failed = await client.LoginAsync(user.Email, "senha-errada-" + Guid.NewGuid().ToString("N"), cancellationToken);
+            Assert.True(
+                failed.StatusCode is HttpStatusCode.Unauthorized or (HttpStatusCode)StatusCodes.Status423Locked,
+                $"Falha {attempt + 1} de login respondeu {(int)failed.StatusCode}; esperado 401 ou 423.");
+        }
+
+        // Quando a 6ª tentativa chega (mesmo com a senha correta), sob os limites reais do contrato
+        using var sixthClient = ProxiedClients.ViaTrustedProxy(factory, TestAddresses.Client(41 + MaxFailedAttempts));
+        using var sixth = await sixthClient.LoginAsync(user.Email, user.Password, cancellationToken);
+
+        // Então 423 LOCKED_OUT (contrato da SPEC-0006), não 429
+        await IdentityApi.AssertProblemAsync((HttpStatusCode)StatusCodes.Status423Locked, "LOCKED_OUT", sixth, cancellationToken);
     }
 
     private static string UnknownEmail() => $"ninguem.{Guid.NewGuid():N}@example.com";
@@ -102,6 +136,6 @@ public sealed class AuthRateLimitTests(PostgresFixture postgres)
     private async Task<ApiFactory> CreateHostAsync(CancellationToken cancellationToken)
     {
         var connectionString = await postgres.CreateDatabaseAsync(cancellationToken);
-        return IdentityHost.Create(connectionString).WithContractRateLimits().TrustingTestProxy();
+        return IdentityHost.Create(connectionString).TrustingTestProxy();
     }
 }

@@ -14,7 +14,7 @@ public static class SecuritySettings
     /// <summary>Limite por IP, por minuto, em <c>/api/v1/auth/*</c> (contrato: 10).</summary>
     public const string AuthPerIpPermitLimit = "RateLimiting:AuthPerIp:PermitLimit";
 
-    /// <summary>Limite de logins por e-mail, por minuto (contrato: 5).</summary>
+    /// <summary>Limite de logins por e-mail, por minuto (contrato v2: 10; o bloqueio de 5 falhas da SPEC-0006 vem antes).</summary>
     public const string LoginPerEmailPermitLimit = "RateLimiting:LoginPerEmail:PermitLimit";
 
     /// <summary>Rede(s) do proxy (Caddy na rede do Compose), em CIDR, das quais os cabeçalhos X-Forwarded-* são aceitos.</summary>
