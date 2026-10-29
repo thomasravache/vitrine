@@ -173,9 +173,9 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 |---|---|---|---|
 | G0 Spec | PASS | validate: 0 erro(s) — 4602cbe (árvore suja) | 2026-10-13 |
 | G1 Red | PASS | verify G1: PASS; `dotnet test tests/Vitrine.UnitTests && npm --prefix web run test` exit 2 (red: Test run completed with non-success exit code: 2 (see: https://aka.ms/testingplatform/exit) — 889eea8 | 2026-10-28 |
-| G2 Green | PASS | build exit 0 (npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts a); test exit 0 (Duration  333ms (environment 58%, import 26%, transform 8%, tests 7%, worker 1%)); lint exit 0 (> tsc --noEmit && tsc --noEmit -p tsconfig.node.json); coverage exit 0 (Coverage: 97%) — 0826fd0 | 2026-10-28 |
-| G3 Arquitetura | PASS | arch_test exit 0 (duration: 982ms) — 0826fd0 | 2026-10-28 |
-| G4 Review | FAIL | Reviewer independente: CHANGES_REQUESTED em 0826fd0 — B1: propriedades de log viram tags do Sentry e logentry/breadcrumbs saem sem máscara de senha/token (reproduzido); M1: exceção do LogRecord não mascarada no OTLP; m1: SPA sem máscara de e-mail em mensagem/exceção/breadcrumb e sem teste; m2: pid host desnecessário no Alloy; m3: listener do IT-05 sem escopo e signups sem teste | 2026-10-28 |
+| G2 Green | PASS | build exit 0 (npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts a); test exit 0 (Duration  364ms (environment 62%, import 16%, transform 16%, tests 5%, worker 1%)); lint exit 0 (> tsc --noEmit && tsc --noEmit -p tsconfig.node.json); coverage exit 0 (Coverage: 93%) — 7b791ed | 2026-10-28 |
+| G3 Arquitetura | PASS | arch_test exit 0 (duration: 1s 056ms) — 7b791ed | 2026-10-28 |
+| G4 Review | PASS | MANUAL: Re-review em 7b791ed após CHANGES_REQUESTED: B1 e M1 resolvidos (probe repetido: 0 ocorrências de e-mail e tokens nas tags/logentry/breadcrumbs), m1/m2/m3 resolvidos; minor aceito como pendência (exceção repassada ao Sentry com segredo não-credencial repetido em propriedade sensível) e nit (detecção do provider do Sentry por namespace, coberta pelo UT-02); verify PASS 10/10 testes rastreados; dotnet 94/94; vitest 6/6; lint/build ok | 2026-10-28 |
 | G5 Integração & CI | PENDING | | |
 | H2 Integração aprovada | PENDING | | |
 | G6 Deploy | PENDING | | |
