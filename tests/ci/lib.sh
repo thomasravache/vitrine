@@ -13,7 +13,8 @@
 #   SPEC0004_EVIDENCE_FILE  arquivo onde as linhas de evidência (links das execuções) são acrescentadas
 #   SPEC0004_ALLOW_ANY_BRANCH=1  aceita PR cuja branch não seja `ci-proof/*` (padrão: recusa)
 
-SPEC_ID="SPEC-0004"
+# Specs posteriores que reaproveitam a biblioteca definem SPEC_ID antes do `source` (ex.: SPEC-0011).
+SPEC_ID="${SPEC_ID:-SPEC-0004}"
 : "${TEST_ID:?defina TEST_ID antes de carregar lib.sh}"
 
 CI_TESTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
