@@ -80,13 +80,17 @@ public sealed class KeyRingDescriptorTests(PostgresFixture postgres) : IAsyncDis
     /// <summary>
     /// Emenda v1.2: um <c>encryptedSecret</c> cujo <c>decryptorType</c> é o <c>NullXmlDecryptor</c> (que devolve o
     /// conteúdo sem decifrar) não é cifra da chave mestra, mesmo com um <c>masterKeyEncrypted</c> dentro. O anel também
-    /// tem chave legítima (que a chave mestra decifra), então a recusa não vem da checagem de chave errada.
+    /// tem chave legítima (que a chave mestra decifra), então a recusa não vem da checagem de chave errada. Re-review:
+    /// um caso isola a checagem do <c>decryptorType</c> (sem nenhum <c>masterKey</c> no descritor) e um
+    /// <c>decryptorType</c> que não resolve exige a mesma mensagem da checagem, não a do framework.
     /// </summary>
     [Theory]
     [Trait("spec", "SPEC-0017:IT-01")]
     [InlineData(NullDecryptorForgery.Isolated)]
     [InlineData(NullDecryptorForgery.CopiedFromLegitimate)]
     [InlineData(NullDecryptorForgery.BesidePlaintextMasterKey)]
+    [InlineData(NullDecryptorForgery.NullWithoutMasterKeyElement)]
+    [InlineData(NullDecryptorForgery.UnresolvableDecryptorType)]
     public async Task Fora_de_Development_key_com_encryptedSecret_do_NullXmlDecryptor_impede_a_subida(NullDecryptorForgery forgery)
     {
         var cancellationToken = TestContext.Current.CancellationToken;
@@ -126,6 +130,20 @@ public sealed class KeyRingDescriptorTests(PostgresFixture postgres) : IAsyncDis
                     strippedMasterKey,
                     NullEncryptedSecret(new XElement("masterKeyEncrypted", new XElement("value", Convert.ToBase64String(Guid.NewGuid().ToByteArray())))));
                 break;
+            case NullDecryptorForgery.NullWithoutMasterKeyElement:
+                // (d) guarda da checagem do decryptorType isolada: encryptedSecret Null sem nenhum elemento <masterKey>
+                // no descritor, só um <notMasterKey> dentro de masterKeyEncrypted
+                plainMasterKey.ReplaceWith(NullEncryptedSecret(new XElement(
+                    "masterKeyEncrypted",
+                    new XElement("notMasterKey", new XElement("value", Convert.ToBase64String(Guid.NewGuid().ToByteArray()))))));
+                break;
+            case NullDecryptorForgery.UnresolvableDecryptorType:
+                // (e) cópia do encryptedSecret legítimo (conteúdo intacto) com um decryptorType genérico malformado, que faz
+                // Type.GetType lançar: a recusa precisa vir da checagem, com a mesma mensagem
+                var malformed = new XElement(legitimate);
+                malformed.SetAttributeValue("decryptorType", "Vitrine.Api.Security.MasterKeyXmlDecryptor[[System.String]], Vitrine.Api");
+                plainMasterKey.ReplaceWith(malformed);
+                break;
             default:
                 throw new ArgumentOutOfRangeException(nameof(forgery), forgery, null);
         }
@@ -144,7 +162,7 @@ public sealed class KeyRingDescriptorTests(PostgresFixture postgres) : IAsyncDis
         {
             // Só aqui o host subiu: consultar o IKeyManager não relança a falha de subida esperada.
             Assert.Fail(
-                "O host subiu com <key> de encryptedSecret do NullXmlDecryptor (" + forgery + "), mas deveria recusar a "
+                "O host subiu com <key> de encryptedSecret de outro decifrador (" + forgery + "), mas deveria recusar a "
                 + "subida. Data Protection carregou a chave: " + LoadsKey(again, forgedId) + ".");
         }
 
@@ -158,6 +176,8 @@ public sealed class KeyRingDescriptorTests(PostgresFixture postgres) : IAsyncDis
         Isolated,
         CopiedFromLegitimate,
         BesidePlaintextMasterKey,
+        NullWithoutMasterKeyElement,
+        UnresolvableDecryptorType,
     }
 
     /// <summary>
