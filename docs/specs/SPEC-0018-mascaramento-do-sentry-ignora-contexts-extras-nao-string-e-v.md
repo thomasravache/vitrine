@@ -35,7 +35,7 @@ Esperado: nenhum desses caminhos envia segredo ao Sentry. Impacto: baixo hoje (n
 `src/Api/Observability/ObservabilityExtensions.cs` (`MaskEvent`/`MaskMechanismData`): a lista de valores sensíveis é montada antes de olhar `Mechanism.Data`; `Contexts` não é percorrido; extras e valores de `Data` não-string são tratados só pelo `ToString` ou ignorados. O padrão de `nome=valor` do `SensitiveDataMasker` não aceita espaços em volta do `=`.
 
 ## 3. Mudança Proposta
-Pré-passagem que junta os valores de chaves sensíveis de todos os `Mechanism.Data` à lista antes de mascarar exceções, mensagem e breadcrumbs do evento; `Contexts` e `Extra` mascarados recursivamente (chave sensível → `***`, texto → `MaskText`), inclusive valores não-string; objetos/structs em `Data` e extras viram texto mascarado (ou `***` quando não representáveis com segurança). Não muda: console, OTLP, pilha, Type/Handled, campos não sensíveis.
+Pré-passagem que junta os valores de chaves sensíveis de todos os `Mechanism.Data` à lista antes de mascarar exceções e mensagem do evento (breadcrumbs já gravados no evento não são reescritos: o SDK só os expõe para leitura, e um valor logado antes sob nome neutro também vai cru para console/OTLP — limite do ADR-0006; tipos do protocolo do SDK postos de propósito em `sentry:context:` também ficam como limite); `Contexts` e `Extra` mascarados recursivamente (chave sensível → `***`, texto → `MaskText`), inclusive valores não-string; objetos/structs em `Data` e extras são lidos pelas propriedades públicas (reflexão) e mascarados como dicionário, com o `ToString` só como fallback (`***` quando não representáveis com segurança); `JsonElement` é tratado como dicionário/lista; a coleta e o mascaramento nunca lançam (falha → `***`), só enumeram coleções materializadas e controlam ciclos; valores numéricos ou com até 3 caracteres não entram na lista de segredos. Não muda: console, OTLP, pilha, Type/Handled, campos não sensíveis.
 
 **Padrão seguido:** `MaskEvent`, `MaskMechanismData`, `MaskBreadcrumb` (SPEC-0007/0013/0015) e `SensitiveDataMasker` do ServiceDefaults (só uso; a regex com espaços, se precisar mudar, fica dentro do `MaskEvent` sem alterar o ServiceDefaults).
 
@@ -47,7 +47,8 @@ Pré-passagem que junta os valores de chaves sensíveis de todos os `Mechanism.D
 <!-- Mínimo: um teste de regressão que reproduz o problema e FALHA antes da correção, no nível em que o defeito aparece (IT para fronteiras de I/O, E2E para jornadas de usuário). Código sem cobertura: primeiro CH-xx fixando o comportamento atual. Tag no código: `SPEC-0018:<ID>`. Modo privado: sem tag no código; aponte o teste no fim da linha com `→ caminho::nome` (ex.: `→ tests/test_soma.py::test_soma`). Categoria sem teste: "N/A — motivo" SEM ID. -->
 - Caracterização: N/A — coberta pelos testes de mascaramento do Sentry das SPEC-0007, 0013 e 0015.
 - Unitários: N/A — os defeitos aparecem no envelope do host real; a regressão é de integração.
-- - **IT-01** — Dado a API com Sentry configurado (transporte de teste), quando são registradas exceções com (a) `Data["Token"]` cujo valor também está na mensagem da exceção, (b) `Data["sentry:context:auth"]` com dicionário contendo `password` e `Data["sentry:extra"]` com objeto contendo `Password`, e (c) `Data` neutro com tipo anônimo, record e `KeyValuePair` contendo segredo, então nenhum envelope contém os valores de segredo usados, os eventos são enviados e as chaves não sensíveis continuam presentes.
+- **IT-01** — Dado a API com Sentry configurado (transporte de teste), quando são registradas exceções com (a) `Data["Token"]` cujo valor também está na mensagem da exceção, (b) `Data["sentry:context:auth"]` com dicionário contendo `password` e `Data["sentry:extra"]` com objeto contendo `Password`, e (c) `Data` neutro com tipo anônimo, record e `KeyValuePair` contendo segredo, então nenhum envelope contém os valores de segredo usados, os eventos são enviados e as chaves não sensíveis continuam presentes.
+- **IT-02** — Dado a API com Sentry configurado (transporte de teste), quando `Exception.Data` traz (a) record/anônimo com senha contendo `}`, `]`, `, Nome =` ou quebra de linha, (b) objeto aninhado sob nome sensível (`new { Credentials = new { Valor = X } }`), (c) objeto com `Password` cujo valor também está na mensagem da exceção e (d) `JsonElement` objeto com `"password"`, então nenhum envelope contém os segredos; (e) com um `IEnumerable` cuja enumeração lança, `LogError` não lança e o evento é enviado; e (f) valores numéricos ou de até 3 caracteres sob nome sensível (`TokenTtl=1`) não corrompem `exception.value` nem `HResult`.
 
 ## 5. Questões em Aberto
 <!-- Dúvidas que impedem fechar a spec, respondidas ANTES do H1. Aberta: `- [ ] pergunta (quem responde)`. Respondida: `- [x] pergunta — resposta (quem, data)`. Com alguma aberta o G0 reprova. Sem dúvidas: escreva "Nenhuma". Dúvida que surge depois da aprovação vira impedimento (seção Registro de Impedimentos). -->
@@ -59,7 +60,7 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 ## 7. Checklist de Implementação
 <!-- Preenchido na fase PLAN, após a aprovação. -->
 **Fase 1: Regressão e correção**
-- [ ] Red: escrever IT-01 com a tag `SPEC-0018:<ID>` e confirmar que falha pelo motivo certo
+- [ ] Red: escrever IT-01 e IT-02 com a tag `SPEC-0018:<ID>` e confirmar que falha pelo motivo certo
 - [ ] Green: pré-passagem dos valores sensíveis de `Mechanism.Data`; `Contexts`/`Extra` mascarados recursivamente; objetos e structs mascarados
 - [ ] Validar: build + suíte completa + arquitetura (G2/G3)
 
@@ -119,3 +120,4 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 <!-- Mudança em spec aprovada: uma linha por emenda, aprovada pelo humano. -->
 | Versão | Data | Mudança | Motivo | Specs impactadas | Aprovado por |
 |---|---|---|---|---|---|
+| v1.1 (escopo) | 2026-10-29 | Objetos lidos por reflexão (ToString só fallback), `JsonElement`, coleta/mascaramento que nunca lançam e só enumeram coleções materializadas, controle de ciclos, valores numéricos/curtos fora da lista; IT-02 novo; breadcrumbs já gravados no evento e tipos do protocolo do SDK em `sentry:context:` registrados como limite | G4 CHANGES_REQUESTED: vazamentos pelo parse do ToString e regressão (LogError lançava) | nenhuma | thomas (2026-10-29, piloto automático) |
