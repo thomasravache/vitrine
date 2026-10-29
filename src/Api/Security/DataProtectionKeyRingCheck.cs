@@ -21,9 +21,17 @@ internal sealed class DataProtectionKeyRingCheck(IServiceScopeFactory scopes, IH
         "O anel do Data Protection no banco tem chave sem a cifra da chave mestra (DataProtection__MasterKey): entrada "
         + "gravada sem proteção ou por outro meio. Remova-a (docs/runbooks/rotacao-chave-mestra.md) antes de subir a Api.";
 
-    private const string KeyElementName = "key";
+    private const string DataProtectionNamespace = "http://schemas.asp.net/2015/03/dataProtection";
 
-    private static readonly XName EncryptedSecret = XName.Get("encryptedSecret", "http://schemas.asp.net/2015/03/dataProtection");
+    // Os mesmos nomes que o XmlKeyManager do Data Protection lê: só <key> sem namespace é chave, e o descritor é o único
+    // filho de <key>/<descriptor>; dentro dele o segredo cifrado é <encryptedSecret>, decifrado pelo tipo que o atributo
+    // decryptorType nomeia (que precisa ser o MasterKeyXmlDecryptor), e o em claro é <masterKey> (requiresEncryption).
+    private static readonly XName KeyElementName = "key";
+    private static readonly XName DescriptorElementName = "descriptor";
+    private static readonly XName EncryptedSecret = XName.Get("encryptedSecret", DataProtectionNamespace);
+    private static readonly XName DecryptorType = "decryptorType";
+    private static readonly XName RequiresEncryption = XName.Get("requiresEncryption", DataProtectionNamespace);
+    private static readonly XName PlaintextMasterKey = "masterKey";
 
     // Antes de qualquer StartAsync: o serviço hospedado do Data Protection carrega o anel na subida e, sem chave que o
     // decifre, criaria (e gravaria) uma chave nova — que esconderia o erro.
@@ -50,20 +58,15 @@ internal sealed class DataProtectionKeyRingCheck(IServiceScopeFactory scopes, IH
         }
 
         // Toda chave do anel precisa estar cifrada pela chave mestra: entrada em claro (ou cifrada por outro meio) no
-        // banco fora de Development é recusada. Só elementos <key> carregam segredo; <revocation> (gravado sem
-        // encryptedSecret pelo IKeyManager) é ignorado (SPEC-0014).
+        // banco fora de Development é recusada. Só elementos <key> (sem namespace, como no Data Protection) carregam
+        // segredo; <revocation> (gravado sem encryptedSecret pelo IKeyManager) é ignorado (SPEC-0014). O segredo é
+        // conferido no descritor que o Data Protection decifra, não em qualquer ponto da <key> (SPEC-0017).
         var keys = ring.Where(xml => !string.IsNullOrEmpty(xml)).Select(xml => XElement.Parse(xml!))
-            .Where(element => element.Name.LocalName == KeyElementName).ToList();
+            .Where(element => element.Name == KeyElementName).ToList();
         var encrypted = new List<XElement>(keys.Count);
         foreach (var key in keys)
         {
-            var secret = key.Descendants(EncryptedSecret).Select(element => element.Element(MasterKeyXml.ElementName)).OfType<XElement>().FirstOrDefault();
-            if (secret is null)
-            {
-                throw new InvalidOperationException(UnprotectedKeyMessage);
-            }
-
-            encrypted.Add(secret);
+            encrypted.AddRange(MasterKeySecrets(key) ?? throw new InvalidOperationException(UnprotectedKeyMessage));
         }
 
         if (encrypted.Count > 0 && !encrypted.Any(element => CanDecrypt(element, masterKey)))
@@ -81,6 +84,80 @@ internal sealed class DataProtectionKeyRingCheck(IServiceScopeFactory scopes, IH
     public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 
     public Task StoppedAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+
+    /// <summary>
+    /// Os <c>masterKeyEncrypted</c> do descritor da chave, lido como o <c>XmlKeyManager</c> do Data Protection
+    /// (<c>key.Element("descriptor").Elements().Single()</c>, decifrado por <c>DecryptElement</c>, que escolhe o decifrador
+    /// de cada <c>encryptedSecret</c> pelo <c>decryptorType</c>); <see langword="null"/> se o descritor tiver segredo em
+    /// claro (<c>masterKey</c> ou <c>requiresEncryption</c>), algum <c>encryptedSecret</c> fora de
+    /// <c>key/descriptor/descriptor</c>, com <c>decryptorType</c> que não seja o <see cref="MasterKeyXmlDecryptor"/> ou sem
+    /// <c>masterKeyEncrypted</c>, ou nenhum <c>encryptedSecret</c>.
+    /// </summary>
+    private static List<XElement>? MasterKeySecrets(XElement key)
+    {
+        var descriptors = key.Element(DescriptorElementName)?.Elements().ToList();
+        if (descriptors is not [var descriptor]
+            || descriptor.DescendantsAndSelf().Any(element => element.Name == PlaintextMasterKey || element.Attribute(RequiresEncryption) is not null))
+        {
+            return null;
+        }
+
+        var secrets = new List<XElement>();
+        foreach (var encryptedSecret in descriptor.DescendantsAndSelf(EncryptedSecret))
+        {
+            if (encryptedSecret.Parent != descriptor
+                || !IsMasterKeyDecryptor((string?)encryptedSecret.Attribute(DecryptorType))
+                || encryptedSecret.Elements().ToList() is not [var secret]
+                || secret.Name != MasterKeyXml.ElementName)
+            {
+                return null;
+            }
+
+            secrets.Add(secret);
+        }
+
+        return secrets.Count > 0 ? secrets : null;
+    }
+
+    /// <summary>
+    /// Se o <c>decryptorType</c> resolve para o <see cref="MasterKeyXmlDecryptor"/>, como o Data Protection compara
+    /// (<c>TypeExtensions.MatchName</c>: o nome começa pelo nome completo do tipo e resolve para ele), sem depender da
+    /// versão do assembly gravada no nome.
+    /// </summary>
+    private static bool IsMasterKeyDecryptor(string? decryptorTypeName)
+    {
+        var expected = typeof(MasterKeyXmlDecryptor);
+        if (decryptorTypeName is null || !decryptorTypeName.StartsWith(expected.FullName!, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        // Como o DefaultTypeNameResolver do Data Protection: Type.GetType lança mesmo com throwOnError: false (tipo genérico
+        // inválido, TypeLoadException etc.), e qualquer falha na resolução significa "não é o decifrador da chave mestra".
+        try
+        {
+            return Type.GetType(WithoutAssemblyVersion(decryptorTypeName), throwOnError: false) == expected;
+        }
+        catch (Exception)
+        {
+            return false;
+        }
+    }
+
+    // Mesmo corte do TypeForwardingActivator.RemoveVersionFromAssemblyName do Data Protection.
+    private static string WithoutAssemblyVersion(string typeName)
+    {
+        const string VersionMarker = ", Version=";
+        var start = typeName.IndexOf(VersionMarker, StringComparison.Ordinal);
+        while (start != -1)
+        {
+            var end = typeName.IndexOf(',', start + VersionMarker.Length);
+            typeName = end == -1 ? typeName[..start] : typeName.Remove(start, end - start);
+            start = typeName.IndexOf(VersionMarker, StringComparison.Ordinal);
+        }
+
+        return typeName;
+    }
 
     private static bool CanDecrypt(XElement element, DataProtectionMasterKey masterKey)
     {

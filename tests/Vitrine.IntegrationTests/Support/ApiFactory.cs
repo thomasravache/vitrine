@@ -132,6 +132,9 @@ public sealed class ApiFactory(string connectionString) : WebApplicationFactory<
     public override async ValueTask DisposeAsync()
     {
         await base.DisposeAsync();
+        // EF Core, Data Protection, readiness e Wolverine usam a mesma ConnectionStrings:vitrine: com o host parado,
+        // o pool dela só guarda conexões ociosas, que ocupariam o limite de clientes do container (SPEC-0016).
+        PostgresFixture.ReleaseConnections(ConnectionString);
         if (_externalServices.IsValueCreated)
         {
             _externalServices.Value.Dispose();

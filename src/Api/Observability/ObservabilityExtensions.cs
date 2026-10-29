@@ -130,6 +130,10 @@ internal static class ObservabilityExtensions
         foreach (var exception in sentryEvent.SentryExceptions ?? [])
         {
             exception.Value = exception.Value is null ? null : SensitiveDataMasker.MaskText(exception.Value, sensitiveValues);
+            if (exception.Mechanism is { } mechanism)
+            {
+                MaskMechanismData(mechanism.Data, sensitiveValues);
+            }
         }
 
         var request = sentryEvent.Request;
@@ -152,6 +156,23 @@ internal static class ObservabilityExtensions
         }
 
         return sentryEvent;
+    }
+
+    // Mechanism.Data recebe do SDK as chaves string de Exception.Data (SPEC-0015): chave de nome sensível vira ***;
+    // os demais valores de texto passam pelo mesmo mascaramento da exceção. Chaves são mantidas.
+    private static void MaskMechanismData(IDictionary<string, object> data, IReadOnlyCollection<string> sensitiveValues)
+    {
+        foreach (var (key, value) in data.ToList())
+        {
+            if (SensitiveDataMasker.IsSensitiveName(key))
+            {
+                data[key] = SensitiveDataMasker.Mask;
+            }
+            else if (value is not null && !value.GetType().IsValueType && SensitiveDataMasker.Text(value) is { } text)
+            {
+                data[key] = SensitiveDataMasker.MaskText(text, sensitiveValues);
+            }
+        }
     }
 
     // Breadcrumbs vêm dos logs (ILogger) e das requisições: mesmas regras do pipeline do OpenTelemetry. O carimbo de

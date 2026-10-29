@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Text;
+using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -48,6 +49,10 @@ public sealed partial class SentryMaskingTests(PostgresFixture postgres)
 
     // Categoria do log de erro com exceção (SPEC-0013:UT-01).
     private const string ExceptionLogCategory = "Vitrine.Testes.SentryExcecaoComSegredo";
+
+    // Categoria e valores do log de erro com Exception.Data (SPEC-0015:IT-01).
+    private const string ExceptionDataLogCategory = "Vitrine.Testes.SentryExceptionData";
+    private const string DataToken = "abc-PROBE";
 
     private static readonly string[] LogSecrets = [Email, LogPassword, LogAccessToken, LogBreadcrumbTokenValue];
 
@@ -205,6 +210,46 @@ public sealed partial class SentryMaskingTests(PostgresFixture postgres)
     }
 
     [Fact]
+    [Trait("spec", "SPEC-0015:IT-01")]
+    public async Task Exception_Data_sai_mascarado_em_mechanism_data_no_Sentry()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+
+        // Dado a configuração do Sentry da Api com DSN definido (falso) e o transporte de teste
+        var transport = new RecordingTransport();
+        await using var factory = IdentityHost.Create(await postgres.CreateDatabaseAsync(cancellationToken))
+            .WithSetting("Sentry:Dsn", FakeDsn)
+            .WithServices(services => services.PostConfigure<SentryAspNetCoreOptions>(options => options.Transport = transport));
+        var hub = factory.Services.GetRequiredService<IHub>();
+        var logger = factory.Services.GetRequiredService<ILoggerFactory>().CreateLogger(ExceptionDataLogCategory);
+
+        // Quando a aplicação registra um erro com propriedade sensível cuja exceção carrega, em Exception.Data,
+        // o mesmo valor (chave de nome comum) e um token (chave de nome sensível)
+        var exception = new InvalidOperationException("falha com dados anexados");
+        exception.Data["Detalhe"] = $"valor {LogPassword}";
+        exception.Data["Token"] = DataToken;
+        LogErrorWithExceptionData(logger, exception, LogPassword);
+        await hub.FlushAsync(FlushTimeout);
+        await Eventually.TrueAsync(
+            () => transport.EventEnvelopes().Any(json => json.Contains(ExceptionDataLogCategory, StringComparison.Ordinal)),
+            FlushTimeout,
+            "o Sentry não entregou ao transporte o evento do LogError com Exception.Data",
+            cancellationToken);
+
+        // Então nenhum envelope de evento carrega o valor sensível nem o token
+        foreach (var sent in transport.EventEnvelopes())
+        {
+            Assert.False(sent.Contains(LogPassword, StringComparison.OrdinalIgnoreCase), $"\"{LogPassword}\" foi enviado ao Sentry:\n{sent}");
+            Assert.False(sent.Contains(DataToken, StringComparison.OrdinalIgnoreCase), $"\"{DataToken}\" foi enviado ao Sentry:\n{sent}");
+        }
+
+        // E o evento foi de fato enviado e mechanism.data mantém a chave Detalhe (o Data não foi descartado inteiro)
+        var envelope = transport.EventEnvelopes().Single(json => json.Contains(ExceptionDataLogCategory, StringComparison.Ordinal));
+        var mechanismData = MechanismData(envelope);
+        Assert.True(mechanismData.ContainsKey("Detalhe"), $"mechanism.data sem a chave Detalhe:\n{envelope}");
+    }
+
+    [Fact]
     [Trait("spec", "SPEC-0007:UT-02")]
     public async Task Sem_ambiente_configurado_o_Sentry_usa_o_ambiente_do_host()
     {
@@ -252,6 +297,29 @@ public sealed partial class SentryMaskingTests(PostgresFixture postgres)
 
     [LoggerMessage(EventId = 3, Level = LogLevel.Error, Message = "{Password}")]
     private static partial void LogPasswordWithException(ILogger logger, Exception exception, string password);
+
+    [LoggerMessage(EventId = 4, Level = LogLevel.Error, Message = "erro {Password}")]
+    private static partial void LogErrorWithExceptionData(ILogger logger, Exception exception, string password);
+
+    /// <summary>Lê, do item de evento do envelope, as chaves de <c>exception.values[].mechanism.data</c>.</summary>
+    private static Dictionary<string, string?> MechanismData(string envelope)
+    {
+        var eventJson = envelope.Split('\n').Single(line => line.Contains("\"exception\"", StringComparison.Ordinal));
+        using var document = JsonDocument.Parse(eventJson);
+        var result = new Dictionary<string, string?>(StringComparer.Ordinal);
+        foreach (var value in document.RootElement.GetProperty("exception").GetProperty("values").EnumerateArray())
+        {
+            if (value.TryGetProperty("mechanism", out var mechanism) && mechanism.TryGetProperty("data", out var data))
+            {
+                foreach (var property in data.EnumerateObject())
+                {
+                    result[property.Name] = property.Value.ToString();
+                }
+            }
+        }
+
+        return result;
+    }
 
     /// <summary>Transporte do SDK que guarda cada envelope serializado (o que seria enviado), sem rede.</summary>
     private sealed class RecordingTransport : ITransport

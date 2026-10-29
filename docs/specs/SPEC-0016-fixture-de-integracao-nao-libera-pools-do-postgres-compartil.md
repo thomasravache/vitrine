@@ -4,7 +4,7 @@ title: Fixture de integração não libera pools do Postgres compartilhado
 tier: lite
 type: fix
 user_facing: false
-status: approved
+status: in-progress
 created: 2026-10-29
 parent: SPEC-0001
 depends_on: []
@@ -68,10 +68,10 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 | Gate | Status | Evidência | Data |
 |---|---|---|---|
 | G0 Spec | PASS | validate: 0 erro(s) — fe2b393 (árvore suja) | 2026-10-29 |
-| G1 Red | PENDING | | |
-| G2 Green | PENDING | | |
-| G3 Arquitetura | PENDING | | |
-| G4 Review | PENDING | | |
+| G1 Red | PASS | verify G1: PASS; `dotnet test tests/Vitrine.UnitTests && npm --prefix web run test` exit 127 (red: sh: 1: vitest: not found) — e71823f | 2026-10-29 |
+| G2 Green | PASS | build exit 0 (npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts a); test exit 0 (Duration  384ms (environment 62%, import 17%, transform 16%, tests 4%, worker 1%)); lint exit 0 (> tsc --noEmit && tsc --noEmit -p tsconfig.node.json); coverage exit 0 (No lines with coverage information in this diff.) — 1022078 | 2026-10-29 |
+| G3 Arquitetura | PASS | arch_test exit 0 (duration: 1s 196ms) — 1022078 | 2026-10-29 |
+| G4 Review | PASS | verify G1+G4: PASS; revisão: APPROVED (Reviewer independente) em 1022078: red e71823f reproduzido (1 conexão ociosa após o dispose); pico de conexões da suíte 97/100 no red → 9 no green; suíte de integração 102/102 3x sem 53300; todas as connection strings do host são ConnectionStrings:vitrine (Wolverine fecha o próprio data source no stop); ClearPool só do banco do host, coleção serializada; nits: comentário do ApiFactory sobre o Wolverine, ClearPool manual redundante nos testes da SPEC-0014 — 1022078 | 2026-10-29 |
 | G5 Integração & CI | PENDING | | |
 | H2 Integração aprovada | PENDING | | |
 | G6 Deploy | PENDING | | |
