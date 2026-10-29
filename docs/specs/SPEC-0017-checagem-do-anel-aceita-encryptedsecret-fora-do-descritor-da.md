@@ -69,9 +69,9 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 |---|---|---|---|
 | G0 Spec | PASS | validate: 0 erro(s) — d36c0ff (árvore suja) | 2026-10-29 |
 | G1 Red | PASS | verify G1: PASS; `dotnet test tests/Vitrine.UnitTests && npm --prefix web run test` exit 127 (red: sh: 1: vitest: not found) — d47fe37 | 2026-10-29 |
-| G2 Green | PASS | build exit 0 (npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts a); test exit 0 (Duration  364ms (environment 61%, import 17%, transform 16%, tests 5%, worker 2%)); lint exit 0 (> tsc --noEmit && tsc --noEmit -p tsconfig.node.json); coverage exit 0 (Coverage: 91%) — c3ac213 | 2026-10-29 |
-| G3 Arquitetura | PASS | arch_test exit 0 (duration: 1s 379ms) — c3ac213 | 2026-10-29 |
-| G4 Review | FAIL | CHANGES_REQUESTED (Reviewer independente) em c3ac213: BLOCKER — decryptorType do encryptedSecret não é conferido; <key> com encryptedSecret decryptorType=NullXmlDecryptor contendo masterKey em claro passa na checagem e o Data Protection carrega o segredo do atacante (reproduzido em Production com PostgreSQL; variantes copied-decryptortype-null e plain-sibling-null-junk). Demais 11 sondas sem brecha; verify PASS; 158/158 | 2026-10-29 |
+| G2 Green | PASS | build exit 0 (npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts a); test exit 0 (Duration  449ms (environment 69%, transform 13%, import 12%, tests 4%, worker 2%)); lint exit 0 (> tsc --noEmit && tsc --noEmit -p tsconfig.node.json); coverage exit 0 (Coverage: 100%) — 05d9f71 | 2026-10-29 |
+| G3 Arquitetura | PASS | arch_test exit 0 (duration: 1s 042ms) — 05d9f71 | 2026-10-29 |
+| G4 Review | PASS | verify G1+G4: PASS; revisão: APPROVED (Reviewer independente, 2ª rodada + delta) em 05d9f71: 39 sondas sem a chave forjada carregada com segredo em claro (NullXmlDecryptor e variantes, decryptorType com caixa/espaço/culture/sufixo/aninhado/ausente/DPAPI/EncryptedXml/namespace antigo, descritor duplicado, comentários/CDATA); descritores reais GCM/CBC/Managed, revogações e rotação sobem; mutações removendo cada defesa detectadas pelo IT-01; catch geral como o DefaultTypeNameResolver; IT-01 10/10; nit: decryptorType não carregável aceito pela checagem, chave inutilizada sem vazamento — 05d9f71 | 2026-10-29 |
 | G5 Integração & CI | PENDING | | |
 | H2 Integração aprovada | PENDING | | |
 | G6 Deploy | PENDING | | |
