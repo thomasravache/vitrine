@@ -18,6 +18,9 @@ Cada entrada cita a spec de origem (`SPEC-NNNN`); gere-as com `spec_graph.py rep
 - O CI reprova o PR quando o cliente da API da SPA (`web/src/api`) está desatualizado em relação ao OpenAPI (SPEC-0011)
 
 ### Fixed
+- Valores de `Exception.Data` enviados ao Sentry passam pelo mascaramento de dados sensíveis (SPEC-0015)
+- Checagem do anel de chaves recusa chave em claro disfarçada (segredo fora do descritor ou com outro decifrador) (SPEC-0017)
+- Testes de integração liberam as conexões do PostgreSQL ao descartar cada host (pico de 97 para 9 conexões) (SPEC-0016)
 - `npm run api:generate` voltou a funcionar sem PostgreSQL e sem chave mestra (SPEC-0011)
 - Exceção enviada ao Sentry repetia em claro o valor de uma propriedade sensível do mesmo log (SPEC-0013)
 - Login sem e-mail válido responde 400 antes do Identity; revogações no anel de chaves não impedem mais a subida da API (SPEC-0014)

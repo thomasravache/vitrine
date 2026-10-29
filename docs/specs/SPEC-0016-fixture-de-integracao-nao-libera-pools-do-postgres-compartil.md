@@ -4,7 +4,7 @@ title: Fixture de integração não libera pools do Postgres compartilhado
 tier: lite
 type: fix
 user_facing: false
-status: in-progress
+status: implemented
 created: 2026-10-29
 parent: SPEC-0001
 depends_on: []
@@ -53,15 +53,15 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 ## 7. Checklist de Implementação
 <!-- Preenchido na fase PLAN, após a aprovação. -->
 **Fase 1: Regressão e correção**
-- [ ] Red: escrever IT-01 com a tag `SPEC-0016:<ID>` e confirmar que falham pelo motivo certo
-- [ ] Green: `ApiFactory`/`PostgresFixture` liberam os pools do banco do host ao descartar
-- [ ] Validar: build + suíte completa + arquitetura (G2/G3)
+- [x] Red: escrever IT-01 com a tag `SPEC-0016:<ID>` e confirmar que falham pelo motivo certo
+- [x] Green: `ApiFactory`/`PostgresFixture` liberam os pools do banco do host ao descartar
+- [x] Validar: build + suíte completa + arquitetura (G2/G3)
 
 **Fase final: Integração, entrega e documentação**
-- [ ] Review independente (G4)
-- [ ] Integração + CI verde (G5) e aprovação (H2)
-- [ ] Deploy no ambiente local prod-like com smoke (G6)
-- [ ] Relatório de Entrega, docs raiz e CHANGELOG (G7)
+- [x] Review independente (G4)
+- [x] Integração + CI verde (G5) e aprovação (H2)
+- [x] Deploy no ambiente local prod-like com smoke (G6)
+- [x] Relatório de Entrega, docs raiz e CHANGELOG (G7)
 
 ## 8. Registro de Gates
 <!-- Status: PENDING | PASS | FAIL | N/A. PASS e N/A exigem evidência. -->
@@ -72,10 +72,10 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 | G2 Green | PASS | build exit 0 (npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts a); test exit 0 (Duration  384ms (environment 62%, import 17%, transform 16%, tests 4%, worker 1%)); lint exit 0 (> tsc --noEmit && tsc --noEmit -p tsconfig.node.json); coverage exit 0 (No lines with coverage information in this diff.) — 1022078 | 2026-10-29 |
 | G3 Arquitetura | PASS | arch_test exit 0 (duration: 1s 196ms) — 1022078 | 2026-10-29 |
 | G4 Review | PASS | verify G1+G4: PASS; revisão: APPROVED (Reviewer independente) em 1022078: red e71823f reproduzido (1 conexão ociosa após o dispose); pico de conexões da suíte 97/100 no red → 9 no green; suíte de integração 102/102 3x sem 53300; todas as connection strings do host são ConnectionStrings:vitrine (Wolverine fecha o próprio data source no stop); ClearPool só do banco do host, coleção serializada; nits: comentário do ApiFactory sobre o Wolverine, ClearPool manual redundante nos testes da SPEC-0014 — 1022078 | 2026-10-29 |
-| G5 Integração & CI | PENDING | | |
-| H2 Integração aprovada | PENDING | | |
-| G6 Deploy | PENDING | | |
-| G7 Pronto & Docs | PENDING | | |
+| G5 Integração & CI | PASS | MANUAL: PR #38 (sdd/int-wave-0015-0017 @ f586e61): CI 7/7 verde + CodeQL (runs/40951508757); local no integrado: build 0 avisos, format/lint ok, dotnet 165/165, vitest 6/6, tests/ci 3/3, e2e 30/30, drift do api:generate limpo, npm audit sem high, gitleaks 0 | 2026-10-29 |
+| H2 Integração aprovada | PASS | política auto-on-green (aprovada por thomas em 2026-10-13); G5 PASS | 2026-10-29 |
+| G6 Deploy | PASS | smoke_test exit 0 (2 passed (2.4s)) — b79eb1c (árvore suja) | 2026-10-29 |
+| G7 Pronto & Docs | PASS | Relatório de Entrega e Definição de Pronto: ok — b79eb1c (árvore suja) | 2026-10-29 |
 
 ## 9. Registro de Impedimentos
 <!-- Toda parada é registrada pelo Architect com `spec_graph.py impede` e fechada com `resolve` — não edite à mão. Tipos: spec (spec errada/incompleta → resolve com Emenda) | decisão (só o humano decide → resposta ou ADR) | trabalho (falta algo que exige código → SPEC-NNNN nova) | externo (acesso, ambiente, terceiro → ação tomada) | falha (3 FAILs seguidos no mesmo gate → diagnóstico e decisão). Com impedimento aberto a spec aparece como parada no INDEX e não pode ser fechada. -->
@@ -86,28 +86,34 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 <!-- Preenchido no CLOSE (G7). Para status implemented o validate exige tudo preenchido, todo teste do plano com PASS + evidência e a Definição de Pronto marcada. -->
 
 ### O que foi entregue
+O descarte de cada host de teste (`ApiFactory`) libera as conexões do seu banco no PostgreSQL compartilhado; `PostgresFixture.ReleaseConnections` faz o mesmo para hosts próprios. O pico de conexões da suíte de integração caiu de 97 (limite 100) para 9.
 
 ### Como foi feito
+`ApiFactory.DisposeAsync` chama `NpgsqlConnection.ClearPool` da `ConnectionStrings:vitrine` do host depois de pará-lo (EF Core, Data Protection, readiness e Wolverine usam a mesma connection string; o Wolverine fecha o próprio data source no stop). Só `tests/Vitrine.IntegrationTests/Support/**` mudou; nenhum código de produção. Review APPROVED com medição de conexões.
 
 ### Prova de Correção
 <!-- type fix: teste de regressão falhou antes (commit red + saída) e passa depois (commit green + execução). Outros tipos: "N/A". -->
+Red e71823f: IT-01 falhava com `ainda tem 1 conexão(ões) em pg_stat_activity 5s depois do descarte do ApiFactory`. Green 1022078: 1/1; suíte de integração 102/102 três vezes sem `53300` (pico 9 conexões, antes 97).
 
 ### Verificação
 | Teste | Comportamento | Resultado | Evidência |
 |---|---|---|---|
+| IT-01 | Descartar o ApiFactory fecha as conexões do banco dele | PASS | CI PR #38 run 40951508757; main run 40952299406 (b79eb1c) |
 
 ### Definição de Pronto
-- [ ] Teste de regressão falhou antes e passa depois da correção
-- [ ] Suíte completa, arquitetura e CI verdes (G2, G3, G5)
-- [ ] Review independente sem achados blocker/major (G4)
-- [ ] Padrão existente mantido
-- [ ] Disponível no ambiente-alvo via pipeline (G6)
-- [ ] Documentação/CHANGELOG atualizados quando aplicável (G7)
-- [ ] Outras ocorrências registradas como novas specs (ou nenhuma)
+- [x] Teste de regressão falhou antes e passa depois da correção
+- [x] Suíte completa, arquitetura e CI verdes (G2, G3, G5)
+- [x] Review independente sem achados blocker/major (G4)
+- [x] Padrão existente mantido
+- [x] Disponível no ambiente-alvo via pipeline (G6)
+- [x] Documentação/CHANGELOG atualizados quando aplicável (G7)
+- [x] Outras ocorrências registradas como novas specs (ou nenhuma)
 
 ### Deploy
+Ambiente local prod-like: imagem `ghcr.io/thomasravache/vitrine-api:b79eb1c` (commit de merge do PR #38) da CI da `main` (run 40952299406) via `deploy/deploy.sh`, health 200 em 4 s, smoke `@smoke` 2/2 (2026-10-29).
 
 ### Pendências
+- Nits aceitos sem spec: comentário do `ApiFactory` sobre o Wolverine e `ClearPool` manual redundante nos testes da SPEC-0014 (limpeza futura).
 
 ## 11. Emendas
 <!-- Mudança em spec aprovada: uma linha por emenda, aprovada pelo humano. -->
