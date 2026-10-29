@@ -4,7 +4,7 @@ title: Exceção repassada ao Sentry com segredo repetido em propriedade sensív
 tier: lite
 type: fix
 user_facing: false
-status: proposed
+status: approved
 created: 2026-10-28
 parent: SPEC-0001
 depends_on: []
@@ -13,8 +13,9 @@ touches: [src/Api/Observability/**, src/ServiceDefaults/Logging/**, tests/Vitrin
 adrs: [ADR-0006, ADR-0009]
 external: []
 size: S
-approved_by:
-approved_at:
+approved_by: thomas
+approved_at: 2026-10-28
+approved_via: piloto automático autorizado no chat em 2026-10-28
 ---
 
 # SPEC-0013 — Exceção repassada ao Sentry com segredo repetido em propriedade sensível
@@ -56,7 +57,7 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 <!-- Status: PENDING | PASS | FAIL | N/A. PASS e N/A exigem evidência. -->
 | Gate | Status | Evidência | Data |
 |---|---|---|---|
-| G0 Spec | PENDING | | |
+| G0 Spec | PASS | validate: 0 erro(s) — 58742a0 (árvore suja) | 2026-10-28 |
 | G1 Red | PENDING | | |
 | G2 Green | PENDING | | |
 | G3 Arquitetura | PENDING | | |

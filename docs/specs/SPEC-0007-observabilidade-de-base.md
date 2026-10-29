@@ -4,7 +4,7 @@ title: Observabilidade de base
 tier: full
 type: foundation
 user_facing: false
-status: in-progress
+status: implemented
 created: 2026-10-13
 parent: SPEC-0001
 depends_on: [SPEC-0006]
@@ -179,7 +179,7 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 | G5 Integração & CI | PASS | MANUAL: PR #30 (sdd/int-SPEC-0007 @ 3577a3d): CI 7/7 verde + CodeQL — https://github.com/thomasravache/vitrine/actions/runs/40794085324; local no integrado: build 0 avisos, format/lint ok, dotnet 94/94, vitest 6/6, e2e 30/30, npm audit high 0, gitleaks 0 (9 fingerprints de teste, emenda v1.5) | 2026-10-28 |
 | H2 Integração aprovada | PASS | política auto-on-green (aprovada por thomas em 2026-10-13); G5 PASS | 2026-10-28 |
 | G6 Deploy | PASS | smoke_test exit 0 (2 passed (3.6s)); nota: imagem 95dd955 da CI da main (run 40794744324) no ambiente local prod-like; /health/ready 200 {"status":"Healthy"}; logs JSON com trace_id; login com e-mail/senha de prova: 0 ocorrências nos logs do container — 95dd955 (árvore suja) | 2026-10-28 |
-| G7 Pronto & Docs | PENDING | | |
+| G7 Pronto & Docs | PASS | Relatório de Entrega e Definição de Pronto: ok — 58742a0 | 2026-10-28 |
 
 ## 13. Registro de Impedimentos
 <!-- Toda parada é registrada pelo Architect com `spec_graph.py impede` e fechada com `resolve` — não edite à mão. Tipos: spec (spec errada/incompleta → resolve com Emenda) | decisão (só o humano decide → resposta ou ADR) | trabalho (falta algo que exige código → SPEC-NNNN nova) | externo (acesso, ambiente, terceiro → ação tomada) | falha (3 FAILs seguidos no mesmo gate → diagnóstico e decisão). Com impedimento aberto a spec aparece como parada no INDEX e não pode ser fechada. -->
