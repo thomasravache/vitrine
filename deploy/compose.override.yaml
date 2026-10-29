@@ -63,9 +63,9 @@ services:
       - --storage.path=/var/lib/alloy/data
       - --server.http.listen-addr=127.0.0.1:12345
       - /etc/alloy/config.alloy
-    # Rede e PID do host: métricas de rede/processos reais do droplet; nenhuma porta publicada.
+    # Rede do host: métricas de rede reais do droplet (/proc/net segue o namespace de rede); nenhuma porta publicada.
+    # Sem `pid: host`: os coletores leem /proc do host montado em /host/proc.
     network_mode: host
-    pid: host
     environment:
       # Credenciais do Grafana Cloud (secrets do Environment); vazias fora do perfil, que só é ligado com elas.
       GRAFANA_CLOUD_PROMETHEUS_URL: ${GRAFANA_CLOUD_PROMETHEUS_URL:-}
