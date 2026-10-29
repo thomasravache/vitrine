@@ -76,7 +76,7 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 | G1 Red | PASS | verify G1: PASS; `dotnet test tests/Vitrine.UnitTests && npm --prefix web run test` exit 127 (red: sh: 1: vitest: not found) — 9156efa | 2026-10-29 |
 | G2 Green | PASS | build exit 0 (npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts a); test exit 0 (Duration  349ms (environment 60%, transform 21%, import 14%, tests 4%, worker 1%)); lint exit 0 (> tsc --noEmit && tsc --noEmit -p tsconfig.node.json); coverage exit 0 (Coverage: 100%) — 0af6002 | 2026-10-29 |
 | G3 Arquitetura | PASS | arch_test exit 0 (duration: 1s 259ms) — 0af6002 | 2026-10-29 |
-| G4 Review | PENDING | | |
+| G4 Review | PASS | verify G1+G4: PASS; revisão: APPROVED (Reviewer independente) em 0af6002: red 9156efa reproduzido (7/9 pelo motivo certo, 2 guardas); ~20 sondas de login sem e-mail → 400 VALIDATION_FAILED sem chegar ao Identity; regressões da SPEC-0008 intactas; revogações sobem, <key> em claro bloqueia; suíte completa 96/96 2x sem 53300; asserts inalterados por 0af6002; minor pré-existente (encryptedSecret aceito em qualquer posição do <key>) vira spec; nits: XName sem namespace, contagem do log de rotação — 0af6002 | 2026-10-29 |
 | G5 Integração & CI | PENDING | | |
 | H2 Integração aprovada | PENDING | | |
 | G6 Deploy | PENDING | | |

@@ -4,8 +4,8 @@
 
 ## Saúde
 
-- Validação (G0): **0 erro(s), 20 aviso(s)** — rode `spec_graph.py validate`
-- Specs: approved 4, in-progress 3, implemented 8
+- Validação (G0): **0 erro(s), 22 aviso(s)** — rode `spec_graph.py validate`
+- Specs: approved 5, in-progress 3, implemented 8
 - Impedimentos: **0 aberto(s)**, 7 resolvido(s)
 
 ## Cobertura de Pilares
@@ -48,12 +48,13 @@ Perfil: **padrao**
 | 2 | SPEC-0015 | Exception.Data repassado cru ao Sentry em mechanism.data | lite/S | approved | ⛔ aguarda implementação de SPEC-0013 |  |
 | 2 | SPEC-0016 | Fixture de integração não libera pools do Postgres compartilhado | lite/S | approved | ✅ pronta | saiu da onda 1: max_parallel=3 |
 | 3 | SPEC-0012 | Testes de infra deixam a stack local rodando | lite/S | approved | ✅ pronta | saiu da onda 1: max_parallel=3; saiu da onda 2: arquivos em comum com SPEC-0009 |
+| 3 | SPEC-0017 | Checagem do anel aceita encryptedSecret fora do descritor da chave | lite/S | approved | ⛔ aguarda implementação de SPEC-0014 | saiu da onda 2: max_parallel=3 |
 
 ## Épicos
 
 | Épico | Título | Status | Progresso |
 |---|---|---|---|
-| SPEC-0001 | Fundação da plataforma Vitrine | approved | 8/15 implementadas |
+| SPEC-0001 | Fundação da plataforma Vitrine | approved | 8/16 implementadas |
 
 ## Grafo de Dependências
 
@@ -73,6 +74,7 @@ flowchart LR
     S0014["SPEC-0014<br/>Limitador sem partição por e-mail nulo …"]:::inprogress
     S0015["SPEC-0015<br/>Exception.Data repassado cru ao Sentry …"]:::approved
     S0016["SPEC-0016<br/>Fixture de integração não libera pools …"]:::approved
+    S0017["SPEC-0017<br/>Checagem do anel aceita encryptedSecret…"]:::approved
   end
   S0005 --> S0006
   S0006 --> S0007
@@ -85,6 +87,7 @@ flowchart LR
   S0008 --> S0009
   S0008 --> S0014
   S0013 --> S0015
+  S0014 --> S0017
   classDef proposed fill:#fef3c7,stroke:#d97706,color:#111
   classDef approved fill:#dbeafe,stroke:#2563eb,color:#111
   classDef inprogress fill:#ede9fe,stroke:#7c3aed,color:#111
@@ -112,6 +115,7 @@ flowchart LR
 | [SPEC-0014](SPEC-0014-limitador-sem-particao-por-e-mail-nulo-e-revogacoes-no-check.md) | Limitador sem partição por e-mail nulo e revogações no check do anel | lite | fix | in-progress | 2026-10-29 | SPEC-0001 | SPEC-0008 | — |
 | [SPEC-0015](SPEC-0015-exception-data-repassado-cru-ao-sentry-em-mechanism-data.md) | Exception.Data repassado cru ao Sentry em mechanism.data | lite | fix | approved | 2026-10-29 | SPEC-0001 | SPEC-0013 | — |
 | [SPEC-0016](SPEC-0016-fixture-de-integracao-nao-libera-pools-do-postgres-compartil.md) | Fixture de integração não libera pools do Postgres compartilhado | lite | fix | approved | 2026-10-29 | SPEC-0001 | — | — |
+| [SPEC-0017](SPEC-0017-checagem-do-anel-aceita-encryptedsecret-fora-do-descritor-da.md) | Checagem do anel aceita encryptedSecret fora do descritor da chave | lite | fix | approved | 2026-10-29 | SPEC-0001 | SPEC-0014 | — |
 
 ## ADRs
 

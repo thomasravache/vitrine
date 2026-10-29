@@ -70,8 +70,8 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 |---|---|---|---|
 | G0 Spec | PASS | validate: 0 erro(s) — 1f05dea | 2026-10-28 |
 | G1 Red | PASS | verify G1: PASS; `dotnet test tests/Vitrine.UnitTests && npm --prefix web run test` exit 127 (red: sh: 1: vitest: not found) — 2d667cb | 2026-10-29 |
-| G2 Green | FAIL | build exit 0 (npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts a); test exit 0 (Duration  619ms (environment 58%, transform 19%, import 17%, tests 4%, worker 3%)); lint exit 0 (> tsc --noEmit && tsc --noEmit -p tsconfig.node.json); coverage exit 1 (Failure. Coverage is below 80%.) — b062cb3 | 2026-10-29 |
-| G3 Arquitetura | PENDING | | |
+| G2 Green | PASS | build exit 0 (npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts a); test exit 0 (Duration  360ms (environment 63%, transform 16%, import 15%, tests 5%, worker 1%)); lint exit 0 (> tsc --noEmit && tsc --noEmit -p tsconfig.node.json); coverage exit 0 (Coverage: 100%) — 1442459 | 2026-10-29 |
+| G3 Arquitetura | PASS | arch_test exit 0 (duration: 1s 473ms) — 1442459 | 2026-10-29 |
 | G4 Review | PENDING | | |
 | G5 Integração & CI | PENDING | | |
 | H2 Integração aprovada | PENDING | | |
