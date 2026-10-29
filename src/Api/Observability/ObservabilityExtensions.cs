@@ -101,8 +101,9 @@ internal static class ObservabilityExtensions
     private static SentryEvent MaskEvent(SentryEvent sentryEvent)
     {
         // Tags vêm das propriedades do log (já mascaradas pelo MaskingLoggerProvider); aqui, defesa para tags
-        // acrescentadas por outros caminhos. Valores de tags sensíveis também saem da mensagem e das exceções.
-        var sensitiveValues = new List<string>();
+        // acrescentadas por outros caminhos. Valores de tags sensíveis e das propriedades sensíveis do registro de log
+        // (o mesmo segredo repetido no texto da exceção) também saem da mensagem e das exceções.
+        var sensitiveValues = new List<string>(MaskingLoggerProvider.CurrentSensitiveValues);
         foreach (var (key, value) in sentryEvent.Tags.ToList())
         {
             if (SensitiveDataMasker.IsSensitiveName(key))
@@ -154,14 +155,19 @@ internal static class ObservabilityExtensions
     }
 
     // Breadcrumbs vêm dos logs (ILogger) e das requisições: mesmas regras do pipeline do OpenTelemetry. O carimbo de
-    // tempo é refeito no momento da cópia (diferença desprezível; o construtor com carimbo não é público).
-    private static Breadcrumb MaskBreadcrumb(Breadcrumb breadcrumb) => new(
-        breadcrumb.Message is null ? string.Empty : SensitiveDataMasker.MaskText(breadcrumb.Message),
-        breadcrumb.Type ?? "default",
-        breadcrumb.Data?.ToDictionary(
-            entry => entry.Key,
-            entry => SensitiveDataMasker.IsSensitiveName(entry.Key) ? SensitiveDataMasker.Mask : SensitiveDataMasker.MaskText(entry.Value),
-            StringComparer.Ordinal),
-        breadcrumb.Category,
-        breadcrumb.Level);
+    // tempo é refeito no momento da cópia (diferença desprezível; o construtor com carimbo não é público). O breadcrumb
+    // de log com exceção traz a mensagem dela (exception_message): os valores sensíveis do registro também saem dali.
+    private static Breadcrumb MaskBreadcrumb(Breadcrumb breadcrumb)
+    {
+        var sensitiveValues = MaskingLoggerProvider.CurrentSensitiveValues;
+        return new(
+            breadcrumb.Message is null ? string.Empty : SensitiveDataMasker.MaskText(breadcrumb.Message, sensitiveValues),
+            breadcrumb.Type ?? "default",
+            breadcrumb.Data?.ToDictionary(
+                entry => entry.Key,
+                entry => SensitiveDataMasker.IsSensitiveName(entry.Key) ? SensitiveDataMasker.Mask : SensitiveDataMasker.MaskText(entry.Value, sensitiveValues),
+                StringComparer.Ordinal),
+            breadcrumb.Category,
+            breadcrumb.Level);
+    }
 }
