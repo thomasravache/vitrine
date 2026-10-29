@@ -54,6 +54,15 @@ public sealed partial class SentryMaskingTests(PostgresFixture postgres)
     private const string ExceptionDataLogCategory = "Vitrine.Testes.SentryExceptionData";
     private const string DataToken = "abc-PROBE";
 
+    // Categoria e valores falsos dos casos de Exception.Data da SPEC-0018:IT-01.
+    private const string ExceptionDataCaseCategory = "Vitrine.Testes.SentryExceptionDataCasos";
+    private const string MessageDataToken = "P4-MSG-PROBE";
+    private const string ContextPassword = "ctx-pw-PROBE";
+    private const string ExtraPassword = "extra-pw-PROBE";
+    private const string AnonymousPassword = "anon-pw-PROBE";
+    private const string RecordPassword = "record-pw-PROBE";
+    private const string PairPassword = "kvp-pw-PROBE";
+
     private static readonly string[] LogSecrets = [Email, LogPassword, LogAccessToken, LogBreadcrumbTokenValue];
 
     private static readonly TimeSpan FlushTimeout = TimeSpan.FromSeconds(10);
@@ -249,6 +258,111 @@ public sealed partial class SentryMaskingTests(PostgresFixture postgres)
         Assert.True(mechanismData.ContainsKey("Detalhe"), $"mechanism.data sem a chave Detalhe:\n{envelope}");
     }
 
+    [Theory]
+    [Trait("spec", "SPEC-0018:IT-01")]
+    [InlineData("valor-sensivel-na-mensagem")]
+    [InlineData("contexts-e-extras")]
+    [InlineData("objetos-em-chave-neutra")]
+    public async Task Exception_Data_com_segredo_fora_de_texto_simples_nao_chega_ao_Sentry(string caso)
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+
+        // Dado a configuração do Sentry da Api com DSN definido (falso) e o transporte de teste
+        var transport = new RecordingTransport();
+        await using var factory = IdentityHost.Create(await postgres.CreateDatabaseAsync(cancellationToken))
+            .WithSetting("Sentry:Dsn", FakeDsn)
+            .WithServices(services => services.PostConfigure<SentryAspNetCoreOptions>(options => options.Transport = transport));
+        var hub = factory.Services.GetRequiredService<IHub>();
+        var category = $"{ExceptionDataCaseCategory}.{caso}";
+        var logger = factory.Services.GetRequiredService<ILoggerFactory>().CreateLogger(category);
+
+        // Quando a aplicação registra um erro (sem propriedade sensível no log) com a exceção do caso
+        var (exception, secrets, assertNonSensitive) = ExceptionDataCase(caso);
+        LogErrorWithStep(logger, exception, caso);
+        await hub.FlushAsync(FlushTimeout);
+        await Eventually.TrueAsync(
+            () => transport.EventEnvelopes().Any(json => json.Contains(category, StringComparison.Ordinal)),
+            FlushTimeout,
+            $"o Sentry não entregou ao transporte o evento do caso {caso}",
+            cancellationToken);
+
+        // Então nenhum envelope de evento carrega os segredos do caso
+        foreach (var sent in transport.EventEnvelopes())
+        {
+            foreach (var secret in secrets)
+            {
+                Assert.False(sent.Contains(secret, StringComparison.OrdinalIgnoreCase), $"\"{secret}\" foi enviado ao Sentry:\n{sent}");
+            }
+        }
+
+        // E o evento foi de fato enviado, com as chaves não sensíveis do caso (nada foi descartado inteiro)
+        var envelope = transport.EventEnvelopes().Single(json => json.Contains(category, StringComparison.Ordinal));
+        Assert.Contains("InvalidOperationException", envelope, StringComparison.Ordinal);
+        assertNonSensitive(envelope);
+    }
+
+    /// <summary>Monta a exceção, os segredos e a verificação das chaves não sensíveis de cada caso da SPEC-0018:IT-01.</summary>
+    private static (Exception Exception, string[] Secrets, Action<string> AssertNonSensitive) ExceptionDataCase(string caso)
+    {
+        switch (caso)
+        {
+            case "valor-sensivel-na-mensagem":
+                {
+                    // (a) Valor de chave sensível de Exception.Data repetido no texto da exceção.
+                    var exception = new InvalidOperationException($"falha com {MessageDataToken}");
+                    exception.Data["Token"] = MessageDataToken;
+                    exception.Data["Etapa"] = "sincronizacao";
+                    return (exception, [MessageDataToken], envelope =>
+                    {
+                        Assert.Contains("falha com", envelope, StringComparison.Ordinal);
+                        var mechanismData = MechanismData(envelope);
+                        Assert.True(mechanismData.ContainsKey("Token"), $"mechanism.data sem a chave Token:\n{envelope}");
+                        Assert.Equal("sincronizacao", mechanismData.GetValueOrDefault("Etapa"));
+                    }
+                    );
+                }
+
+            case "contexts-e-extras":
+                {
+                    // (b) Chaves com prefixo sentry: viram contexts/extra no SDK, com valores não-string.
+                    var exception = new InvalidOperationException("falha com contexto anexado");
+                    exception.Data["sentry:context:auth"] = new Dictionary<string, object>(StringComparer.Ordinal)
+                    {
+                        ["password"] = ContextPassword,
+                        ["provedor"] = "provedor-local",
+                    };
+                    exception.Data["sentry:extra"] = new { Password = ExtraPassword, Tentativas = "tentativas-3" };
+                    return (exception, [ContextPassword, ExtraPassword], envelope =>
+                    {
+                        Assert.Contains("provedor-local", envelope, StringComparison.Ordinal);
+                        Assert.Contains("tentativas-3", envelope, StringComparison.Ordinal);
+                    }
+                    );
+                }
+
+            case "objetos-em-chave-neutra":
+                {
+                    // (c) Objetos (tipo anônimo, record, struct) com segredo em chaves de nome comum.
+                    var exception = new InvalidOperationException("falha com objetos anexados");
+                    exception.Data["Detalhe"] = new { Password = AnonymousPassword, Rota = "rota-anonima" };
+                    exception.Data["Registro"] = new ProbeCredential("usuario-registro", RecordPassword);
+                    exception.Data["Par"] = new KeyValuePair<string, string>("password", PairPassword);
+                    return (exception, [AnonymousPassword, RecordPassword, PairPassword], envelope =>
+                    {
+                        var mechanismData = MechanismData(envelope);
+                        foreach (var key in new[] { "Detalhe", "Registro", "Par" })
+                        {
+                            Assert.True(mechanismData.ContainsKey(key), $"mechanism.data sem a chave {key}:\n{envelope}");
+                        }
+                    }
+                    );
+                }
+
+            default:
+                throw new ArgumentOutOfRangeException(nameof(caso), caso, "caso desconhecido");
+        }
+    }
+
     [Fact]
     [Trait("spec", "SPEC-0007:UT-02")]
     public async Task Sem_ambiente_configurado_o_Sentry_usa_o_ambiente_do_host()
@@ -300,6 +414,12 @@ public sealed partial class SentryMaskingTests(PostgresFixture postgres)
 
     [LoggerMessage(EventId = 4, Level = LogLevel.Error, Message = "erro {Password}")]
     private static partial void LogErrorWithExceptionData(ILogger logger, Exception exception, string password);
+
+    [LoggerMessage(EventId = 5, Level = LogLevel.Error, Message = "erro na etapa {Etapa}")]
+    private static partial void LogErrorWithStep(ILogger logger, Exception exception, string etapa);
+
+    /// <summary>Record com segredo usado no caso (c) da SPEC-0018:IT-01.</summary>
+    private sealed record ProbeCredential(string Usuario, string Password);
 
     /// <summary>Lê, do item de evento do envelope, as chaves de <c>exception.values[].mechanism.data</c>.</summary>
     private static Dictionary<string, string?> MechanismData(string envelope)
