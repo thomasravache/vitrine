@@ -15,6 +15,7 @@ namespace Vitrine.IntegrationTests.Security;
 public sealed class AuthRateLimitBypassTests(PostgresFixture postgres)
 {
     private const int PerIpLimit = 10;
+    private const int PerEmailLimit = 10;
     private const int BodyLimitBytes = 4 * 1024;
 
     [Theory]
@@ -118,6 +119,97 @@ public sealed class AuthRateLimitBypassTests(PostgresFixture postgres)
 
         // Então 413
         await IdentityApi.AssertStatusAsync(HttpStatusCode.RequestEntityTooLarge, response, cancellationToken);
+    }
+
+    [Fact]
+    [Trait("spec", "SPEC-0008:IT-03")]
+    public async Task Login_com_BOM_UTF8_no_corpo_conta_no_limite_por_email_e_o_11o_recebe_429()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var factory = await CreateHostAsync(cancellationToken);
+
+        // Dado um e-mail inexistente; quando 11 logins dele chegam de IPs diferentes com o corpo começando pelo BOM UTF-8
+        var email = $"ninguem.{Guid.NewGuid():N}@example.com";
+        var statuses = await LoginAttemptsAsync(factory, PerEmailLimit + 1, _ => email, bom: true, cancellationToken);
+
+        // Então os 10 primeiros são atendidos (401) e o 11º recebe 429
+        AssertLimitedOnlyAtTheLast(statuses, "login com BOM UTF-8");
+    }
+
+    [Theory]
+    [Trait("spec", "SPEC-0008:IT-03")]
+    [InlineData("{\"email\":")]
+    [InlineData("{\"email\":\"truncado@example.com\",\"password\":\"abc")]
+    [InlineData("isto não é json")]
+    [InlineData("[\"email\",\"password\"]")]
+    public async Task Login_com_JSON_ilegivel_responde_400(string rawBody)
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var factory = await CreateHostAsync(cancellationToken);
+        using var client = ProxiedClients.ViaTrustedProxy(factory, TestAddresses.Client(4));
+
+        // Dado um corpo application/json que o limitador não consegue ler; quando enviado ao login
+        using var response = await client.PostContentAsync(
+            IdentityApi.LoginPath, new StringContent(rawBody, Encoding.UTF8, "application/json"), cancellationToken);
+
+        // Então 400 (falha fechada: nunca segue sem partição de e-mail)
+        await IdentityApi.AssertStatusAsync(HttpStatusCode.BadRequest, response, cancellationToken);
+    }
+
+    [Fact]
+    [Trait("spec", "SPEC-0008:IT-03")]
+    public async Task Email_com_acento_em_NFC_e_NFD_cai_na_mesma_particao_e_o_11o_login_recebe_429()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var factory = await CreateHostAsync(cancellationToken);
+
+        // Dado um e-mail inexistente com acento, nas formas composta (NFC) e decomposta (NFD) — o mesmo e-mail para o Identity
+        var local = $"jo\u00E3o.{Guid.NewGuid():N}";
+        var composed = (local + "@example.com").Normalize(NormalizationForm.FormC);
+        var decomposed = composed.Normalize(NormalizationForm.FormD);
+        Assert.NotEqual(composed, decomposed);
+
+        // Quando 11 logins chegam de IPs diferentes, alternando as formas
+        var statuses = await LoginAttemptsAsync(
+            factory, PerEmailLimit + 1, attempt => attempt % 2 == 0 ? composed : decomposed, bom: false, cancellationToken);
+
+        // Então somam no mesmo limite: o 11º recebe 429
+        AssertLimitedOnlyAtTheLast(statuses, "login com e-mail em NFC/NFD");
+    }
+
+    /// <summary>Uma tentativa de login por IP novo, com o JSON escrito à mão em UTF-8 (caracteres sem escape).</summary>
+    private static async Task<List<HttpStatusCode>> LoginAttemptsAsync(
+        ApiFactory factory, int attempts, Func<int, string> emailFor, bool bom, CancellationToken cancellationToken)
+    {
+        var statuses = new List<HttpStatusCode>();
+        for (var attempt = 0; attempt < attempts; attempt++)
+        {
+            var json = $$"""{"email":"{{emailFor(attempt)}}","password":"senha-errada-{{Guid.NewGuid():N}}"}""";
+            byte[] bytes = bom ? [0xEF, 0xBB, 0xBF, .. Encoding.UTF8.GetBytes(json)] : Encoding.UTF8.GetBytes(json);
+            var content = new ByteArrayContent(bytes);
+            content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json");
+
+            using var client = ProxiedClients.ViaTrustedProxy(factory, TestAddresses.Client(100 + attempt));
+            using var response = await client.PostContentAsync(IdentityApi.LoginPath, content, cancellationToken);
+            statuses.Add(response.StatusCode);
+            if (response.StatusCode == HttpStatusCode.TooManyRequests)
+            {
+                Assert.NotNull(response.Headers.RetryAfter);
+            }
+        }
+
+        return statuses;
+    }
+
+    private static void AssertLimitedOnlyAtTheLast(List<HttpStatusCode> statuses, string what)
+    {
+        var described = string.Join(", ", statuses.Select(status => (int)status));
+        Assert.True(
+            statuses.SkipLast(1).All(status => status == HttpStatusCode.Unauthorized),
+            $"{what}: as {statuses.Count - 1} primeiras tentativas deveriam ser atendidas (401): {described}");
+        Assert.True(
+            statuses[^1] == HttpStatusCode.TooManyRequests,
+            $"{what}: a tentativa {statuses.Count} deveria receber 429: {described}");
     }
 
     private static object Body() => new
