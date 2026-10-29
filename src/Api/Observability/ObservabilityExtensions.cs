@@ -38,6 +38,7 @@ internal static class ObservabilityExtensions
         if (!string.IsNullOrWhiteSpace(builder.Configuration[SentryDsnKey]))
         {
             builder.WebHost.UseSentry(ConfigureSentry);
+            MaskSentryLoggerProviders(builder.Services);
         }
 
         return builder;
@@ -53,17 +54,81 @@ internal static class ObservabilityExtensions
         options.SetBeforeBreadcrumb(MaskBreadcrumb);
     }
 
+    /// <summary>
+    /// Troca cada <see cref="ILoggerProvider"/> do Sentry (eventos e breadcrumbs vindos do <c>ILogger</c>) por um
+    /// <see cref="MaskingLoggerProvider"/> em volta dele: propriedades, tags e mensagem chegam ao Sentry mascaradas.
+    /// </summary>
+    private static void MaskSentryLoggerProviders(IServiceCollection services)
+    {
+        for (var index = 0; index < services.Count; index++)
+        {
+            var descriptor = services[index];
+            if (descriptor.ServiceType != typeof(ILoggerProvider) || descriptor.IsKeyedService)
+            {
+                continue;
+            }
+
+            var implementation = descriptor.ImplementationType
+                ?? descriptor.ImplementationInstance?.GetType()
+                ?? descriptor.ImplementationFactory?.Method.ReturnType;
+            if (implementation?.Namespace?.StartsWith("Sentry", StringComparison.Ordinal) != true)
+            {
+                continue;
+            }
+
+            services[index] = ServiceDescriptor.Describe(
+                typeof(ILoggerProvider),
+                provider => new MaskingLoggerProvider(Create(descriptor, provider)),
+                descriptor.Lifetime);
+        }
+
+        // Regras de filtro registradas pelo tipo do provedor do Sentry passam a valer também para o decorador.
+        services.PostConfigure<LoggerFilterOptions>(options =>
+        {
+            var decorator = typeof(MaskingLoggerProvider).FullName;
+            foreach (var rule in options.Rules.Where(rule => rule.ProviderName?.StartsWith("Sentry.", StringComparison.Ordinal) == true).ToList())
+            {
+                options.Rules.Add(new LoggerFilterRule(decorator, rule.CategoryName, rule.LogLevel, rule.Filter));
+            }
+        });
+    }
+
+    private static ILoggerProvider Create(ServiceDescriptor descriptor, IServiceProvider provider) =>
+        (ILoggerProvider)(descriptor.ImplementationInstance
+            ?? descriptor.ImplementationFactory?.Invoke(provider)
+            ?? ActivatorUtilities.CreateInstance(provider, descriptor.ImplementationType!));
+
     private static SentryEvent MaskEvent(SentryEvent sentryEvent)
     {
+        // Tags vêm das propriedades do log (já mascaradas pelo MaskingLoggerProvider); aqui, defesa para tags
+        // acrescentadas por outros caminhos. Valores de tags sensíveis também saem da mensagem e das exceções.
+        var sensitiveValues = new List<string>();
+        foreach (var (key, value) in sentryEvent.Tags.ToList())
+        {
+            if (SensitiveDataMasker.IsSensitiveName(key))
+            {
+                if (!string.IsNullOrEmpty(value) && value != SensitiveDataMasker.Mask)
+                {
+                    sensitiveValues.Add(value);
+                }
+
+                sentryEvent.SetTag(key, SensitiveDataMasker.Mask);
+            }
+            else
+            {
+                sentryEvent.SetTag(key, SensitiveDataMasker.MaskText(value));
+            }
+        }
+
         if (sentryEvent.Message is { } message)
         {
-            message.Formatted = message.Formatted is null ? null : SensitiveDataMasker.MaskText(message.Formatted);
-            message.Message = message.Message is null ? null : SensitiveDataMasker.MaskText(message.Message);
+            message.Formatted = message.Formatted is null ? null : SensitiveDataMasker.MaskText(message.Formatted, sensitiveValues);
+            message.Message = message.Message is null ? null : SensitiveDataMasker.MaskText(message.Message, sensitiveValues);
         }
 
         foreach (var exception in sentryEvent.SentryExceptions ?? [])
         {
-            exception.Value = exception.Value is null ? null : SensitiveDataMasker.MaskText(exception.Value);
+            exception.Value = exception.Value is null ? null : SensitiveDataMasker.MaskText(exception.Value, sensitiveValues);
         }
 
         var request = sentryEvent.Request;
@@ -82,7 +147,7 @@ internal static class ObservabilityExtensions
         {
             sentryEvent.SetExtra(key, SensitiveDataMasker.IsSensitiveName(key)
                 ? SensitiveDataMasker.Mask
-                : value is string text ? SensitiveDataMasker.MaskText(text) : value);
+                : value is string text ? SensitiveDataMasker.MaskText(text, sensitiveValues) : value);
         }
 
         return sentryEvent;
