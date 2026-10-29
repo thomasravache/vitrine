@@ -21,8 +21,8 @@ internal sealed class DataProtectionMasterKeyOptions
 /// <summary>
 /// Chave mestra que cifra (AES-256-GCM) o anel de chaves do Data Protection persistido no PostgreSQL. Vem de
 /// <c>DataProtection:MasterKey</c>; fora de Development ela é obrigatória (a subida falha com mensagem clara). Em
-/// Development sem chave configurada, uma chave efêmera é gerada por processo: as chaves gravadas por um processo anterior
-/// deixam de ser legíveis e o Data Protection cria outras (sessões locais não sobrevivem ao reinício).
+/// Development sem chave configurada, uma chave efêmera é gerada por processo e o anel fica só em memória (sessões locais
+/// não sobrevivem ao reinício; nada inválido é gravado no banco).
 /// </summary>
 internal sealed class DataProtectionMasterKey
 {
@@ -50,6 +50,7 @@ internal sealed class DataProtectionMasterKey
         else if (environment.IsDevelopment())
         {
             Current = RandomNumberGenerator.GetBytes(KeySizeInBytes);
+            IsEphemeral = true;
             DataProtectionLog.EphemeralMasterKey(logger);
         }
         else
@@ -62,6 +63,9 @@ internal sealed class DataProtectionMasterKey
             Previous = TryDecode(configured.PreviousMasterKey) ?? throw new InvalidOperationException(InvalidMessage);
         }
     }
+
+    /// <summary>Chave gerada por processo (só Development sem chave configurada): o anel fica só em memória.</summary>
+    public bool IsEphemeral { get; }
 
     /// <summary>A chave que cifra as chaves novas (32 bytes; nunca logada).</summary>
     internal byte[] Current { get; }
@@ -89,7 +93,7 @@ internal sealed class DataProtectionMasterKey
 internal static partial class DataProtectionLog
 {
     [LoggerMessage(EventId = 8001, Level = LogLevel.Warning,
-        Message = "DataProtection:MasterKey ausente em Development: usando chave mestra efêmera (sessões não sobrevivem ao reinício).")]
+        Message = "DataProtection:MasterKey ausente em Development: usando chave mestra efêmera e anel de chaves só em memória (sessões não sobrevivem ao reinício).")]
     public static partial void EphemeralMasterKey(ILogger logger);
 
     [LoggerMessage(EventId = 8002, Level = LogLevel.Information,

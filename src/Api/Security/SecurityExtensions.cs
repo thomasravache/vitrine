@@ -107,9 +107,20 @@ internal static class SecurityExtensions
                 ValidationAlgorithm = ValidationAlgorithm.HMACSHA256,
             });
 
-        // Cada chave do anel é gravada cifrada pela chave mestra (nunca em claro no banco).
+        // Cada chave do anel é gravada cifrada pela chave mestra (nunca em claro no banco). Com chave mestra efêmera
+        // (só Development sem chave), o anel fica em memória em vez de acumular no banco chaves que ninguém lerá depois.
         services.AddSingleton<IConfigureOptions<KeyManagementOptions>>(provider =>
             new ConfigureOptions<KeyManagementOptions>(options =>
-                options.XmlEncryptor = new MasterKeyXmlEncryptor(provider.GetRequiredService<DataProtectionMasterKey>())));
+            {
+                var masterKey = provider.GetRequiredService<DataProtectionMasterKey>();
+                options.XmlEncryptor = new MasterKeyXmlEncryptor(masterKey);
+                if (masterKey.IsEphemeral)
+                {
+                    options.XmlRepository = new InMemoryXmlRepository();
+                }
+            }));
+
+        // Fora de Development, chave mestra que não decifra o anel existente impede a subida (contrato v4).
+        services.AddHostedService<DataProtectionKeyRingCheck>();
     }
 }
