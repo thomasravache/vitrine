@@ -4,7 +4,7 @@ title: Exception.Data repassado cru ao Sentry em mechanism.data
 tier: lite
 type: fix
 user_facing: false
-status: in-progress
+status: implemented
 created: 2026-10-29
 parent: SPEC-0001
 depends_on: [SPEC-0013]
@@ -53,15 +53,15 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 ## 7. Checklist de Implementação
 <!-- Preenchido na fase PLAN, após a aprovação. -->
 **Fase 1: Regressão e correção**
-- [ ] Red: escrever IT-01 com a tag `SPEC-0015:<ID>` e confirmar que falham pelo motivo certo
-- [ ] Green: `MaskEvent` mascara `Mechanism.Data` (valores sensíveis do registro + chave de nome sensível)
-- [ ] Validar: build + suíte completa + arquitetura (G2/G3)
+- [x] Red: escrever IT-01 com a tag `SPEC-0015:<ID>` e confirmar que falham pelo motivo certo
+- [x] Green: `MaskEvent` mascara `Mechanism.Data` (valores sensíveis do registro + chave de nome sensível)
+- [x] Validar: build + suíte completa + arquitetura (G2/G3)
 
 **Fase final: Integração, entrega e documentação**
-- [ ] Review independente (G4)
-- [ ] Integração + CI verde (G5) e aprovação (H2)
-- [ ] Deploy no ambiente local prod-like com smoke (G6)
-- [ ] Relatório de Entrega, docs raiz e CHANGELOG (G7)
+- [x] Review independente (G4)
+- [x] Integração + CI verde (G5) e aprovação (H2)
+- [x] Deploy no ambiente local prod-like com smoke (G6)
+- [x] Relatório de Entrega, docs raiz e CHANGELOG (G7)
 
 ## 8. Registro de Gates
 <!-- Status: PENDING | PASS | FAIL | N/A. PASS e N/A exigem evidência. -->
@@ -72,10 +72,10 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 | G2 Green | PASS | build exit 0 (npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts a); test exit 0 (Duration  649ms (environment 60%, transform 17%, import 16%, tests 5%, worker 2%)); lint exit 0 (> tsc --noEmit && tsc --noEmit -p tsconfig.node.json); coverage exit 0 (Coverage: 100%) — 6fe759d | 2026-10-29 |
 | G3 Arquitetura | PASS | arch_test exit 0 (duration: 1s 398ms) — 6fe759d | 2026-10-29 |
 | G4 Review | PASS | verify G1+G4: PASS; revisão: APPROVED (Reviewer independente) em 6fe759d: red 4ed8199 reproduzido; sondas sem vazamento em Data de exceções internas/Aggregate, variações de chave sensível, Bearer/access_token, null, CaptureException direto, sentry:tag; pilha/type/handled intactos; SDK 6.12.1 conferido; Observability 15/15; minors pré-existentes consolidados na SPEC-0018 (valor de chave sensível de Data repetido na mensagem; ToString de objetos/records; Data com prefixo sentry: em contexts/extra) — 6fe759d | 2026-10-29 |
-| G5 Integração & CI | PENDING | | |
-| H2 Integração aprovada | PENDING | | |
-| G6 Deploy | PENDING | | |
-| G7 Pronto & Docs | PENDING | | |
+| G5 Integração & CI | PASS | MANUAL: PR #38 (sdd/int-wave-0015-0017 @ f586e61): CI 7/7 verde + CodeQL (runs/40951508757); local no integrado: build 0 avisos, format/lint ok, dotnet 165/165, vitest 6/6, tests/ci 3/3, e2e 30/30, drift do api:generate limpo, npm audit sem high, gitleaks 0 | 2026-10-29 |
+| H2 Integração aprovada | PASS | política auto-on-green (aprovada por thomas em 2026-10-13); G5 PASS | 2026-10-29 |
+| G6 Deploy | PASS | smoke_test exit 0 (2 passed (2.4s)) — b79eb1c (árvore suja) | 2026-10-29 |
+| G7 Pronto & Docs | PASS | Relatório de Entrega e Definição de Pronto: ok — b79eb1c (árvore suja) | 2026-10-29 |
 
 ## 9. Registro de Impedimentos
 <!-- Toda parada é registrada pelo Architect com `spec_graph.py impede` e fechada com `resolve` — não edite à mão. Tipos: spec (spec errada/incompleta → resolve com Emenda) | decisão (só o humano decide → resposta ou ADR) | trabalho (falta algo que exige código → SPEC-NNNN nova) | externo (acesso, ambiente, terceiro → ação tomada) | falha (3 FAILs seguidos no mesmo gate → diagnóstico e decisão). Com impedimento aberto a spec aparece como parada no INDEX e não pode ser fechada. -->
@@ -86,28 +86,34 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 <!-- Preenchido no CLOSE (G7). Para status implemented o validate exige tudo preenchido, todo teste do plano com PASS + evidência e a Definição de Pronto marcada. -->
 
 ### O que foi entregue
+Valores de `Exception.Data` enviados ao Sentry em `mechanism.data` passam pelo mascaramento: chave de nome sensível vira `***` e os demais valores têm os segredos conhecidos do registro e os padrões genéricos mascarados, em todas as exceções do evento (inclusive internas). Nenhuma chave é removida.
 
 ### Como foi feito
+`MaskMechanismData` em `src/Api/Observability/ObservabilityExtensions.cs`, chamado no laço de exceções do `MaskEvent`, com `SensitiveDataMasker.IsSensitiveName`/`MaskText` e a mesma lista de valores sensíveis da exceção (SPEC-0013). Review APPROVED com sondas (exceções internas/Aggregate, variações de chave, Bearer/access_token, `CaptureException` direto) e conferência no SDK 6.12.1.
 
 ### Prova de Correção
 <!-- type fix: teste de regressão falhou antes (commit red + saída) e passa depois (commit green + execução). Outros tipos: "N/A". -->
+Red 4ed8199: IT-01 falhava com `"pw-PROBE-123" foi enviado ao Sentry` (`mechanism.data` com `Detalhe` e `Token` crus). Green 6fe759d: 1/1; Observability 15/15; reproduzido pelo Reviewer.
 
 ### Verificação
 | Teste | Comportamento | Resultado | Evidência |
 |---|---|---|---|
+| IT-01 | Exception.Data mascarado em mechanism.data, evento enviado e chave Detalhe preservada | PASS | CI PR #38 run 40951508757; main run 40952299406 (b79eb1c) |
 
 ### Definição de Pronto
-- [ ] Teste de regressão falhou antes e passa depois da correção
-- [ ] Suíte completa, arquitetura e CI verdes (G2, G3, G5)
-- [ ] Review independente sem achados blocker/major (G4)
-- [ ] Padrão existente mantido
-- [ ] Disponível no ambiente-alvo via pipeline (G6)
-- [ ] Documentação/CHANGELOG atualizados quando aplicável (G7)
-- [ ] Outras ocorrências registradas como novas specs (ou nenhuma)
+- [x] Teste de regressão falhou antes e passa depois da correção
+- [x] Suíte completa, arquitetura e CI verdes (G2, G3, G5)
+- [x] Review independente sem achados blocker/major (G4)
+- [x] Padrão existente mantido
+- [x] Disponível no ambiente-alvo via pipeline (G6)
+- [x] Documentação/CHANGELOG atualizados quando aplicável (G7)
+- [x] Outras ocorrências registradas como novas specs (ou nenhuma)
 
 ### Deploy
+Ambiente local prod-like: imagem `ghcr.io/thomasravache/vitrine-api:b79eb1c` (commit de merge do PR #38) da CI da `main` (run 40952299406) via `deploy/deploy.sh`, health 200 em 4 s, smoke `@smoke` 2/2 (2026-10-29).
 
 ### Pendências
+- SPEC-0018 — achados minor pré-existentes da review (valor de chave sensível de `Data` repetido na mensagem; `Data` com prefixo `sentry:` em contexts/extra; `ToString` de objetos).
 
 ## 11. Emendas
 <!-- Mudança em spec aprovada: uma linha por emenda, aprovada pelo humano. -->
