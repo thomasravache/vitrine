@@ -199,4 +199,5 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 <!-- Mudança em spec aprovada: uma linha por emenda. Mudou o contrato? Incremente `contract_version` e rode `spec_graph.py impacted SPEC-0009`. -->
 | Versão do contrato | Data | Mudança | Motivo | Specs impactadas | Aprovado por |
 |---|---|---|---|---|---|
+| v1.1 (escopo, proposta) | 2026-10-29 | Herdados da SPEC-0007: secrets `OTEL_EXPORTER_OTLP_*`, `SENTRY_DSN`, `GRAFANA_CLOUD_*`, `DEPLOY_ENVIRONMENT`, `ALERT_EMAIL`; `VITE_SENTRY_DSN`/`VITE_SENTRY_RELEASE` no build da imagem (`.github/workflows/ci.yml`); decidir o ambiente do Sentry da SPA com a mesma imagem em staging e produção; aplicar `deploy/alloy/grafana/*` no Grafana Cloud; medir overhead de CPU (< 5%) e uso da cota | G7 da SPEC-0007 | SPEC-0007 | (pendente — revisar juntos no go-live) |
 | v1 (escopo) | 2026-10-13 | Inclui as pendências herdadas da SPEC-0005 (versão do Postgres, compose-bundle do Aspire, permissão do `vitrine_app`, revisão de defaults da infra) | Achados das reviews da SPEC-0005 deixados para o go-live | — | thomas (2026-10-13) |

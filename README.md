@@ -45,6 +45,11 @@ logs, traces, métricas e o endereço de cada recurso. A API responde `GET /heal
   desktop. O cadastro só abre com `Features:SignupOpen=true` (variável `FEATURES_SIGNUP_OPEN` no deploy): ligado no
   desenvolvimento e no ambiente local, desligado em produção até o lançamento. API em `/api/v1/auth/*` e `/api/v1/me`;
   módulo de referência para os próximos: `src/Modules/Identity/`.
+- **Observabilidade (SPEC-0007):** `GET /health/live` e `GET /health/ready` (inclui o banco), métricas
+  `vitrine.auth.*`, traces com spans de banco e logs mascarados no dashboard do Aspire. Fora do desenvolvimento os logs
+  saem em JSON com `trace_id`. Grafana Cloud e Sentry só ligam com as variáveis `OTEL_EXPORTER_OTLP_*`, `SENTRY_DSN`,
+  `GRAFANA_CLOUD_*` e o perfil `observability` do Compose (ver `deploy/local/.env.example`); alertas em
+  `deploy/alloy/grafana/` e um runbook por alerta em `docs/runbooks/`.
 
 ## Comandos
 
