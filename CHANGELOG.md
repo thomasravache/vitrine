@@ -14,6 +14,7 @@ Cada entrada cita a spec de origem (`SPEC-NNNN`); gere-as com `spec_graph.py rep
 - Infraestrutura como código (não provisionada) e deploy por script com migração, health check e rollback, testado em ambiente local prod-like (SPEC-0005)
 - Cadastro, login, logout e painel vazio no celular e no desktop, com cadastro controlado por flag por ambiente e evento `WorkspaceCreated` na outbox; E2E de fumaça contra o ambiente implantado (SPEC-0006)
 - Observabilidade de base: `/health/ready`, logs JSON com `trace_id` e dados pessoais mascarados, métricas de acesso (`vitrine.auth.*`), spans de banco, Sentry no backend e na SPA (só com DSN), Grafana Alloy opcional, alertas como código e runbooks (SPEC-0007)
+- Segurança de base: autorização negada por padrão guardada por teste de arquitetura, cabeçalhos de segurança (CSP, HSTS), limite de tentativas no cadastro e login (429), cifra de campos sensíveis (AES-256-GCM) com chaves no PostgreSQL protegidas pela chave mestra e runbook de rotação (SPEC-0008)
 
 ### Fixed
 - Dependências com avisos de segurança novos quebravam o build: Aspire 13.6.4 (MessagePack 2.5.307), undici 7.30.1 e happy-dom 21.0.4, com teste que barra o retorno dessas versões (SPEC-0010)

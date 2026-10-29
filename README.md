@@ -50,6 +50,12 @@ logs, traces, métricas e o endereço de cada recurso. A API responde `GET /heal
   saem em JSON com `trace_id`. Grafana Cloud e Sentry só ligam com as variáveis `OTEL_EXPORTER_OTLP_*`, `SENTRY_DSN`,
   `GRAFANA_CLOUD_*` e o perfil `observability` do Compose (ver `deploy/local/.env.example`); alertas em
   `deploy/alloy/grafana/` e um runbook por alerta em `docs/runbooks/`.
+- **Segurança (SPEC-0008):** toda rota exige login, exceto cadastro, login, token antiforgery, health checks e a SPA
+  (teste de arquitetura barra endpoint anônimo novo). Cabeçalhos de segurança (CSP estrita, HSTS fora do
+  desenvolvimento), limite de 10/min por IP no cadastro/login e 10/min por e-mail no login (429), e cifra de campos
+  sensíveis com `IFieldProtector` / `IsProtected("<propósito>")` em `src/Common/Vitrine.Common.Security`. As chaves do
+  Data Protection ficam no PostgreSQL, cifradas pela chave mestra `DATA_PROTECTION_MASTER_KEY` (obrigatória fora do
+  desenvolvimento; rotação em `docs/runbooks/rotacao-chave-mestra.md`).
 
 ## Comandos
 
