@@ -43,9 +43,9 @@ No login, o middleware do limitador responde 400 `VALIDATION_FAILED` (`errors.em
 
 ## 4. Plano de Testes (TDD)
 <!-- Mínimo: um teste de regressão que reproduz o problema e FALHA antes da correção, no nível em que o defeito aparece (IT para fronteiras de I/O, E2E para jornadas de usuário). Código sem cobertura: primeiro CH-xx fixando o comportamento atual. Tag no código: `SPEC-0014:<ID>`. Modo privado: sem tag no código; aponte o teste no fim da linha com `→ caminho::nome` (ex.: `→ tests/test_soma.py::test_soma`). Categoria sem teste: "N/A — motivo" SEM ID. -->
-- Caracterização: N/A — área já coberta pelos IT-03 e IT-08 da SPEC-0008.
+- Caracterização: N/A — área já coberta pelos testes de limite e de chave mestra da SPEC-0008.
 - Unitários: N/A — os dois defeitos aparecem na fronteira HTTP e no banco; a regressão é de integração.
-- - **IT-01** — Dado a API, quando `POST /api/v1/auth/login` chega com `email` nulo, `""`, `"   "`, `123` ou sem a propriedade, então responde 400 `VALIDATION_FAILED` com erro em `email`, e um login válido continua 401/204 como antes.
+- **IT-01** — Dado a API, quando `POST /api/v1/auth/login` chega com `email` nulo, `""`, `"   "`, `123` ou sem a propriedade, então responde 400 `VALIDATION_FAILED` com erro em `email`, e um login válido continua 401/204 como antes.
 - **IT-02** — Dado um anel de chaves cifrado pela chave mestra com um elemento `<revocation>` gravado no PostgreSQL, quando o host sobe fora de Development, então sobe normalmente; e uma `<key>` em claro continua impedindo a subida.
 
 ## 5. Questões em Aberto
@@ -73,7 +73,7 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 | Gate | Status | Evidência | Data |
 |---|---|---|---|
 | G0 Spec | PASS | validate: 0 erro(s) — 443e943 (árvore suja) | 2026-10-29 |
-| G1 Red | PENDING | | |
+| G1 Red | PASS | verify G1: PASS; `dotnet test tests/Vitrine.UnitTests && npm --prefix web run test` exit 127 (red: sh: 1: vitest: not found) — 9156efa | 2026-10-29 |
 | G2 Green | PENDING | | |
 | G3 Arquitetura | PENDING | | |
 | G4 Review | PENDING | | |

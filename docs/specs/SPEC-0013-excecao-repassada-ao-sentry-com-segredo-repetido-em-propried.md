@@ -35,13 +35,13 @@ Muda: o decorador passa ao Sentry os valores sensíveis do registro junto com a 
 
 **Rollback:** revert do commit
 
-**Outras ocorrências:** Nenhuma — o caminho OTLP já trata (IT-03 da SPEC-0007).
+**Outras ocorrências:** Nenhuma — o caminho OTLP já trata (coberto pelos testes de integração da SPEC-0007).
 
 ## 4. Plano de Testes (TDD)
 <!-- Mínimo: um teste de regressão que reproduz o problema e FALHA antes da correção, no nível em que o defeito aparece (IT para fronteiras de I/O, E2E para jornadas de usuário). Código sem cobertura: primeiro CH-xx fixando o comportamento atual. Tag no código: `SPEC-0013:<ID>`. Modo privado: sem tag no código; aponte o teste no fim da linha com `→ caminho::nome` (ex.: `→ tests/test_soma.py::test_soma`). Categoria sem teste: "N/A — motivo" SEM ID. -->
-- Caracterização: N/A — área coberta pelos testes UT-02/IT-03 da SPEC-0007.
+- Caracterização: N/A — área coberta pelos testes de mascaramento da SPEC-0007.
 - **UT-01** — Dado a API com Sentry configurado (transporte de teste), quando `LogError(new InvalidOperationException("falhou para pw-PROBE-123"), "{Password}", "pw-PROBE-123")`, então nenhum envelope enviado contém `pw-PROBE-123` (exceção, mensagem, tags) e o evento é enviado.
-- Integração/E2E: N/A — o UT-01 já roda no host real da API (mesmo padrão do UT-02 da SPEC-0007).
+- Integração/E2E: N/A — o UT-01 já roda no host real da API (mesmo padrão dos testes de Sentry da SPEC-0007).
 
 ## 5. Questões em Aberto
 <!-- Dúvidas que impedem fechar a spec, respondidas ANTES do H1. Aberta: `- [ ] pergunta (quem responde)`. Respondida: `- [x] pergunta — resposta (quem, data)`. Com alguma aberta o G0 reprova. Sem dúvidas: escreva "Nenhuma". Dúvida que surge depois da aprovação vira impedimento (seção Registro de Impedimentos). -->
@@ -68,7 +68,7 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 | Gate | Status | Evidência | Data |
 |---|---|---|---|
 | G0 Spec | PASS | validate: 0 erro(s) — 58742a0 (árvore suja) | 2026-10-28 |
-| G1 Red | PENDING | | |
+| G1 Red | PASS | verify G1: PASS; `dotnet test tests/Vitrine.UnitTests && npm --prefix web run test` exit 127 (red: sh: 1: vitest: not found) — 549eeaa | 2026-10-29 |
 | G2 Green | PENDING | | |
 | G3 Arquitetura | PENDING | | |
 | G4 Review | PENDING | | |

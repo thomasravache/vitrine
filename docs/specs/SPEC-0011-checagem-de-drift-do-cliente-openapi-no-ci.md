@@ -9,7 +9,7 @@ created: 2026-10-28
 parent: SPEC-0001
 depends_on: []
 consumes_contract: []
-touches: [.github/workflows/ci.yml, tests/ci/**]
+touches: [.github/workflows/ci.yml, tests/ci/**, src/Api/Program.cs, src/Api/Security/SecurityExtensions.cs, web/package.json]
 adrs: [ADR-0013, ADR-0004]
 external: []
 size: S
@@ -41,7 +41,7 @@ Muda: passo no CI `npm --prefix web run api:generate && git diff --exit-code web
 <!-- Mínimo: um teste de regressão que reproduz o problema e FALHA antes da correção, no nível em que o defeito aparece (IT para fronteiras de I/O, E2E para jornadas de usuário). Código sem cobertura: primeiro CH-xx fixando o comportamento atual. Tag no código: `SPEC-0011:<ID>`. Modo privado: sem tag no código; aponte o teste no fim da linha com `→ caminho::nome` (ex.: `→ tests/test_soma.py::test_soma`). Categoria sem teste: "N/A — motivo" SEM ID. -->
 - Caracterização: N/A — sem comportamento de produto alterado.
 - **UT-01** — Dado o workflow de CI, quando lido pelo teste de pipeline, então o job `build-lint` tem o passo de verificação de drift do cliente OpenAPI depois do build.
-- **IT-01** — Dado uma cópia do repositório com um endpoint alterado e o cliente não regenerado, quando o passo de verificação roda, então sai com código diferente de zero e aponta `npm run api:generate`.
+- **IT-01** — Dado uma cópia do repositório sem PostgreSQL e sem `DataProtection__MasterKey` no ambiente, quando o passo de verificação roda com o cliente em dia, então sai com 0; e, com um endpoint alterado e o cliente não regenerado, sai com código diferente de zero e aponta `npm run api:generate`.
 
 ## 5. Questões em Aberto
 <!-- Dúvidas que impedem fechar a spec, respondidas ANTES do H1. Aberta: `- [ ] pergunta (quem responde)`. Respondida: `- [x] pergunta — resposta (quem, data)`. Com alguma aberta o G0 reprova. Sem dúvidas: escreva "Nenhuma". Dúvida que surge depois da aprovação vira impedimento (seção Registro de Impedimentos). -->
@@ -81,6 +81,7 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 <!-- Toda parada é registrada pelo Architect com `spec_graph.py impede` e fechada com `resolve` — não edite à mão. Tipos: spec (spec errada/incompleta → resolve com Emenda) | decisão (só o humano decide → resposta ou ADR) | trabalho (falta algo que exige código → SPEC-NNNN nova) | externo (acesso, ambiente, terceiro → ação tomada) | falha (3 FAILs seguidos no mesmo gate → diagnóstico e decisão). Com impedimento aberto a spec aparece como parada no INDEX e não pode ser fechada. -->
 | ID | Aberto em | Fase/Gate | Tipo | Descrição | Tentativas | Responsável | Resolução | Fechado em |
 |---|---|---|---|---|---|---|---|---|
+| IMP-01 | 2026-10-29 | G1 | spec | npm run api:generate quebrado desde a SPEC-0008: em Production exige DataProtection__MasterKey e PostgreSQL (checagem do anel); em Development a validação de DI falha (IDbContextOutbox sem IWolverineRuntime, pois UseWolverine é pulado na geração). O passo de drift falharia mesmo com o cliente em dia. | Test-writer: protótipo com Postgres de serviço + chave falsa no passo passa, mas deixa api:generate quebrado para quem não tem banco | Architect | Emenda v1.1 — geração do OpenAPI sem banco/chave no escopo; IT-01 sem PostgreSQL | 2026-10-29 |
 
 ## 10. Relatório de Entrega
 <!-- Preenchido no CLOSE (G7). Para status implemented o validate exige tudo preenchido, todo teste do plano com PASS + evidência e a Definição de Pronto marcada. -->
@@ -113,3 +114,4 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 <!-- Mudança em spec aprovada: uma linha por emenda, aprovada pelo humano. -->
 | Versão | Data | Mudança | Motivo | Specs impactadas | Aprovado por |
 |---|---|---|---|---|---|
+| v1.1 (escopo) | 2026-10-29 | `npm run api:generate` volta a funcionar sem banco e sem chave mestra (a geração do OpenAPI não valida DI do outbox nem exige/checa o anel do Data Protection); `touches` ganha `src/Api/Program.cs`, `src/Api/Security/SecurityExtensions.cs` e `web/package.json`; IT-01 roda sem PostgreSQL e sem chave | IMP-01: a geração quebrou na SPEC-0008 e o passo de drift falharia mesmo com o cliente em dia | nenhuma | thomas (2026-10-29, piloto automático) |
