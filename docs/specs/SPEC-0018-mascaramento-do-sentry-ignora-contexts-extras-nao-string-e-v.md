@@ -4,7 +4,7 @@ title: Mascaramento do Sentry ignora contexts, extras não-string e valores sens
 tier: lite
 type: fix
 user_facing: false
-status: approved
+status: in-progress
 created: 2026-10-29
 parent: SPEC-0001
 depends_on: [SPEC-0015]
@@ -35,7 +35,7 @@ Esperado: nenhum desses caminhos envia segredo ao Sentry. Impacto: baixo hoje (n
 `src/Api/Observability/ObservabilityExtensions.cs` (`MaskEvent`/`MaskMechanismData`): a lista de valores sensíveis é montada antes de olhar `Mechanism.Data`; `Contexts` não é percorrido; extras e valores de `Data` não-string são tratados só pelo `ToString` ou ignorados. O padrão de `nome=valor` do `SensitiveDataMasker` não aceita espaços em volta do `=`.
 
 ## 3. Mudança Proposta
-Pré-passagem que junta os valores de chaves sensíveis de todos os `Mechanism.Data` à lista antes de mascarar exceções, mensagem e breadcrumbs do evento; `Contexts` e `Extra` mascarados recursivamente (chave sensível → `***`, texto → `MaskText`), inclusive valores não-string; objetos/structs em `Data` e extras viram texto mascarado (ou `***` quando não representáveis com segurança). Não muda: console, OTLP, pilha, Type/Handled, campos não sensíveis.
+Pré-passagem que junta os valores de chaves sensíveis de todos os `Mechanism.Data` à lista antes de mascarar exceções e mensagem do evento (breadcrumbs já gravados no evento não são reescritos: o SDK só os expõe para leitura, e um valor logado antes sob nome neutro também vai cru para console/OTLP — limite do ADR-0006; tipos do protocolo do SDK postos de propósito em `sentry:context:` também ficam como limite); `Contexts` e `Extra` mascarados recursivamente (chave sensível → `***`, texto → `MaskText`), inclusive valores não-string; objetos/structs em `Data` e extras são lidos pelas propriedades públicas (reflexão) e mascarados como dicionário, com o `ToString` só como fallback (`***` quando não representáveis com segurança); `JsonElement` é tratado como dicionário/lista; a coleta e o mascaramento nunca lançam (falha → `***`), só enumeram coleções materializadas e controlam ciclos; valores numéricos ou com até 3 caracteres não entram na lista de segredos. `Uri` perde o `UserInfo` antes de virar texto; cada valor tem um orçamento global de nós (ex.: 1000) além da profundidade e do limite por nó. Limites conhecidos (ADR-0006): getters de objetos de domínio são lidos mais de uma vez por log; textos com 4+ caracteres sob nome sensível mascaram a mesma palavra em outros pontos; objeto usado como chave de dicionário e classe sem membros públicos usam o `ToString`. Não muda: console, OTLP, pilha, Type/Handled, campos não sensíveis.
 
 **Padrão seguido:** `MaskEvent`, `MaskMechanismData`, `MaskBreadcrumb` (SPEC-0007/0013/0015) e `SensitiveDataMasker` do ServiceDefaults (só uso; a regex com espaços, se precisar mudar, fica dentro do `MaskEvent` sem alterar o ServiceDefaults).
 
@@ -47,7 +47,8 @@ Pré-passagem que junta os valores de chaves sensíveis de todos os `Mechanism.D
 <!-- Mínimo: um teste de regressão que reproduz o problema e FALHA antes da correção, no nível em que o defeito aparece (IT para fronteiras de I/O, E2E para jornadas de usuário). Código sem cobertura: primeiro CH-xx fixando o comportamento atual. Tag no código: `SPEC-0018:<ID>`. Modo privado: sem tag no código; aponte o teste no fim da linha com `→ caminho::nome` (ex.: `→ tests/test_soma.py::test_soma`). Categoria sem teste: "N/A — motivo" SEM ID. -->
 - Caracterização: N/A — coberta pelos testes de mascaramento do Sentry das SPEC-0007, 0013 e 0015.
 - Unitários: N/A — os defeitos aparecem no envelope do host real; a regressão é de integração.
-- - **IT-01** — Dado a API com Sentry configurado (transporte de teste), quando são registradas exceções com (a) `Data["Token"]` cujo valor também está na mensagem da exceção, (b) `Data["sentry:context:auth"]` com dicionário contendo `password` e `Data["sentry:extra"]` com objeto contendo `Password`, e (c) `Data` neutro com tipo anônimo, record e `KeyValuePair` contendo segredo, então nenhum envelope contém os valores de segredo usados, os eventos são enviados e as chaves não sensíveis continuam presentes.
+- **IT-01** — Dado a API com Sentry configurado (transporte de teste), quando são registradas exceções com (a) `Data["Token"]` cujo valor também está na mensagem da exceção, (b) `Data["sentry:context:auth"]` com dicionário contendo `password` e `Data["sentry:extra"]` com objeto contendo `Password`, e (c) `Data` neutro com tipo anônimo, record e `KeyValuePair` contendo segredo, então nenhum envelope contém os valores de segredo usados, os eventos são enviados e as chaves não sensíveis continuam presentes.
+- **IT-02** — Dado a API com Sentry configurado (transporte de teste), quando `Exception.Data` traz (a) record/anônimo com senha contendo `}`, `]`, `, Nome =` ou quebra de linha, (b) objeto aninhado sob nome sensível (`new { Credentials = new { Valor = X } }`), (c) objeto com `Password` cujo valor também está na mensagem da exceção e (d) `JsonElement` objeto com `"password"`, então nenhum envelope contém os segredos; (e) com um `IEnumerable` cuja enumeração lança, `LogError` não lança e o evento é enviado; e (f) valores numéricos ou de até 3 caracteres sob nome sensível (`TokenTtl=1`) não corrompem `exception.value` nem `HResult`. Inclui também: `Uri` com credenciais (`postgres://admin:SENHA@db:5432/x`) em `Data` ou dentro de objeto sai sem o `UserInfo`; e um grafo com referências compartilhadas (DAG de 10 níveis × 10 chaves para o mesmo filho) termina o `LogError` rápido (< 1 s), sem lançar, com o excedente como `***` e o evento enviado.
 
 ## 5. Questões em Aberto
 <!-- Dúvidas que impedem fechar a spec, respondidas ANTES do H1. Aberta: `- [ ] pergunta (quem responde)`. Respondida: `- [x] pergunta — resposta (quem, data)`. Com alguma aberta o G0 reprova. Sem dúvidas: escreva "Nenhuma". Dúvida que surge depois da aprovação vira impedimento (seção Registro de Impedimentos). -->
@@ -59,7 +60,7 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 ## 7. Checklist de Implementação
 <!-- Preenchido na fase PLAN, após a aprovação. -->
 **Fase 1: Regressão e correção**
-- [ ] Red: escrever IT-01 com a tag `SPEC-0018:<ID>` e confirmar que falha pelo motivo certo
+- [ ] Red: escrever IT-01 e IT-02 com a tag `SPEC-0018:<ID>` e confirmar que falha pelo motivo certo
 - [ ] Green: pré-passagem dos valores sensíveis de `Mechanism.Data`; `Contexts`/`Extra` mascarados recursivamente; objetos e structs mascarados
 - [ ] Validar: build + suíte completa + arquitetura (G2/G3)
 
@@ -74,10 +75,10 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 | Gate | Status | Evidência | Data |
 |---|---|---|---|
 | G0 Spec | PASS | validate: 0 erro(s) — 927c0df (árvore suja) | 2026-10-29 |
-| G1 Red | PENDING | | |
-| G2 Green | PENDING | | |
-| G3 Arquitetura | PENDING | | |
-| G4 Review | PENDING | | |
+| G1 Red | PASS | verify G1: PASS; `dotnet test tests/Vitrine.UnitTests && npm --prefix web run test` exit 127 (red: sh: 1: vitest: not found) — 8957016 | 2026-10-29 |
+| G2 Green | PASS | build exit 0 (npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts a); test exit 0 (Duration  356ms (environment 61%, transform 17%, import 17%, tests 4%, worker 1%)); lint exit 0 (> tsc --noEmit && tsc --noEmit -p tsconfig.node.json); coverage exit 0 (Coverage: 88%) — c2a5a6d | 2026-10-29 |
+| G3 Arquitetura | PASS | arch_test exit 0 (duration: 1s 331ms) — c2a5a6d | 2026-10-29 |
+| G4 Review | PASS | verify G1+G4: PASS; revisão: APPROVED (Reviewer independente, 3ª rodada) em c2a5a6d: 1ª rodada CHANGES_REQUESTED (2 majors: parse do ToString vazava, LogError lançava) corrigida; IT-01+IT-02 25/25, os 3 casos novos falhavam em dc05a6c; sondas sem vazamento em objetos/records/JsonElement/coleções preguiçosas/ciclos/DAG/Uri com credencial; limites registrados no Relatório: orçamento global do Collect estourado antes do segredo, credencial %-escapada repetida na mensagem, Uri relativa, Uri só com usuário mascara demais, segredo ≤3 chars — c2a5a6d | 2026-10-29 |
 | G5 Integração & CI | PENDING | | |
 | H2 Integração aprovada | PENDING | | |
 | G6 Deploy | PENDING | | |
@@ -119,3 +120,5 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 <!-- Mudança em spec aprovada: uma linha por emenda, aprovada pelo humano. -->
 | Versão | Data | Mudança | Motivo | Specs impactadas | Aprovado por |
 |---|---|---|---|---|---|
+| v1.2 (escopo) | 2026-10-29 | `Uri` sem `UserInfo`; orçamento global de nós por valor; IT-02 ganha os dois casos; limites registrados (getters lidos mais de uma vez, mascaramento excessivo de palavras, chave-objeto e classe sem membros via `ToString`) | G4 2ª rodada APPROVED com minors: Uri com senha crua e DAG explodindo tempo/memória no LogError | nenhuma | thomas (2026-10-29, piloto automático) |
+| v1.1 (escopo) | 2026-10-29 | Objetos lidos por reflexão (ToString só fallback), `JsonElement`, coleta/mascaramento que nunca lançam e só enumeram coleções materializadas, controle de ciclos, valores numéricos/curtos fora da lista; IT-02 novo; breadcrumbs já gravados no evento e tipos do protocolo do SDK em `sentry:context:` registrados como limite | G4 CHANGES_REQUESTED: vazamentos pelo parse do ToString e regressão (LogError lançava) | nenhuma | thomas (2026-10-29, piloto automático) |

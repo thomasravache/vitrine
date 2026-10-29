@@ -4,7 +4,7 @@ title: Testes de infra deixam a stack local rodando
 tier: lite
 type: fix
 user_facing: false
-status: approved
+status: in-progress
 created: 2026-10-28
 parent: SPEC-0001
 depends_on: []
@@ -68,10 +68,10 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 | Gate | Status | Evidência | Data |
 |---|---|---|---|
 | G0 Spec | PASS | validate: 0 erro(s) — 1f05dea (árvore suja) | 2026-10-28 |
-| G1 Red | PENDING | | |
-| G2 Green | PENDING | | |
-| G3 Arquitetura | PENDING | | |
-| G4 Review | PENDING | | |
+| G1 Red | PASS | verify G1: PASS; `dotnet test tests/Vitrine.UnitTests && npm --prefix web run test` exit 127 (red: sh: 1: vitest: not found) — 12480c4 | 2026-10-29 |
+| G2 Green | PASS | build exit 0 (npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts a); test exit 0 (Duration  351ms (environment 62%, transform 16%, import 16%, tests 4%, worker 1%)); lint exit 0 (> tsc --noEmit && tsc --noEmit -p tsconfig.node.json); coverage exit 0 (No lines with coverage information in this diff.) — dc89fcd | 2026-10-29 |
+| G3 Arquitetura | PASS | arch_test exit 0 (duration: 1s 094ms) — dc89fcd | 2026-10-29 |
+| G4 Review | PASS | verify G1+G4: PASS; revisão: APPROVED (Reviewer independente, 1ª rodada + delta) em dc89fcd: UT-01 red em 12480c4 e 22ddb3e pelo motivo certo, 4/4 no green; IT-01 guarda nos dois ramos; suíte de infra 10/10 derruba só o que subiu; sondas: falha/sucesso preservam rc, SIGINT/SIGTERM limpam, stack no ar e Docker indisponível intocados, outro projeto Compose intacto, projeto parado mantém containers e volumes; shellcheck limpo; nits: rede vitrine_default sobra no modo stopped, --force-recreate remove o container parado original, SIGTERM espera o teste em andamento — dc89fcd | 2026-10-29 |
 | G5 Integração & CI | PENDING | | |
 | H2 Integração aprovada | PENDING | | |
 | G6 Deploy | PENDING | | |

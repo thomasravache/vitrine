@@ -50,7 +50,9 @@ internal sealed class MaskingLoggerProvider(ILoggerProvider inner) : ILoggerProv
                 return;
             }
 
+            // Valores de chaves sensíveis de Exception.Data também saem do texto da exceção e do breadcrumb (SPEC-0018).
             var sensitiveValues = new List<string>();
+            SentryDataMasker.CollectSensitiveValues(exception, sensitiveValues);
             IReadOnlyList<KeyValuePair<string, object?>> properties = state as IReadOnlyList<KeyValuePair<string, object?>> ?? [];
             properties = SensitiveDataMasker.MaskProperties(properties, sensitiveValues) ?? properties;
             var message = SensitiveDataMasker.MaskText(formatter(state, exception), sensitiveValues);
