@@ -14,10 +14,18 @@ using Wolverine.Postgresql;
 const string MigrateArgument = "--migrate";
 var migrateOnly = args.Contains(MigrateArgument, StringComparer.Ordinal);
 
-// Geração do documento OpenAPI no build (GetDocument.Insider sobe o host): sem banco nem mensageria.
+// Geração do documento OpenAPI no build (GetDocument.Insider sobe o host): sem banco, mensageria nem chave mestra
+// (SPEC-0011), em qualquer ambiente — `npm run api:generate` e o passo de drift do CI rodam sem PostgreSQL.
 var generatingOpenApi = Assembly.GetEntryAssembly()?.GetName().Name == "GetDocument.Insider";
 
 var builder = WebApplication.CreateBuilder(args.Where(arg => arg != MigrateArgument).ToArray());
+
+if (generatingOpenApi)
+{
+    // Sem o Wolverine (abaixo), serviços dos módulos que dependem dele (ex.: IDbContextOutbox) não resolvem; a
+    // validação do contêiner (ligada em Development) reprovaria um host que só descreve os endpoints.
+    builder.Host.UseDefaultServiceProvider(options => options.ValidateOnBuild = false);
+}
 
 builder.AddServiceDefaults();
 
@@ -47,7 +55,7 @@ builder.Services.AddAntiforgery(options =>
 });
 
 // Segurança de base (SPEC-0008): forwarded headers, cabeçalhos, rate limiting de auth, Data Protection e cifra de campos.
-builder.AddSecurity();
+builder.AddSecurity(generatingOpenApi);
 
 // Módulos (ADR-0001).
 builder.Services.AddIdentityModule(builder.Configuration);
