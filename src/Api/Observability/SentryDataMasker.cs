@@ -27,6 +27,10 @@ internal static partial class SentryDataMasker
     // corromperia o texto (continuam virando *** sob a própria chave).
     private const int MinCollectedLength = 4;
 
+    // Orçamento de nós visitados por valor: o controle de ciclos é por caminho e não cobre grafos com referências
+    // compartilhadas (DAG), que crescem exponencialmente; o excedente vira ***.
+    private const int MaxNodes = 1000;
+
     // Marca de membro cujo getter lançou: vira ***.
     private static readonly object Unreadable = new();
 
@@ -39,7 +43,7 @@ internal static partial class SentryDataMasker
     {
         try
         {
-            Collect(value, sensitiveValues, SensitiveDataMasker.IsSensitiveName(key), 0, NewVisited());
+            Collect(value, sensitiveValues, SensitiveDataMasker.IsSensitiveName(key), 0, new Walk());
         }
 #pragma warning disable CA1031 // Mascaramento nunca pode derrubar o registro do erro.
         catch (Exception)
@@ -55,7 +59,7 @@ internal static partial class SentryDataMasker
         try
         {
             var pending = new Stack<(Exception Exception, int Depth)>();
-            var visited = NewVisited();
+            var visited = new HashSet<object>(ReferenceEqualityComparer.Instance);
             if (exception is not null)
             {
                 pending.Push((exception, 0));
@@ -100,7 +104,7 @@ internal static partial class SentryDataMasker
     {
         try
         {
-            return Mask(key, value, sensitiveValues, 0, NewVisited());
+            return Mask(key, value, sensitiveValues, 0, new Walk());
         }
 #pragma warning disable CA1031 // Mascaramento nunca pode derrubar o envio do evento.
         catch (Exception)
@@ -110,9 +114,13 @@ internal static partial class SentryDataMasker
         }
     }
 
-    private static HashSet<object> NewVisited() => new(ReferenceEqualityComparer.Instance);
+    // Retira as credenciais (UserInfo) de um Uri antes de virar texto.
+    private static string UriText(Uri uri) =>
+        uri.IsAbsoluteUri && uri.UserInfo.Length > 0
+            ? uri.GetComponents(UriComponents.AbsoluteUri & ~UriComponents.UserInfo, UriFormat.UriEscaped)
+            : uri.OriginalString;
 
-    private static object? Mask(string? key, object? value, IReadOnlyCollection<string> sensitiveValues, int depth, HashSet<object> visited)
+    private static object? Mask(string? key, object? value, IReadOnlyCollection<string> sensitiveValues, int depth, Walk walk)
     {
         if (SensitiveDataMasker.IsSensitiveName(key))
         {
@@ -131,13 +139,15 @@ internal static partial class SentryDataMasker
                 return element;
             case var scalar when IsScalar(scalar):
                 return scalar;
-            case var _ when depth >= MaxDepth || ReferenceEquals(value, Unreadable):
+            case var _ when depth >= MaxDepth || ReferenceEquals(value, Unreadable) || !walk.TryVisit():
                 return SensitiveDataMasker.Mask;
+            case Uri uri:
+                return SensitiveDataMasker.MaskText(UriText(uri), sensitiveValues);
             default:
                 break;
         }
 
-        if (!value.GetType().IsValueType && !visited.Add(value))
+        if (!value.GetType().IsValueType && !walk.Visited.Add(value))
         {
             // Ciclo: o objeto já está no caminho atual.
             return SensitiveDataMasker.Mask;
@@ -147,7 +157,7 @@ internal static partial class SentryDataMasker
         {
             if (TryGetPair(value, out var pairKey, out var pairValue))
             {
-                var maskedValue = Mask(pairKey, pairValue, sensitiveValues, depth + 1, visited);
+                var maskedValue = Mask(pairKey, pairValue, sensitiveValues, depth + 1, walk);
                 return $"[{SensitiveDataMasker.MaskText(pairKey, sensitiveValues)}, {AsText(maskedValue)}]";
             }
 
@@ -158,14 +168,14 @@ internal static partial class SentryDataMasker
                         var masked = new Dictionary<string, object?>(StringComparer.Ordinal);
                         foreach (var (entryKey, entryValue) in entries)
                         {
-                            masked[SensitiveDataMasker.MaskText(entryKey, sensitiveValues)] = Mask(entryKey, entryValue, sensitiveValues, depth + 1, visited);
+                            masked[SensitiveDataMasker.MaskText(entryKey, sensitiveValues)] = Mask(entryKey, entryValue, sensitiveValues, depth + 1, walk);
                         }
 
                         return masked;
                     }
 
                 case List<object?> items:
-                    return items.Select(item => Mask(null, item, sensitiveValues, depth + 1, visited)).ToList();
+                    return items.Select(item => Mask(null, item, sensitiveValues, depth + 1, walk)).ToList();
                 case string text:
                     return MaskObjectText(text, sensitiveValues);
                 default:
@@ -180,11 +190,11 @@ internal static partial class SentryDataMasker
         }
         finally
         {
-            visited.Remove(value);
+            walk.Visited.Remove(value);
         }
     }
 
-    private static void Collect(object? value, ICollection<string> sensitiveValues, bool sensitive, int depth, HashSet<object> visited)
+    private static void Collect(object? value, ICollection<string> sensitiveValues, bool sensitive, int depth, Walk walk)
     {
         switch (value)
         {
@@ -200,13 +210,16 @@ internal static partial class SentryDataMasker
                 return;
             case var scalar when IsScalar(scalar):
                 return;
-            case var _ when depth >= MaxDepth || ReferenceEquals(value, Unreadable):
+            case var _ when depth >= MaxDepth || ReferenceEquals(value, Unreadable) || !walk.TryVisit():
+                return;
+            case Uri uri:
+                CollectUri(uri, sensitiveValues, sensitive);
                 return;
             default:
                 break;
         }
 
-        if (!value.GetType().IsValueType && !visited.Add(value))
+        if (!value.GetType().IsValueType && !walk.Visited.Add(value))
         {
             return;
         }
@@ -215,7 +228,7 @@ internal static partial class SentryDataMasker
         {
             if (TryGetPair(value, out var pairKey, out var pairValue))
             {
-                Collect(pairValue, sensitiveValues, sensitive || SensitiveDataMasker.IsSensitiveName(pairKey), depth + 1, visited);
+                Collect(pairValue, sensitiveValues, sensitive || SensitiveDataMasker.IsSensitiveName(pairKey), depth + 1, walk);
                 return;
             }
 
@@ -224,19 +237,22 @@ internal static partial class SentryDataMasker
                 case List<(string Key, object? Value)> entries:
                     foreach (var (entryKey, entryValue) in entries)
                     {
-                        Collect(entryValue, sensitiveValues, sensitive || SensitiveDataMasker.IsSensitiveName(entryKey), depth + 1, visited);
+                        Collect(entryValue, sensitiveValues, sensitive || SensitiveDataMasker.IsSensitiveName(entryKey), depth + 1, walk);
                     }
 
                     break;
                 case List<object?> items:
                     foreach (var item in items)
                     {
-                        Collect(item, sensitiveValues, sensitive, depth + 1, visited);
+                        Collect(item, sensitiveValues, sensitive, depth + 1, walk);
                     }
 
                     break;
+                case string text:
+                    // Texto de ToString (tipo da plataforma, IFormattable ou objeto sem membros públicos).
+                    Add(text, sensitiveValues, sensitive);
+                    break;
                 default:
-                    // Texto de ToString (tipo da plataforma ou sem membros públicos): não é coletado.
                     break;
             }
         }
@@ -248,8 +264,23 @@ internal static partial class SentryDataMasker
         }
         finally
         {
-            visited.Remove(value);
+            walk.Visited.Remove(value);
         }
+    }
+
+    // Credenciais do Uri (usuário:senha e a senha) sempre são sensíveis; sob nome sensível, o endereço inteiro também.
+    private static void CollectUri(Uri uri, ICollection<string> sensitiveValues, bool sensitive)
+    {
+        if (uri.IsAbsoluteUri && uri.UserInfo is { Length: > 0 } userInfo)
+        {
+            Add(Uri.UnescapeDataString(userInfo), sensitiveValues, sensitive: true);
+            if (userInfo.IndexOf(':', StringComparison.Ordinal) is var colon and >= 0)
+            {
+                Add(Uri.UnescapeDataString(userInfo[(colon + 1)..]), sensitiveValues, sensitive: true);
+            }
+        }
+
+        Add(UriText(uri), sensitiveValues, sensitive);
     }
 
     private static void Add(string? text, ICollection<string> sensitiveValues, bool sensitive)
@@ -447,6 +478,16 @@ internal static partial class SentryDataMasker
         var scalar when IsScalar(scalar) => SafeText(scalar) ?? SensitiveDataMasker.Mask,
         _ => SensitiveDataMasker.Mask,
     };
+
+    // Estado de um percurso: objetos no caminho atual (ciclos) e orçamento global de nós (DAG).
+    private sealed class Walk
+    {
+        private int _remaining = MaxNodes;
+
+        public HashSet<object> Visited { get; } = new(ReferenceEqualityComparer.Instance);
+
+        public bool TryVisit() => _remaining-- > 0;
+    }
 
     // "Nome = valor" (ToString de tipo anônimo/record); o valor vai até a próxima ", Nome =", chave/colchete ou fim.
     [GeneratedRegex(
