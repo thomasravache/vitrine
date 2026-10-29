@@ -70,3 +70,5 @@ Varredura de segredos (gitleaks) em `security_scan`; teste de mascaramento de lo
 ## Mais Informações
 Referências: OWASP ASVS 5.0 (V13 Configuration, V11 Cryptography); LGPD (Lei 13.709/2018), arts. 7, 33 (transferência internacional) e 39 (operador). gitleaks: ferramenta de varredura de segredos (versão definida na SPEC-0004).
 Versão do gitleaks e detalhes do Data Protection do .NET 10: não verificado nesta sessão — confirmar na SPEC-0004/SPEC-0008.
+
+Biblioteca *(SPEC-0008, 2026-10-29, aprovada por thomas no piloto automático)*: `Microsoft.AspNetCore.DataProtection.EntityFrameworkCore` 10.0.13 (MIT, Microsoft) para persistir o anel de chaves do Data Protection no PostgreSQL, com as chaves cifradas pela chave mestra do ambiente.

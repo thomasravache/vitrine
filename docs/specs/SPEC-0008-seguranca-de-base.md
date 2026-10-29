@@ -4,13 +4,13 @@ title: Segurança de base
 tier: full
 type: foundation
 user_facing: false
-status: approved
+status: in-progress
 created: 2026-10-13
 parent: SPEC-0001
 depends_on: [SPEC-0006]
 consumes_contract: [SPEC-0006@1]
 contract_version: 1
-touches: [src/Api/Security/**, src/Api/Program.cs, src/ServiceDefaults/**, deploy/compose.yaml, src/Common/Security/**, tests/Vitrine.UnitTests/Security/**, tests/Vitrine.IntegrationTests/Security/**, tests/Vitrine.ArchitectureTests/**, deploy/Caddyfile, docs/runbooks/**]
+touches: [src/Api/Security/**, src/Api/Program.cs, src/Api/Vitrine.Api.csproj, src/Api/appsettings*.json, src/ServiceDefaults/**, src/Common/Vitrine.Common.Security/**, src/Modules/Identity/Vitrine.Identity.Presentation/**, src/Modules/Identity/Vitrine.Identity.Infrastructure/**, Vitrine.slnx, Directory.Packages.props, "**/packages.lock.json", deploy/compose.yaml, deploy/compose.override.yaml, deploy/Caddyfile, deploy/local/.env.example, tests/Vitrine.UnitTests/Security/**, tests/Vitrine.UnitTests/Vitrine.UnitTests.csproj, tests/Vitrine.IntegrationTests/Security/**, tests/Vitrine.IntegrationTests/Support/**, tests/Vitrine.IntegrationTests/Vitrine.IntegrationTests.csproj, tests/Vitrine.ArchitectureTests/**, docs/runbooks/**, .gitleaksignore]
 adrs: [ADR-0007, ADR-0006]
 external: []
 size: M
@@ -49,7 +49,7 @@ Fecha a base de segurança antes de qualquer dado de cliente: autorização nega
 
 **Decisão:** proteções nativas do ASP.NET Core 10 (autorização, rate limiting, Data Protection) configuradas no host; cifra de campo como building block em `src/Common`, sem dependência de módulos.
 
-**Justificativa:** sem bibliotecas novas; tudo verificável por testes de integração.
+**Justificativa:** só uma biblioteca nova, oficial da Microsoft (`Microsoft.AspNetCore.DataProtection.EntityFrameworkCore` 10.0.13, MIT, para persistir as chaves no PostgreSQL — ADR-0006); tudo verificável por testes de integração.
 
 **Desvio do padrão existente:** Nenhum (projeto novo).
 
@@ -123,7 +123,7 @@ Config: DataProtection__MasterKey (secret do Environment)
 - **CT-01** — Dado o contrato SPEC-0006@1, quando cadastro e login são executados pelo cliente gerado da SPA sob as novas políticas (CSP, rate limit, antiforgery), então os códigos de resposta continuam os do contrato (201/204/401/409/423).
 
 ### 7.5 Testes E2E
-- N/A — `user_facing: false`: nenhuma jornada muda; SPEC-0006:E2E-01 roda sob a CSP nova no CI e no deploy e falha se a CSP quebrar a SPA.
+- N/A — `user_facing: false`: nenhuma jornada muda; o E2E de acesso da SPEC-0006 roda sob a CSP nova no CI e no deploy e falha se a CSP quebrar a SPA.
 
 ### 7.6 Outros
 - Varredura de cabeçalhos com `curl -I` scriptado no ambiente local prod-like (G6); Mozilla Observatory em staging na SPEC-0009.
@@ -222,4 +222,5 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 <!-- Mudança em spec aprovada: uma linha por emenda. Mudou o contrato? Incremente `contract_version` e rode `spec_graph.py impacted SPEC-0008`. -->
 | Versão do contrato | Data | Mudança | Motivo | Specs impactadas | Aprovado por |
 |---|---|---|---|---|---|
+| v1.1 (escopo, sem mudança de contrato) | 2026-10-29 | `touches` alinhado ao código real: projeto novo `src/Common/Vitrine.Common.Security` (+ `Vitrine.slnx`), rate limit e antiforgery onde já estão (`Identity.Presentation`/`Infrastructure`, `Api/Program.cs`), csproj/appsettings da API, suporte e csproj de testes, `.env.example`/override do Compose (chave mestra), lockfiles e `.gitleaksignore` (valores falsos de teste); pacote `Microsoft.AspNetCore.DataProtection.EntityFrameworkCore` 10.0.13 registrado no ADR-0006; seção 7.5 deixa de citar ID de teste de outra spec | A spec foi escrita antes do módulo Identity e de qualquer projeto em `src/Common` existirem | — | thomas (2026-10-29, piloto automático) |
 | v1 (escopo, sem mudança de contrato) | 2026-10-14 | Inclui forwarded headers atrás do Caddy com antiforgery `Secure=Always`, e health checks anônimos por metadado; touches ganham `src/ServiceDefaults/**` e `deploy/compose.yaml` | Review G4 da SPEC-0006 (desvios aceitos lá para serem fechados aqui); testes IT-06 e IT-07 | — | thomas (2026-10-14) |
