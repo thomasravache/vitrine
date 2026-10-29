@@ -74,8 +74,8 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 |---|---|---|---|
 | G0 Spec | PASS | validate: 0 erro(s) — 443e943 (árvore suja) | 2026-10-29 |
 | G1 Red | PASS | verify G1: PASS; `dotnet test tests/Vitrine.UnitTests && npm --prefix web run test` exit 127 (red: sh: 1: vitest: not found) — 9156efa | 2026-10-29 |
-| G2 Green | PENDING | | |
-| G3 Arquitetura | PENDING | | |
+| G2 Green | PASS | build exit 0 (npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts a); test exit 0 (Duration  349ms (environment 60%, transform 21%, import 14%, tests 4%, worker 1%)); lint exit 0 (> tsc --noEmit && tsc --noEmit -p tsconfig.node.json); coverage exit 0 (Coverage: 100%) — 0af6002 | 2026-10-29 |
+| G3 Arquitetura | PASS | arch_test exit 0 (duration: 1s 259ms) — 0af6002 | 2026-10-29 |
 | G4 Review | PENDING | | |
 | G5 Integração & CI | PENDING | | |
 | H2 Integração aprovada | PENDING | | |
@@ -86,7 +86,7 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 <!-- Toda parada é registrada pelo Architect com `spec_graph.py impede` e fechada com `resolve` — não edite à mão. Tipos: spec (spec errada/incompleta → resolve com Emenda) | decisão (só o humano decide → resposta ou ADR) | trabalho (falta algo que exige código → SPEC-NNNN nova) | externo (acesso, ambiente, terceiro → ação tomada) | falha (3 FAILs seguidos no mesmo gate → diagnóstico e decisão). Com impedimento aberto a spec aparece como parada no INDEX e não pode ser fechada. -->
 | ID | Aberto em | Fase/Gate | Tipo | Descrição | Tentativas | Responsável | Resolução | Fechado em |
 |---|---|---|---|---|---|---|---|---|
-| IMP-01 | 2026-10-29 | G2 | trabalho | TEST_DEFECT: os 9 testes novos (LoginWithoutEmailTests, KeyRingRevocationTests) sobem host/banco próprios e estouram max_connections do Postgres compartilhado (53300 too many clients) na suíte de integração completa; em c6ce8cd 87/87 sem 53300, no red 9156efa já aparece | Implementer: 49/49 no namespace Security, 93/96 na suíte completa (3x 53300, não asserção) | Test-writer |  |  |
+| IMP-01 | 2026-10-29 | G2 | trabalho | TEST_DEFECT: os 9 testes novos (LoginWithoutEmailTests, KeyRingRevocationTests) sobem host/banco próprios e estouram max_connections do Postgres compartilhado (53300 too many clients) na suíte de integração completa; em c6ce8cd 87/87 sem 53300, no red 9156efa já aparece | Implementer: 49/49 no namespace Security, 93/96 na suíte completa (3x 53300, não asserção) | Test-writer | SPEC-0016 — causa de raiz nas fixtures; nesta spec, Test-writer 0af6002: IT-01 com um host compartilhado e IT-02 limpando pools; suíte completa 96/96 3x sem 53300 | 2026-10-29 |
 
 ## 10. Relatório de Entrega
 <!-- Preenchido no CLOSE (G7). Para status implemented o validate exige tudo preenchido, todo teste do plano com PASS + evidência e a Definição de Pronto marcada. -->
