@@ -35,6 +35,10 @@ internal static class Problems
     public static ProblemHttpResult AntiforgeryInvalid() =>
         Problem(StatusCodes.Status400BadRequest, IdentityErrorCodes.AntiforgeryInvalid, "Token antiforgery ausente ou inválido.");
 
+    // Sem code próprio: o host acrescenta o genérico (BAD_REQUEST); não é um erro do contrato da SPA.
+    public static ProblemHttpResult HttpsRequired() =>
+        TypedResults.Problem(title: "HTTPS obrigatório.", statusCode: StatusCodes.Status400BadRequest);
+
     public static ProblemHttpResult NotFound() =>
         TypedResults.Problem(statusCode: StatusCodes.Status404NotFound);
 

@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 
 namespace Vitrine.Identity.Presentation;
 
@@ -32,4 +33,17 @@ internal sealed class SignupOpenFilter(IConfiguration configuration) : IEndpoint
 
     public async ValueTask<object?> InvokeAsync(EndpointFilterInvocationContext context, EndpointFilterDelegate next) =>
         configuration.GetValue<bool>(FlagKey) ? await next(context) : Problems.NotFound();
+}
+
+/// <summary>
+/// Endpoints de auth só em HTTPS quando o cookie antiforgery é <c>Secure=Always</c> (fora de Development — SPEC-0008):
+/// requisição que chega em HTTP (fora do proxy, ou com <c>X-Forwarded-Proto</c> de IP não confiável, que é ignorado)
+/// recebe 400 em vez da falha interna do antiforgery.
+/// </summary>
+internal sealed class HttpsRequiredFilter(IOptions<AntiforgeryOptions> antiforgery) : IEndpointFilter
+{
+    public async ValueTask<object?> InvokeAsync(EndpointFilterInvocationContext context, EndpointFilterDelegate next) =>
+        context.HttpContext.Request.IsHttps || antiforgery.Value.Cookie.SecurePolicy != CookieSecurePolicy.Always
+            ? await next(context)
+            : Problems.HttpsRequired();
 }
