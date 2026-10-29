@@ -59,6 +59,19 @@ jobs:
           cmd="$(yq -r '.build' "$SDD_CONFIG")"
           echo "+ $cmd"
           bash -euo pipefail -c "$cmd"
+      # Cliente da SPA (web/src/api, ADR-0013) em dia com a API (SPEC-0011): regenera e reprova se algo mudou.
+      # Sem banco nem chave mestra: a geração do documento OpenAPI não usa nenhum dos dois.
+      - name: OpenAPI client drift (api:generate)
+        run: |
+          (cd web && npm run api:generate)
+          drift="$(git status --porcelain -- web/src/api)"
+          if [[ -n "$drift" ]]; then
+            printf '%s\n' "$drift"
+            git --no-pager diff --stat -- web/src/api
+            echo "::error title=OpenAPI client drift::web/src/api diverge da API. Rode 'npm run api:generate' em web/ e versione o resultado."
+            exit 1
+          fi
+          echo "web/src/api em dia com a API."
       - name: Lint (sdd-config lint)
         run: |
           cmd="$(yq -r '.lint' "$SDD_CONFIG")"

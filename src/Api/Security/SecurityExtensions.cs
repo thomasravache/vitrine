@@ -23,7 +23,13 @@ internal static class SecurityExtensions
     /// <summary>Redes (CIDR) do proxy das quais X-Forwarded-For/Proto são aceitos (<c>ForwardedHeaders__KnownNetworks__N</c>).</summary>
     public const string ForwardedKnownNetworksKey = "ForwardedHeaders:KnownNetworks";
 
-    public static WebApplicationBuilder AddSecurity(this WebApplicationBuilder builder)
+    /// <param name="builder">O host da Api.</param>
+    /// <param name="generatingOpenApi">
+    /// Geração do documento OpenAPI no build (GetDocument.Insider sobe o host, sem banco nem chave mestra — SPEC-0011): o
+    /// Data Protection usa um provedor efêmero em memória, sem chave mestra, sem anel no PostgreSQL e sem a checagem do
+    /// anel. Em qualquer outra subida, a chave mestra continua obrigatória fora de Development.
+    /// </param>
+    public static WebApplicationBuilder AddSecurity(this WebApplicationBuilder builder, bool generatingOpenApi)
     {
         ArgumentNullException.ThrowIfNull(builder);
         var services = builder.Services;
@@ -53,7 +59,18 @@ internal static class SecurityExtensions
 
         services.AddSingleton<SecurityHeaders>();
         services.AddAuthRateLimiting();
-        services.AddDataProtectionKeyRing();
+        if (generatingOpenApi)
+        {
+            // Só o documento é gerado: nenhum dado é protegido, então nada de chave mestra, banco ou checagem do anel.
+            services.AddDataProtection()
+                .SetApplicationName(DataProtectionApplicationName)
+                .UseEphemeralDataProtectionProvider();
+        }
+        else
+        {
+            services.AddDataProtectionKeyRing();
+        }
+
         services.AddSingleton<IFieldProtector, DataProtectionFieldProtector>();
 
         return builder;
