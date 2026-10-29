@@ -72,7 +72,7 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 | G1 Red | PASS | verify G1: PASS; `dotnet test tests/Vitrine.UnitTests && npm --prefix web run test` exit 127 (red: sh: 1: vitest: not found) — 2d667cb | 2026-10-29 |
 | G2 Green | PASS | build exit 0 (npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts a); test exit 0 (Duration  360ms (environment 63%, transform 16%, import 15%, tests 5%, worker 1%)); lint exit 0 (> tsc --noEmit && tsc --noEmit -p tsconfig.node.json); coverage exit 0 (Coverage: 100%) — 1442459 | 2026-10-29 |
 | G3 Arquitetura | PASS | arch_test exit 0 (duration: 1s 473ms) — 1442459 | 2026-10-29 |
-| G4 Review | PENDING | | |
+| G4 Review | PASS | verify G1+G4: PASS; revisão: APPROVED (Reviewer independente) em 1442459: modo de geração inalcançável no runtime real (publish sem GetDocument; binário publicado sem chave em Production → exit 134 com a mensagem da chave); drift falha com orval quebrado e com arquivo não rastreado; api:generate sem banco/chave com cliente idêntico; red reproduzido (sem passo; passo sem correção falha no controle; IT-02 não compila); tests/ci 3/3, IT-01 1/1, IT-02 4/4, integração 91/91; nits: bash -e vs pipefail no IT-01, tipo fix(api) — 1442459 | 2026-10-29 |
 | G5 Integração & CI | PENDING | | |
 | H2 Integração aprovada | PENDING | | |
 | G6 Deploy | PENDING | | |
