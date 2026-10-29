@@ -60,6 +60,36 @@ public sealed partial class LogMaskingTests(PostgresFixture postgres)
         }
     }
 
+    [Fact]
+    [Trait("spec", "SPEC-0007:IT-03")]
+    public async Task Excecao_com_email_e_senha_em_propriedade_sai_mascarada_no_pipeline_OTLP()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+
+        // Dado a Api com os logs capturados em memória no fim do pipeline do OpenTelemetry (o que o OTLP exporta)
+        var captured = new CapturedLogs();
+        var connectionString = await postgres.CreateDatabaseAsync(cancellationToken);
+        await using var factory = IdentityHost.Create(connectionString)
+            .WithServices(services => services.AddOpenTelemetry().WithLogging(logging =>
+                logging.AddProcessor(new SimpleLogRecordExportProcessor(captured))));
+        var email = TestUser.New().Email;
+
+        // Quando a aplicação registra uma exceção cuja mensagem traz o e-mail, com a senha numa propriedade
+        var logger = factory.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Vitrine.Identity.LoginException");
+        LogLoginException(logger, WrongPassword, new InvalidOperationException($"Falha ao autenticar {email} (senha {WrongPassword})"));
+
+        // Então a exceção exportada (exception.message/stacktrace) não contém o e-mail nem a senha
+        var record = Assert.Single(captured.Records, log => log.Category == "Vitrine.Identity.LoginException");
+        Assert.NotNull(record.Exception);
+        Assert.Contains("InvalidOperationException", record.Exception, StringComparison.Ordinal);
+        var text = record.AllText();
+        Assert.False(text.Contains(email, StringComparison.OrdinalIgnoreCase), $"E-mail apareceu no log exportado:\n{text}");
+        Assert.False(text.Contains(WrongPassword, StringComparison.Ordinal), $"Senha apareceu no log exportado:\n{text}");
+    }
+
     [LoggerMessage(EventId = 1, Level = LogLevel.Warning, Message = "Login falhou para {email} com a senha {password}")]
     private static partial void LogFailedAttempt(ILogger logger, string email, string password);
+
+    [LoggerMessage(EventId = 2, Level = LogLevel.Error, Message = "Erro no login com a senha {password}")]
+    private static partial void LogLoginException(ILogger logger, string password, Exception exception);
 }

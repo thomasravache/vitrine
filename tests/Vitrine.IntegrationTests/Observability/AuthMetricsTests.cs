@@ -1,5 +1,7 @@
+using System.Diagnostics.Metrics;
 using System.Net;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.DependencyInjection;
 using Vitrine.IntegrationTests.Identity.Support;
 using Vitrine.IntegrationTests.Observability.Support;
 using Vitrine.IntegrationTests.Support;
@@ -15,25 +17,31 @@ public sealed class AuthMetricsTests(PostgresFixture postgres)
 
     [Fact]
     [Trait("spec", "SPEC-0007:IT-05")]
-    public async Task Login_ok_falho_e_bloqueio_medem_logins_por_result_e_lockouts()
+    public async Task Cadastros_e_login_ok_falho_e_bloqueio_medem_signups_logins_por_result_e_lockouts()
     {
         var cancellationToken = TestContext.Current.CancellationToken;
 
-        // Dado um MeterListener de teste no meter Vitrine.Identity e a Api com dois usuários existentes
-        using var metrics = new AuthMetricsListener();
+        // Dado a Api e um MeterListener de teste no meter Vitrine.Identity desta Api (escopo do IMeterFactory do host)
         var connectionString = await postgres.CreateDatabaseAsync(cancellationToken);
         await using var factory = IdentityHost.Create(connectionString);
+        using var metrics = new AuthMetricsListener(factory.Services.GetRequiredService<IMeterFactory>());
         var user = TestUser.New("Marina Souza");
         var lockedUser = TestUser.New("Paulo Lima");
+
+        // Quando dois cadastros são concluídos
         using (var registering = new IdentityApi(factory))
         {
             await registering.RegisterSuccessfullyAsync(user, cancellationToken);
         }
 
+        // Então vitrine.auth.signups incrementa exatamente 1 por cadastro
+        Assert.True(metrics.Total(AuthMetricsListener.Signups) == 1, $"Esperado vitrine.auth.signups = 1 após o 1º cadastro. {metrics.Describe()}");
         using (var registering = new IdentityApi(factory))
         {
             await registering.RegisterSuccessfullyAsync(lockedUser, cancellationToken);
         }
+
+        Assert.True(metrics.Total(AuthMetricsListener.Signups) == 2, $"Esperado vitrine.auth.signups = 2 após o 2º cadastro. {metrics.Describe()}");
 
         // Quando ocorre um login bem-sucedido
         using (var api = new IdentityApi(factory))

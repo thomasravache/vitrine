@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Text;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Sentry;
 using Sentry.AspNetCore;
@@ -21,7 +22,7 @@ namespace Vitrine.IntegrationTests.Observability;
 /// que exige o PostgreSQL do teste para subir.
 /// </remarks>
 [Collection(PostgresTestGroup.Name)]
-public sealed class SentryMaskingTests(PostgresFixture postgres)
+public sealed partial class SentryMaskingTests(PostgresFixture postgres)
 {
     private const string FakeDsn = "https://chave-publica-falsa@o0.ingest.sentry.io/0";
     private const string Release = "3f2a9c1d8e7b6a5f4e3d2c1b0a9f8e7d6c5b4a39";
@@ -38,6 +39,14 @@ public sealed class SentryMaskingTests(PostgresFixture postgres)
 
     private static readonly string[] Secrets =
         [Email, Bearer, "eyJhbGciOiJIUzI1NiJ9", SessionCookie, "CfDJ8sessao-secreta-sentry", QueryToken, BodyPassword];
+
+    // Valores de prova dos logs via ILogger (B1 da review).
+    private const string LogCategory = "Vitrine.Testes.SentryViaILogger";
+    private const string LogPassword = "pw-PROBE-123";
+    private const string LogAccessToken = "tok-PROBE-456";
+    private const string LogBreadcrumbTokenValue = "tok-PROBE-BC-999";
+
+    private static readonly string[] LogSecrets = [Email, LogPassword, LogAccessToken, LogBreadcrumbTokenValue];
 
     private static readonly TimeSpan FlushTimeout = TimeSpan.FromSeconds(10);
 
@@ -117,6 +126,47 @@ public sealed class SentryMaskingTests(PostgresFixture postgres)
 
     [Fact]
     [Trait("spec", "SPEC-0007:UT-02")]
+    public async Task Logs_da_aplicacao_via_ILogger_nao_levam_email_senha_nem_token_para_tags_logentry_ou_breadcrumbs()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+
+        // Dado a configuração do Sentry da Api com DSN definido (falso) e o transporte de teste
+        var transport = new RecordingTransport();
+        await using var factory = IdentityHost.Create(await postgres.CreateDatabaseAsync(cancellationToken))
+            .WithSetting("Sentry:Dsn", FakeDsn)
+            .WithServices(services => services.PostConfigure<SentryAspNetCoreOptions>(options => options.Transport = transport));
+        var hub = factory.Services.GetRequiredService<IHub>();
+        var logger = factory.Services.GetRequiredService<ILoggerFactory>().CreateLogger(LogCategory);
+
+        // Quando a aplicação registra um aviso (vira breadcrumb) e depois um erro (vira evento) com propriedades
+        // estruturadas sensíveis, pelo ILogger
+        LogBreadcrumbToken(logger, LogBreadcrumbTokenValue);
+        LogLoginError(logger, Email, LogPassword, LogAccessToken);
+        await hub.FlushAsync(FlushTimeout);
+        await Eventually.TrueAsync(
+            () => transport.EventEnvelopes().Any(json => json.Contains(LogCategory, StringComparison.Ordinal)),
+            FlushTimeout,
+            "o Sentry não entregou ao transporte o evento do LogError",
+            cancellationToken);
+
+        // Então nenhum envelope de evento carrega esses valores — nem em tags, nem em logentry.formatted/message,
+        // nem nos breadcrumbs
+        foreach (var sent in transport.EventEnvelopes())
+        {
+            foreach (var secret in LogSecrets)
+            {
+                Assert.False(sent.Contains(secret, StringComparison.OrdinalIgnoreCase), $"\"{secret}\" foi enviado ao Sentry:\n{sent}");
+            }
+        }
+
+        // E o evento do erro e o breadcrumb do aviso foram de fato enviados (o teste não passa por omissão)
+        var envelope = transport.EventEnvelopes().Single(json => json.Contains(LogCategory, StringComparison.Ordinal));
+        Assert.Contains("login de", envelope, StringComparison.Ordinal);
+        Assert.Contains("breadcrumb token", envelope, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    [Trait("spec", "SPEC-0007:UT-02")]
     public async Task Sem_ambiente_configurado_o_Sentry_usa_o_ambiente_do_host()
     {
         var cancellationToken = TestContext.Current.CancellationToken;
@@ -154,6 +204,12 @@ public sealed class SentryMaskingTests(PostgresFixture postgres)
         Assert.Null(services.GetService<IHub>());
         Assert.Null(services.GetService<ISentryClient>());
     }
+
+    [LoggerMessage(EventId = 1, Level = LogLevel.Error, Message = "login de {Email} com {Password} e {AccessToken}")]
+    private static partial void LogLoginError(ILogger logger, string email, string password, string accessToken);
+
+    [LoggerMessage(EventId = 2, Level = LogLevel.Warning, Message = "breadcrumb token {Token}")]
+    private static partial void LogBreadcrumbToken(ILogger logger, string token);
 
     /// <summary>Transporte do SDK que guarda cada envelope serializado (o que seria enviado), sem rede.</summary>
     private sealed class RecordingTransport : ITransport
