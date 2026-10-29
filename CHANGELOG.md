@@ -18,6 +18,8 @@ Cada entrada cita a spec de origem (`SPEC-NNNN`); gere-as com `spec_graph.py rep
 - O CI reprova o PR quando o cliente da API da SPA (`web/src/api`) está desatualizado em relação ao OpenAPI (SPEC-0011)
 
 ### Fixed
+- O Sentry não recebe segredos de `Exception.Data` guardados em objetos, contexts, extras, JSON, coleções ou URLs com credenciais, e o log de erro nunca falha por causa do mascaramento (SPEC-0018)
+- `tests/infra/run.sh` derruba só a stack local que ele mesmo subiu (`--keep` preserva) (SPEC-0012)
 - Valores de `Exception.Data` enviados ao Sentry passam pelo mascaramento de dados sensíveis (SPEC-0015)
 - Checagem do anel de chaves recusa chave em claro disfarçada (segredo fora do descritor ou com outro decifrador) (SPEC-0017)
 - Testes de integração liberam as conexões do PostgreSQL ao descartar cada host (pico de 97 para 9 conexões) (SPEC-0016)

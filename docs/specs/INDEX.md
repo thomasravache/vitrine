@@ -4,8 +4,8 @@
 
 ## Saúde
 
-- Validação (G0): **0 erro(s), 26 aviso(s)** — rode `spec_graph.py validate`
-- Specs: approved 1, in-progress 2, implemented 14
+- Validação (G0): **0 erro(s), 30 aviso(s)** — rode `spec_graph.py validate`
+- Specs: approved 1, implemented 16
 - Impedimentos: **0 aberto(s)**, 8 resolvido(s)
 
 ## Cobertura de Pilares
@@ -35,21 +35,19 @@ Perfil: **padrao**
 
 ## Plano de Execução
 
-**Em andamento:** SPEC-0012, SPEC-0018  
+**Em andamento:** —  
 **Paradas por impedimento:** —  
-**Próximo lote:** —
+**Próximo lote:** SPEC-0009
 
 | Onda | Spec | Título | Tier/Tam. | Status | Prontidão | Observação |
 |---|---|---|---|---|---|---|
-| 1 | SPEC-0012 | Testes de infra deixam a stack local rodando | lite/S | in-progress | 🔄 em andamento |  |
-| 1 | SPEC-0018 | Mascaramento do Sentry ignora contexts, extras não-string e valores sensíveis de Exception.Data | lite/S | in-progress | 🔄 em andamento |  |
-| 2 | SPEC-0009 | Provisionamento na nuvem e go-live | full/M | approved | ✅ pronta | saiu da onda 1: arquivos em comum com SPEC-0012 |
+| 1 | SPEC-0009 | Provisionamento na nuvem e go-live | full/M | approved | ✅ pronta |  |
 
 ## Épicos
 
 | Épico | Título | Status | Progresso |
 |---|---|---|---|
-| SPEC-0001 | Fundação da plataforma Vitrine | approved | 14/17 implementadas |
+| SPEC-0001 | Fundação da plataforma Vitrine | approved | 16/17 implementadas |
 
 ## Grafo de Dependências
 
@@ -63,9 +61,6 @@ flowchart LR
     S0007["SPEC-0007<br/>Observabilidade de base"]:::implemented
     S0008["SPEC-0008<br/>Segurança de base"]:::implemented
     S0009["SPEC-0009<br/>Provisionamento na nuvem e go-live"]:::approved
-    S0012["SPEC-0012<br/>Testes de infra deixam a stack local ro…"]:::inprogress
-    S0015["SPEC-0015<br/>Exception.Data repassado cru ao Sentry …"]:::implemented
-    S0018["SPEC-0018<br/>Mascaramento do Sentry ignora contexts,…"]:::inprogress
   end
   S0005 --> S0006
   S0006 --> S0007
@@ -76,7 +71,6 @@ flowchart LR
   S0006 --> S0009
   S0007 --> S0009
   S0008 --> S0009
-  S0015 --> S0018
   classDef proposed fill:#fef3c7,stroke:#d97706,color:#111
   classDef approved fill:#dbeafe,stroke:#2563eb,color:#111
   classDef inprogress fill:#ede9fe,stroke:#7c3aed,color:#111
@@ -99,13 +93,13 @@ flowchart LR
 | [SPEC-0009](SPEC-0009-provisionamento-na-nuvem-e-go-live.md) | Provisionamento na nuvem e go-live | full | foundation | approved | 2026-10-13 | SPEC-0001 | SPEC-0005, SPEC-0006, SPEC-0007, SPEC-0008 | — |
 | [SPEC-0010](SPEC-0010-avisos-de-seguranca-novos-em-dependencias-quebram-o-build-da.md) | Avisos de segurança novos em dependências quebram o build da main | lite | fix | implemented | 2026-10-28 | SPEC-0001 | — | — |
 | [SPEC-0011](SPEC-0011-checagem-de-drift-do-cliente-openapi-no-ci.md) | Checagem de drift do cliente OpenAPI no CI | lite | feature | implemented | 2026-10-28 | SPEC-0001 | — | — |
-| [SPEC-0012](SPEC-0012-testes-de-infra-deixam-a-stack-local-rodando.md) | Testes de infra deixam a stack local rodando | lite | fix | in-progress | 2026-10-28 | SPEC-0001 | — | — |
+| [SPEC-0012](SPEC-0012-testes-de-infra-deixam-a-stack-local-rodando.md) | Testes de infra deixam a stack local rodando | lite | fix | implemented | 2026-10-28 | SPEC-0001 | — | — |
 | [SPEC-0013](SPEC-0013-excecao-repassada-ao-sentry-com-segredo-repetido-em-propried.md) | Exceção repassada ao Sentry com segredo repetido em propriedade sensível | lite | fix | implemented | 2026-10-28 | SPEC-0001 | — | — |
 | [SPEC-0014](SPEC-0014-limitador-sem-particao-por-e-mail-nulo-e-revogacoes-no-check.md) | Limitador sem partição por e-mail nulo e revogações no check do anel | lite | fix | implemented | 2026-10-29 | SPEC-0001 | SPEC-0008 | — |
 | [SPEC-0015](SPEC-0015-exception-data-repassado-cru-ao-sentry-em-mechanism-data.md) | Exception.Data repassado cru ao Sentry em mechanism.data | lite | fix | implemented | 2026-10-29 | SPEC-0001 | SPEC-0013 | — |
 | [SPEC-0016](SPEC-0016-fixture-de-integracao-nao-libera-pools-do-postgres-compartil.md) | Fixture de integração não libera pools do Postgres compartilhado | lite | fix | implemented | 2026-10-29 | SPEC-0001 | — | — |
 | [SPEC-0017](SPEC-0017-checagem-do-anel-aceita-encryptedsecret-fora-do-descritor-da.md) | Checagem do anel aceita encryptedSecret fora do descritor da chave | lite | fix | implemented | 2026-10-29 | SPEC-0001 | SPEC-0014 | — |
-| [SPEC-0018](SPEC-0018-mascaramento-do-sentry-ignora-contexts-extras-nao-string-e-v.md) | Mascaramento do Sentry ignora contexts, extras não-string e valores sensíveis de Exception.Data | lite | fix | in-progress | 2026-10-29 | SPEC-0001 | SPEC-0015 | — |
+| [SPEC-0018](SPEC-0018-mascaramento-do-sentry-ignora-contexts-extras-nao-string-e-v.md) | Mascaramento do Sentry ignora contexts, extras não-string e valores sensíveis de Exception.Data | lite | fix | implemented | 2026-10-29 | SPEC-0001 | SPEC-0015 | — |
 
 ## ADRs
 
