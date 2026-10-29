@@ -64,6 +64,9 @@ public sealed partial class SentryMaskingTests(PostgresFixture postgres)
     private const string RecordPassword = "record-pw-PROBE";
     private const string PairPassword = "kvp-pw-PROBE";
 
+    // Limite do LogError com grafo de referências compartilhadas (alvo < 1 s; margem para CI lento).
+    private static readonly TimeSpan GraphTimeLimit = TimeSpan.FromSeconds(5);
+
     // Categoria dos casos de formato difícil da SPEC-0018:IT-02.
     private const string HardDataCaseCategory = "Vitrine.Testes.SentryExceptionDataDificil";
 
@@ -477,6 +480,330 @@ public sealed partial class SentryMaskingTests(PostgresFixture postgres)
         Assert.Equal(expectedHResult, MechanismData(envelope).GetValueOrDefault("HResult"));
     }
 
+    [Theory]
+    [Trait("spec", "SPEC-0018:IT-02")]
+    [InlineData("getter-que-lanca")]
+    [InlineData("tostring-que-lanca")]
+    [InlineData("tostring-nulo-e-tipo-da-plataforma")]
+    [InlineData("chave-de-dicionario-que-lanca")]
+    [InlineData("iformattable-sob-nome-sensivel")]
+    [InlineData("colecoes-preguicosas")]
+    [InlineData("ciclos")]
+    [InlineData("aninhamento-profundo")]
+    [InlineData("excecoes-internas")]
+    [InlineData("muitas-entradas-e-membros")]
+    [InlineData("json-array-e-string")]
+    [InlineData("pares")]
+    [InlineData("extras-e-contexts-do-usuario")]
+    [InlineData("struct-de-dominio")]
+    [InlineData("uri-com-credenciais")]
+    public async Task Valores_que_nao_dao_para_ler_com_seguranca_nao_quebram_o_LogError_nem_vazam_segredo(string caso)
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+
+        // Dado a configuração do Sentry da Api com DSN definido (falso) e o transporte de teste
+        var transport = new RecordingTransport();
+        await using var factory = IdentityHost.Create(await postgres.CreateDatabaseAsync(cancellationToken))
+            .WithSetting("Sentry:Dsn", FakeDsn)
+            .WithServices(services => services.PostConfigure<SentryAspNetCoreOptions>(options => options.Transport = transport));
+        var hub = factory.Services.GetRequiredService<IHub>();
+        var category = $"{HardDataCaseCategory}.defensivo.{caso}";
+        var logger = factory.Services.GetRequiredService<ILoggerFactory>().CreateLogger(category);
+
+        // Quando a aplicação registra um erro cuja exceção (ou o escopo) traz o valor difícil do caso
+        var (exception, secrets) = DefensiveDataCase(caso, hub);
+        var thrown = Record.Exception(() => LogErrorWithStep(logger, exception, caso));
+
+        // Então o LogError não lança
+        Assert.Null(thrown);
+
+        // E o evento é enviado
+        await hub.FlushAsync(FlushTimeout);
+        await Eventually.TrueAsync(
+            () => transport.EventEnvelopes().Any(json => json.Contains(category, StringComparison.Ordinal)),
+            FlushTimeout,
+            $"o Sentry não entregou ao transporte o evento do caso {caso}",
+            cancellationToken);
+        var envelope = transport.EventEnvelopes().Single(json => json.Contains(category, StringComparison.Ordinal));
+        Assert.Contains("InvalidOperationException", envelope, StringComparison.Ordinal);
+
+        // E nenhum envelope de evento carrega os segredos do caso
+        foreach (var sent in transport.EventEnvelopes())
+        {
+            foreach (var secret in secrets)
+            {
+                Assert.False(sent.Contains(secret, StringComparison.OrdinalIgnoreCase), $"\"{secret}\" foi enviado ao Sentry:\n{sent}");
+            }
+        }
+    }
+
+    [Fact]
+    [Trait("spec", "SPEC-0018:IT-02")]
+    public async Task Grafo_com_referencias_compartilhadas_em_Exception_Data_nao_trava_o_LogError()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+
+        // Dado a configuração do Sentry da Api com DSN definido (falso) e o transporte de teste
+        var transport = new RecordingTransport();
+        await using var factory = IdentityHost.Create(await postgres.CreateDatabaseAsync(cancellationToken))
+            .WithSetting("Sentry:Dsn", FakeDsn)
+            .WithServices(services => services.PostConfigure<SentryAspNetCoreOptions>(options => options.Transport = transport));
+        var hub = factory.Services.GetRequiredService<IHub>();
+        var category = $"{HardDataCaseCategory}.grafo-compartilhado";
+        var logger = factory.Services.GetRequiredService<ILoggerFactory>().CreateLogger(category);
+
+        // Quando a exceção traz um grafo de 10 níveis em que cada nível tem 10 chaves apontando para o MESMO filho
+        object level = new Dictionary<string, object>(StringComparer.Ordinal) { ["folha"] = "valor-comum" };
+        for (var depth = 0; depth < 10; depth++)
+        {
+            var child = level;
+            level = Enumerable.Range(0, 10).ToDictionary(index => $"chave{index}", _ => child, StringComparer.Ordinal);
+        }
+
+        var exception = new InvalidOperationException("falha com grafo compartilhado");
+        exception.Data["Grafo"] = level;
+
+        // (o LogError roda numa thread à parte para o teste falhar por tempo em vez de travar a suíte)
+        Exception? thrown = null;
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+        var worker = new Thread(() =>
+        {
+            try
+            {
+                LogErrorWithStep(logger, exception, "grafo-compartilhado");
+            }
+#pragma warning disable CA1031 // O teste verifica que nada é lançado; qualquer exceção é registrada e reprovada abaixo.
+            catch (Exception caught)
+#pragma warning restore CA1031
+            {
+                thrown = caught;
+            }
+        })
+        { IsBackground = true };
+        worker.Start();
+        var finished = worker.Join(GraphTimeLimit);
+        stopwatch.Stop();
+
+        // Então o LogError termina dentro do limite e não lança
+        Assert.True(finished, $"LogError não terminou em {GraphTimeLimit.TotalSeconds} s com o grafo compartilhado");
+        Assert.True(stopwatch.Elapsed < GraphTimeLimit, $"LogError levou {stopwatch.Elapsed.TotalMilliseconds} ms");
+        Assert.Null(thrown);
+
+        // E o evento é enviado
+        await hub.FlushAsync(FlushTimeout);
+        await Eventually.TrueAsync(
+            () => transport.EventEnvelopes().Any(json => json.Contains(category, StringComparison.Ordinal)),
+            FlushTimeout,
+            "o Sentry não entregou ao transporte o evento do grafo compartilhado",
+            cancellationToken);
+    }
+
+    /// <summary>Segredo falso de prova (montado em tempo de execução).</summary>
+    private static string Probe(string id) => $"{id}-PROBE";
+
+    /// <summary>Monta a exceção e os segredos de cada caso defensivo da SPEC-0018:IT-02.</summary>
+    private static (Exception Exception, string[] Secrets) DefensiveDataCase(string caso, IHub hub)
+    {
+        switch (caso)
+        {
+            case "getter-que-lanca":
+                {
+                    // Objeto com getter que lança e senha repetida no texto da exceção.
+                    var secret = Probe("getter");
+                    var exception = new InvalidOperationException($"falha com {secret}");
+                    exception.Data["Conta"] = new ThrowingGetterAccount(secret);
+                    return (exception, [secret]);
+                }
+
+            case "tostring-que-lanca":
+                {
+                    // Objeto sem membros públicos cujo ToString lança, sob nome comum e sob nome sensível.
+                    var secret = Probe("opaco");
+                    var exception = new InvalidOperationException("falha com objeto opaco");
+                    exception.Data["Opaco"] = new ThrowingToString(secret);
+                    exception.Data["TokenOpaco"] = new ThrowingToString(secret);
+                    return (exception, [secret]);
+                }
+
+            case "tostring-nulo-e-tipo-da-plataforma":
+                {
+                    // Objeto sem membros públicos cujo ToString devolve null e tipo da plataforma (Uri) com senha na query.
+                    var secret = Probe("nulo");
+                    var uriSecret = Probe("uri");
+                    var exception = new InvalidOperationException("falha com tipos opacos");
+                    exception.Data["Nulo"] = new NullToString(secret);
+                    exception.Data["Endereco"] = new Uri($"https://vitrine.example/entrar?password={uriSecret}");
+                    return (exception, [secret, uriSecret]);
+                }
+
+            case "chave-de-dicionario-que-lanca":
+                {
+                    // Dicionário com chave cujo ToString lança, ao lado de uma chave sensível repetida na mensagem.
+                    var secret = Probe("hashkey");
+                    var exception = new InvalidOperationException($"falha com {secret}");
+                    exception.Data["Mapa"] = new Hashtable { [new ThrowingToString("chave")] = "valor-comum", ["password"] = secret };
+                    return (exception, [secret]);
+                }
+
+            case "iformattable-sob-nome-sensivel":
+                {
+                    // Valor IFormattable (não string) sob nome sensível, repetido na mensagem da exceção.
+                    var secret = Probe("formattable");
+                    var exception = new InvalidOperationException($"falha com {secret}");
+                    exception.Data["Token"] = new ProbeFormattable(secret);
+                    return (exception, [secret]);
+                }
+
+            case "colecoes-preguicosas":
+                {
+                    // Enumeração preguiçosa e IQueryable: não são enumeradas (viram ***).
+                    var lazySecret = Probe("lazy");
+                    var querySecret = Probe("query");
+                    var exception = new InvalidOperationException("falha com colecoes preguicosas");
+                    exception.Data["Itens"] = Enumerable.Range(0, 3).Select(_ => lazySecret);
+                    exception.Data["Consulta"] = new[] { querySecret }.AsQueryable();
+                    return (exception, [lazySecret, querySecret]);
+                }
+
+            case "ciclos":
+                {
+                    // Ciclos em dicionário, lista e objeto, com segredo sob nome sensível em cada um.
+                    var dictionarySecret = Probe("ciclo-dic");
+                    var listSecret = Probe("ciclo-lista");
+                    var nodeSecret = Probe("ciclo-obj");
+                    var dictionary = new Dictionary<string, object>(StringComparer.Ordinal) { ["nome"] = "dicionario", ["password"] = dictionarySecret };
+                    dictionary["proprio"] = dictionary;
+                    var list = new List<object> { new Dictionary<string, object>(StringComparer.Ordinal) { ["token"] = listSecret } };
+                    list.Add(list);
+                    var node = new CyclicNode { Nome = "no", Senha = nodeSecret };
+                    node.Proximo = node;
+                    var exception = new InvalidOperationException("falha com ciclos");
+                    exception.Data["Dicionario"] = dictionary;
+                    exception.Data["Lista"] = list;
+                    exception.Data["No"] = node;
+                    return (exception, [dictionarySecret, listSecret, nodeSecret]);
+                }
+
+            case "aninhamento-profundo":
+                {
+                    // Dicionários aninhados além do limite de profundidade, com segredo no fundo sob nome comum.
+                    var secret = Probe("fundo");
+                    object nested = new Dictionary<string, object>(StringComparer.Ordinal) { ["valor"] = secret };
+                    for (var level = 0; level < 12; level++)
+                    {
+                        nested = new Dictionary<string, object>(StringComparer.Ordinal) { ["nivel"] = nested };
+                    }
+
+                    var exception = new InvalidOperationException("falha com aninhamento profundo");
+                    exception.Data["Profundo"] = nested;
+                    return (exception, [secret]);
+                }
+
+            case "excecoes-internas":
+                {
+                    // AggregateException e cadeia longa de InnerException, com token de Data repetido nas mensagens.
+                    var aggregateSecret = Probe("agregada");
+                    var innerSecret = Probe("interna");
+                    Exception chain = new InvalidOperationException("fim da cadeia");
+                    for (var level = 0; level < 12; level++)
+                    {
+                        chain = new InvalidOperationException($"nivel {level}", chain);
+                    }
+
+                    var inner = new InvalidOperationException($"interna com {innerSecret}", chain);
+                    inner.Data["Token"] = innerSecret;
+                    var aggregated = new InvalidOperationException($"agregada com {aggregateSecret}");
+                    aggregated.Data["Token"] = aggregateSecret;
+                    var exception = new InvalidOperationException("falha com excecoes internas", new AggregateException(aggregated, inner));
+                    return (exception, [aggregateSecret, innerSecret]);
+                }
+
+            case "muitas-entradas-e-membros":
+                {
+                    // Coleção e dicionário com mais de 100 itens e objeto com mais de 100 membros, com segredo sob nome sensível.
+                    var dictionarySecret = Probe("muitas-chaves");
+                    var listSecret = Probe("muitos-itens");
+                    var wideSecret = Probe("muitos-membros");
+                    var dictionary = new Dictionary<string, object>(StringComparer.Ordinal) { ["password"] = dictionarySecret };
+                    for (var index = 0; index < 150; index++)
+                    {
+                        dictionary[$"chave{index:000}"] = "valor-comum";
+                    }
+
+                    var list = new List<object> { new { Senha = listSecret } };
+                    list.AddRange(Enumerable.Range(0, 150).Select(index => (object)$"item{index:000}"));
+                    var exception = new InvalidOperationException("falha com muitas entradas");
+                    exception.Data["Mapa"] = dictionary;
+                    exception.Data["Lista"] = list;
+                    exception.Data["Largo"] = new WideObject { Senha = wideSecret };
+                    return (exception, [dictionarySecret, listSecret, wideSecret]);
+                }
+
+            case "json-array-e-string":
+                {
+                    // JsonElement array com objeto que tem password e JsonElement string sob nome sensível repetido na mensagem.
+                    var arraySecret = Probe("json-array");
+                    var stringSecret = Probe("json-string");
+                    using var array = JsonDocument.Parse($"[{{\"password\":\"{arraySecret}\"}}, \"texto\", 3]");
+                    using var text = JsonDocument.Parse($"\"{stringSecret}\"");
+                    var exception = new InvalidOperationException($"falha com {stringSecret}");
+                    exception.Data["Lista"] = array.RootElement.Clone();
+                    exception.Data["Token"] = text.RootElement.Clone();
+                    return (exception, [arraySecret, stringSecret]);
+                }
+
+            case "pares":
+                {
+                    // KeyValuePair com valor escalar, com objeto e com chave sensível; coleção de pares que não é IDictionary.
+                    var pairSecret = Probe("par");
+                    var collectionSecret = Probe("pares");
+                    var objectSecret = Probe("par-objeto");
+                    var exception = new InvalidOperationException($"falha com {collectionSecret}");
+                    exception.Data["Tentativas"] = new KeyValuePair<string, int>("tentativas", 3);
+                    exception.Data["ParSensivel"] = new KeyValuePair<string, string>("password", pairSecret);
+                    exception.Data["ParObjeto"] = new KeyValuePair<string, object>("conta", new { Senha = objectSecret });
+                    exception.Data["Pares"] = new List<KeyValuePair<string, string>> { new("password", collectionSecret), new("nome", "valor-comum") };
+                    return (exception, [pairSecret, collectionSecret, objectSecret]);
+                }
+
+            case "extras-e-contexts-do-usuario":
+                {
+                    // Extra e context do escopo, gravados pela aplicação, com objeto do domínio.
+                    var extraSecret = Probe("extra-escopo");
+                    var contextSecret = Probe("context-escopo");
+                    hub.ConfigureScope(scope =>
+                    {
+                        scope.SetExtra("perfil", new ProbeProfile("loja-extra", extraSecret));
+                        scope.Contexts["perfil"] = new ProbeProfile("loja-context", contextSecret);
+                    });
+                    return (new InvalidOperationException("falha com escopo"), [extraSecret, contextSecret]);
+                }
+
+            case "uri-com-credenciais":
+                {
+                    // (g) Uri com credenciais (UserInfo) em Data e dentro de objeto do domínio.
+                    var credencial = string.Concat("uri-", "PROBE21");
+                    var endereco = new Uri($"postgres://admin:{credencial}@db:5432/x");
+                    var exception = new InvalidOperationException("falha com conexao");
+                    exception.Data["Banco"] = endereco;
+                    exception.Data["Conexao"] = new ProbeConnection("principal", endereco);
+                    return (exception, [credencial]);
+                }
+
+            case "struct-de-dominio":
+                {
+                    // Struct do domínio com senha, repetida na mensagem.
+                    var secret = Probe("struct");
+                    var exception = new InvalidOperationException($"falha com {secret}");
+                    exception.Data["Credencial"] = new ProbeStructCredential("usuario-struct", secret);
+                    return (exception, [secret]);
+                }
+
+            default:
+                throw new ArgumentOutOfRangeException(nameof(caso), caso, "caso desconhecido");
+        }
+    }
+
     /// <summary>Monta a exceção e os segredos de cada caso de formato difícil da SPEC-0018:IT-02.</summary>
     private static (Exception Exception, string[] Secrets) HardDataCase(string caso)
     {
@@ -581,6 +908,287 @@ public sealed partial class SentryMaskingTests(PostgresFixture postgres)
 
     /// <summary>Record com segredo usado no caso (c) da SPEC-0018:IT-01.</summary>
     private sealed record ProbeCredential(string Usuario, string Password);
+
+    /// <summary>Objeto com getter que lança (SPEC-0018:IT-02).</summary>
+    private sealed class ThrowingGetterAccount(string senha)
+    {
+        public string Nome => $"conta-comum-{senha.Length}";
+
+        public string Falha => throw new InvalidOperationException($"getter quebrado {senha.Length}");
+
+        public string Senha => senha;
+    }
+
+    /// <summary>Sem membros públicos; ToString lança (SPEC-0018:IT-02).</summary>
+    private sealed class ThrowingToString(string valor)
+    {
+        private readonly string _valor = valor;
+
+        public override string ToString() => throw new InvalidOperationException($"ToString quebrado {_valor.Length}");
+    }
+
+    /// <summary>Sem membros públicos; ToString devolve null (SPEC-0018:IT-02).</summary>
+    private sealed class NullToString(string valor)
+    {
+        private readonly string _valor = valor;
+
+        public override string ToString() => _valor.Length < 0 ? _valor : null!;
+    }
+
+    /// <summary>Valor formatável sem membros públicos, cujo texto é o segredo (SPEC-0018:IT-02).</summary>
+    private sealed class ProbeFormattable(string valor) : IFormattable
+    {
+        private readonly string _valor = valor;
+
+        public string ToString(string? format, IFormatProvider? formatProvider) => _valor;
+
+        public override string ToString() => _valor;
+    }
+
+    /// <summary>Nó que aponta para si mesmo (SPEC-0018:IT-02).</summary>
+    private sealed class CyclicNode
+    {
+        public string Nome { get; set; } = string.Empty;
+
+        public string Senha { get; set; } = string.Empty;
+
+        public CyclicNode? Proximo { get; set; }
+    }
+
+    /// <summary>Objeto do domínio do escopo (SPEC-0018:IT-02).</summary>
+    private sealed record ProbeProfile(string Loja, string Senha);
+
+    /// <summary>Objeto do domínio com endereço de conexão (SPEC-0018:IT-02).</summary>
+    private sealed record ProbeConnection(string Nome, Uri Endereco);
+
+    /// <summary>Struct do domínio com senha (SPEC-0018:IT-02).</summary>
+    private readonly record struct ProbeStructCredential(string Usuario, string Senha);
+
+    /// <summary>Objeto com mais de 100 membros públicos (SPEC-0018:IT-02).</summary>
+    private sealed class WideObject
+    {
+        public string Senha { get; init; } = string.Empty;
+
+        public string Campo000 { get; init; } = "campo";
+
+        public string Campo001 { get; init; } = "campo";
+
+        public string Campo002 { get; init; } = "campo";
+
+        public string Campo003 { get; init; } = "campo";
+
+        public string Campo004 { get; init; } = "campo";
+
+        public string Campo005 { get; init; } = "campo";
+
+        public string Campo006 { get; init; } = "campo";
+
+        public string Campo007 { get; init; } = "campo";
+
+        public string Campo008 { get; init; } = "campo";
+
+        public string Campo009 { get; init; } = "campo";
+
+        public string Campo010 { get; init; } = "campo";
+
+        public string Campo011 { get; init; } = "campo";
+
+        public string Campo012 { get; init; } = "campo";
+
+        public string Campo013 { get; init; } = "campo";
+
+        public string Campo014 { get; init; } = "campo";
+
+        public string Campo015 { get; init; } = "campo";
+
+        public string Campo016 { get; init; } = "campo";
+
+        public string Campo017 { get; init; } = "campo";
+
+        public string Campo018 { get; init; } = "campo";
+
+        public string Campo019 { get; init; } = "campo";
+
+        public string Campo020 { get; init; } = "campo";
+
+        public string Campo021 { get; init; } = "campo";
+
+        public string Campo022 { get; init; } = "campo";
+
+        public string Campo023 { get; init; } = "campo";
+
+        public string Campo024 { get; init; } = "campo";
+
+        public string Campo025 { get; init; } = "campo";
+
+        public string Campo026 { get; init; } = "campo";
+
+        public string Campo027 { get; init; } = "campo";
+
+        public string Campo028 { get; init; } = "campo";
+
+        public string Campo029 { get; init; } = "campo";
+
+        public string Campo030 { get; init; } = "campo";
+
+        public string Campo031 { get; init; } = "campo";
+
+        public string Campo032 { get; init; } = "campo";
+
+        public string Campo033 { get; init; } = "campo";
+
+        public string Campo034 { get; init; } = "campo";
+
+        public string Campo035 { get; init; } = "campo";
+
+        public string Campo036 { get; init; } = "campo";
+
+        public string Campo037 { get; init; } = "campo";
+
+        public string Campo038 { get; init; } = "campo";
+
+        public string Campo039 { get; init; } = "campo";
+
+        public string Campo040 { get; init; } = "campo";
+
+        public string Campo041 { get; init; } = "campo";
+
+        public string Campo042 { get; init; } = "campo";
+
+        public string Campo043 { get; init; } = "campo";
+
+        public string Campo044 { get; init; } = "campo";
+
+        public string Campo045 { get; init; } = "campo";
+
+        public string Campo046 { get; init; } = "campo";
+
+        public string Campo047 { get; init; } = "campo";
+
+        public string Campo048 { get; init; } = "campo";
+
+        public string Campo049 { get; init; } = "campo";
+
+        public string Campo050 { get; init; } = "campo";
+
+        public string Campo051 { get; init; } = "campo";
+
+        public string Campo052 { get; init; } = "campo";
+
+        public string Campo053 { get; init; } = "campo";
+
+        public string Campo054 { get; init; } = "campo";
+
+        public string Campo055 { get; init; } = "campo";
+
+        public string Campo056 { get; init; } = "campo";
+
+        public string Campo057 { get; init; } = "campo";
+
+        public string Campo058 { get; init; } = "campo";
+
+        public string Campo059 { get; init; } = "campo";
+
+        public string Campo060 { get; init; } = "campo";
+
+        public string Campo061 { get; init; } = "campo";
+
+        public string Campo062 { get; init; } = "campo";
+
+        public string Campo063 { get; init; } = "campo";
+
+        public string Campo064 { get; init; } = "campo";
+
+        public string Campo065 { get; init; } = "campo";
+
+        public string Campo066 { get; init; } = "campo";
+
+        public string Campo067 { get; init; } = "campo";
+
+        public string Campo068 { get; init; } = "campo";
+
+        public string Campo069 { get; init; } = "campo";
+
+        public string Campo070 { get; init; } = "campo";
+
+        public string Campo071 { get; init; } = "campo";
+
+        public string Campo072 { get; init; } = "campo";
+
+        public string Campo073 { get; init; } = "campo";
+
+        public string Campo074 { get; init; } = "campo";
+
+        public string Campo075 { get; init; } = "campo";
+
+        public string Campo076 { get; init; } = "campo";
+
+        public string Campo077 { get; init; } = "campo";
+
+        public string Campo078 { get; init; } = "campo";
+
+        public string Campo079 { get; init; } = "campo";
+
+        public string Campo080 { get; init; } = "campo";
+
+        public string Campo081 { get; init; } = "campo";
+
+        public string Campo082 { get; init; } = "campo";
+
+        public string Campo083 { get; init; } = "campo";
+
+        public string Campo084 { get; init; } = "campo";
+
+        public string Campo085 { get; init; } = "campo";
+
+        public string Campo086 { get; init; } = "campo";
+
+        public string Campo087 { get; init; } = "campo";
+
+        public string Campo088 { get; init; } = "campo";
+
+        public string Campo089 { get; init; } = "campo";
+
+        public string Campo090 { get; init; } = "campo";
+
+        public string Campo091 { get; init; } = "campo";
+
+        public string Campo092 { get; init; } = "campo";
+
+        public string Campo093 { get; init; } = "campo";
+
+        public string Campo094 { get; init; } = "campo";
+
+        public string Campo095 { get; init; } = "campo";
+
+        public string Campo096 { get; init; } = "campo";
+
+        public string Campo097 { get; init; } = "campo";
+
+        public string Campo098 { get; init; } = "campo";
+
+        public string Campo099 { get; init; } = "campo";
+
+        public string Campo100 { get; init; } = "campo";
+
+        public string Campo101 { get; init; } = "campo";
+
+        public string Campo102 { get; init; } = "campo";
+
+        public string Campo103 { get; init; } = "campo";
+
+        public string Campo104 { get; init; } = "campo";
+
+        public string Campo105 { get; init; } = "campo";
+
+        public string Campo106 { get; init; } = "campo";
+
+        public string Campo107 { get; init; } = "campo";
+
+        public string Campo108 { get; init; } = "campo";
+
+        public string Campo109 { get; init; } = "campo";
+    }
 
     /// <summary>Coleção já descartada: a enumeração lança (caso (e) da SPEC-0018:IT-02).</summary>
     private sealed class DisposedEnumerable : IEnumerable<string>
