@@ -52,6 +52,16 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 
 ## 7. Checklist de Implementação
 <!-- Preenchido na fase PLAN, após a aprovação. -->
+**Fase 1: Regressão e correção**
+- [ ] Red: escrever IT-01 com a tag `SPEC-0017:<ID>` e confirmar que falham pelo motivo certo
+- [ ] Green: checagem do anel exige `encryptedSecret` na posição do descritor e filtra `key` pelo `XName` sem namespace
+- [ ] Validar: build + suíte completa + arquitetura (G2/G3)
+
+**Fase final: Integração, entrega e documentação**
+- [ ] Review independente (G4)
+- [ ] Integração + CI verde (G5) e aprovação (H2)
+- [ ] Deploy no ambiente local prod-like com smoke (G6)
+- [ ] Relatório de Entrega, docs raiz e CHANGELOG (G7)
 
 ## 8. Registro de Gates
 <!-- Status: PENDING | PASS | FAIL | N/A. PASS e N/A exigem evidência. -->

@@ -4,7 +4,7 @@ title: Checagem de drift do cliente OpenAPI no CI
 tier: lite
 type: feature
 user_facing: false
-status: in-progress
+status: implemented
 created: 2026-10-28
 parent: SPEC-0001
 depends_on: []
@@ -54,15 +54,15 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 ## 7. Checklist de Implementação
 <!-- Preenchido na fase PLAN, após a aprovação. -->
 **Fase 1: Regressão e correção**
-- [ ] Red: escrever UT-01, IT-01 com a tag `SPEC-0011:<ID>` e confirmar que falham pelo motivo certo
-- [ ] Green: passo de drift (`npm run api:generate` + `git diff --exit-code web/src/api`) no job `build-lint`
-- [ ] Validar: build + suíte completa + arquitetura (G2/G3)
+- [x] Red: escrever UT-01, IT-01 com a tag `SPEC-0011:<ID>` e confirmar que falham pelo motivo certo
+- [x] Green: passo de drift (`npm run api:generate` + `git diff --exit-code web/src/api`) no job `build-lint`
+- [x] Validar: build + suíte completa + arquitetura (G2/G3)
 
 **Fase final: Integração, entrega e documentação**
-- [ ] Review independente (G4)
-- [ ] Integração + CI verde (G5) e aprovação (H2)
-- [ ] Deploy no ambiente local prod-like com smoke (G6)
-- [ ] Relatório de Entrega, docs raiz e CHANGELOG (G7)
+- [x] Review independente (G4)
+- [x] Integração + CI verde (G5) e aprovação (H2)
+- [x] Deploy no ambiente local prod-like com smoke (G6)
+- [x] Relatório de Entrega, docs raiz e CHANGELOG (G7)
 
 ## 8. Registro de Gates
 <!-- Status: PENDING | PASS | FAIL | N/A. PASS e N/A exigem evidência. -->
@@ -73,10 +73,10 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 | G2 Green | PASS | build exit 0 (npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts a); test exit 0 (Duration  360ms (environment 63%, transform 16%, import 15%, tests 5%, worker 1%)); lint exit 0 (> tsc --noEmit && tsc --noEmit -p tsconfig.node.json); coverage exit 0 (Coverage: 100%) — 1442459 | 2026-10-29 |
 | G3 Arquitetura | PASS | arch_test exit 0 (duration: 1s 473ms) — 1442459 | 2026-10-29 |
 | G4 Review | PASS | verify G1+G4: PASS; revisão: APPROVED (Reviewer independente) em 1442459: modo de geração inalcançável no runtime real (publish sem GetDocument; binário publicado sem chave em Production → exit 134 com a mensagem da chave); drift falha com orval quebrado e com arquivo não rastreado; api:generate sem banco/chave com cliente idêntico; red reproduzido (sem passo; passo sem correção falha no controle; IT-02 não compila); tests/ci 3/3, IT-01 1/1, IT-02 4/4, integração 91/91; nits: bash -e vs pipefail no IT-01, tipo fix(api) — 1442459 | 2026-10-29 |
-| G5 Integração & CI | PENDING | | |
-| H2 Integração aprovada | PENDING | | |
-| G6 Deploy | PENDING | | |
-| G7 Pronto & Docs | PENDING | | |
+| G5 Integração & CI | PASS | MANUAL: PR #36 (sdd/int-wave-0011-0014 @ 361f23f): CI 7/7 verde + CodeQL (runs/40941406441); local no integrado: build 0 avisos, format/lint ok, dotnet 153/153, vitest 6/6, tests/ci 3/3, e2e 30/30, drift do api:generate limpo, npm audit sem high, gitleaks 0 | 2026-10-29 |
+| H2 Integração aprovada | PASS | política auto-on-green (aprovada por thomas em 2026-10-13); G5 PASS | 2026-10-29 |
+| G6 Deploy | PASS | smoke_test exit 0 (2 passed (3.2s)) — 96ce8e8 (árvore suja) | 2026-10-29 |
+| G7 Pronto & Docs | PASS | Relatório de Entrega e Definição de Pronto: ok — 96ce8e8 (árvore suja) | 2026-10-29 |
 
 ## 9. Registro de Impedimentos
 <!-- Toda parada é registrada pelo Architect com `spec_graph.py impede` e fechada com `resolve` — não edite à mão. Tipos: spec (spec errada/incompleta → resolve com Emenda) | decisão (só o humano decide → resposta ou ADR) | trabalho (falta algo que exige código → SPEC-NNNN nova) | externo (acesso, ambiente, terceiro → ação tomada) | falha (3 FAILs seguidos no mesmo gate → diagnóstico e decisão). Com impedimento aberto a spec aparece como parada no INDEX e não pode ser fechada. -->
@@ -88,28 +88,37 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 <!-- Preenchido no CLOSE (G7). Para status implemented o validate exige tudo preenchido, todo teste do plano com PASS + evidência e a Definição de Pronto marcada. -->
 
 ### O que foi entregue
+O CI reprova o PR quando o cliente TypeScript gerado (`web/src/api`) não corresponde ao OpenAPI da API: passo "OpenAPI client drift" no job `build-lint`, com `::error` que manda rodar `npm run api:generate`. De quebra, `npm run api:generate` voltou a funcionar sem PostgreSQL e sem chave mestra (estava quebrado desde a SPEC-0008).
 
 ### Como foi feito
+`src/Api/OpenApiGeneration.cs` concentra o modo de geração (detecção pelo assembly de entrada `GetDocument.Insider`; `ValidateOnBuild=false`; `AddSecurity(generatingOpenApi: true)` usa Data Protection efêmero, sem chave mestra nem checagem do anel). Passo no `ci.yml` depois do Build: `api:generate` + `git status --porcelain -- web/src/api` (pega também arquivos novos). Testes em `tests/ci/` (UT-01 lê o workflow; IT-01 executa o passo como escrito numa cópia do repo sem banco/chave) e `tests/Vitrine.IntegrationTests/OpenApi/` (IT-02). Emendas v1.1 (IMP-01: geração quebrada) e v1.2 (G2 FAIL por cobertura: ramo só rodava fora do processo). Review APPROVED: modo de geração inalcançável no runtime real (publish sem GetDocument; binário sem chave em Production não sobe).
 
 ### Prova de Correção
 <!-- type fix: teste de regressão falhou antes (commit red + saída) e passa depois (commit green + execução). Outros tipos: "N/A". -->
+N/A — type feature.
 
 ### Verificação
 | Teste | Comportamento | Resultado | Evidência |
 |---|---|---|---|
+| UT-01 | build-lint tem o passo de drift depois do build | PASS | CI PR #36 run 40941406441 (361f23f); main run 40942228466 (96ce8e8) |
+| IT-01 | Sem banco/chave: cliente em dia sai 0; endpoint alterado sai ≠0 com a dica `npm run api:generate` | PASS | CI PR #36 run 40941406441 (361f23f); main run 40942228466 (96ce8e8) |
+| IT-02 | Modo de geração sobe sem chave/banco com Data Protection em memória; modo normal sem chave não sobe | PASS | CI PR #36 run 40941406441 (361f23f); main run 40942228466 (96ce8e8) |
 
 ### Definição de Pronto
-- [ ] Teste de regressão falhou antes e passa depois da correção
-- [ ] Suíte completa, arquitetura e CI verdes (G2, G3, G5)
-- [ ] Review independente sem achados blocker/major (G4)
-- [ ] Padrão existente mantido
-- [ ] Disponível no ambiente-alvo via pipeline (G6)
-- [ ] Documentação/CHANGELOG atualizados quando aplicável (G7)
-- [ ] Outras ocorrências registradas como novas specs (ou nenhuma)
+- [x] Testes do plano falharam antes (sem passo; geração quebrada; IT-02 sem `OpenApiGeneration`) e passam depois
+- [x] Suíte completa, arquitetura e CI verdes (G2, G3, G5)
+- [x] Review independente sem achados blocker/major (G4)
+- [x] Padrão existente mantido
+- [x] Disponível no ambiente-alvo via pipeline (G6)
+- [x] Documentação/CHANGELOG atualizados quando aplicável (G7)
+- [x] Outras ocorrências registradas como novas specs (ou nenhuma)
 
 ### Deploy
+Ambiente local prod-like: imagem `ghcr.io/thomasravache/vitrine-api:96ce8e8` (commit de merge do PR #36) da CI da `main` (run 40942228466) via `deploy/deploy.sh`, health 200 em 3 s, smoke `@smoke` 2/2 (2026-10-29).
 
 ### Pendências
+- SPEC-0012 (já aprovada) — testes de infra deixam a stack local rodando.
+- Nits da review aceitos sem spec: IT-01 roda o passo com `bash -eo pipefail` e o Actions usa `bash -e` (sem pipe no script, sem efeito); regeneração incremental local do `openapi.json` depende do cache em `obj/` (comportamento do pacote, CI não afetado).
 
 ## 11. Emendas
 <!-- Mudança em spec aprovada: uma linha por emenda, aprovada pelo humano. -->
