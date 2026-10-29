@@ -13,17 +13,30 @@ namespace Vitrine.IntegrationTests.Support;
 /// serviços HTTP externos são trocados pelo WireMock em <see cref="ExternalServices"/>.
 /// Na subida, o host aplica todo recurso com estado registrado (schema do Wolverine e migrações dos módulos,
 /// registradas como <c>IStatefulResource</c> — ADR-0011), já que o banco do teste nasce vazio.
+/// Segurança (SPEC-0008): cada host recebe uma chave mestra do Data Protection gerada por execução
+/// (<see cref="MasterKey"/>) e limites de requisição de auth folgados, para que testes que não são sobre o limite
+/// (vários logins/cadastros no mesmo minuto) não recebam 429; <see cref="WithContractRateLimits"/> volta aos limites
+/// do contrato. O IP de origem de cada requisição pode ser simulado com <see cref="TestRemoteIpHandler"/>.
 /// Configure (WithSetting/WithServices/RedirectToWireMock) antes do primeiro uso de Services ou CreateClient.
 /// </summary>
 public sealed class ApiFactory(string connectionString) : WebApplicationFactory<Program>
 {
+    // Limite folgado para os testes que não exercitam o rate limiting de auth.
+    private const string RelaxedAuthPermitLimit = "100000";
+
     private readonly List<KeyValuePair<string, string?>> _settings = [];
     private readonly List<Action<IServiceCollection>> _serviceConfigurations = [];
     private readonly List<string> _redirectedClients = [];
     private readonly Lazy<WireMockServer> _externalServices = new(() => WireMockServer.Start());
+    private bool _contractRateLimits;
+    private string? _environment;
+    private string? _webRoot;
 
     /// <summary>Connection string do banco usado pela Api.</summary>
     public string ConnectionString { get; } = connectionString;
+
+    /// <summary>Chave mestra do Data Protection deste host (gerada por execução; troque com <see cref="WithMasterKey"/>).</summary>
+    public string MasterKey { get; private set; } = SecuritySettings.NewMasterKey();
 
     /// <summary>Servidor HTTP falso que atende os serviços externos.</summary>
     public WireMockServer ExternalServices => _externalServices.Value;
@@ -33,6 +46,37 @@ public sealed class ApiFactory(string connectionString) : WebApplicationFactory<
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(key);
         _settings.Add(new(key, value));
+        return this;
+    }
+
+    /// <summary>Usa a chave mestra informada (ex.: a mesma de um host anterior, simulando o reinício do container).</summary>
+    public ApiFactory WithMasterKey(string masterKey)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(masterKey);
+        MasterKey = masterKey;
+        return this;
+    }
+
+    /// <summary>Mantém os limites de requisição de auth do contrato (10/min por IP, 5 logins/min por e-mail).</summary>
+    public ApiFactory WithContractRateLimits()
+    {
+        _contractRateLimits = true;
+        return this;
+    }
+
+    /// <summary>Sobe o host no ambiente informado (ex.: <c>Production</c>); sem isso, o padrão do WebApplicationFactory.</summary>
+    public ApiFactory WithEnvironment(string environment)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(environment);
+        _environment = environment;
+        return this;
+    }
+
+    /// <summary>Usa <paramref name="webRoot"/> como web root (ex.: <see cref="TestWebRoot"/> com um index.html de teste).</summary>
+    public ApiFactory WithWebRoot(string webRoot)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(webRoot);
+        _webRoot = webRoot;
         return this;
     }
 
@@ -59,6 +103,23 @@ public sealed class ApiFactory(string connectionString) : WebApplicationFactory<
         builder.UseSetting("ConnectionStrings:vitrine", ConnectionString);
         // O banco do teste nasce vazio: o host cria o schema do Wolverine em qualquer ambiente de teste.
         builder.UseSetting("Wolverine:AutoBuildMessageStorageOnStartup", "true");
+        builder.UseSetting(SecuritySettings.MasterKey, MasterKey);
+        if (!_contractRateLimits)
+        {
+            builder.UseSetting(SecuritySettings.AuthPerIpPermitLimit, RelaxedAuthPermitLimit);
+            builder.UseSetting(SecuritySettings.LoginPerEmailPermitLimit, RelaxedAuthPermitLimit);
+        }
+
+        if (_environment is not null)
+        {
+            builder.UseEnvironment(_environment);
+        }
+
+        if (_webRoot is not null)
+        {
+            builder.UseWebRoot(_webRoot);
+        }
+
         foreach (var (key, value) in _settings)
         {
             builder.UseSetting(key, value);
@@ -68,6 +129,9 @@ public sealed class ApiFactory(string connectionString) : WebApplicationFactory<
         {
             // Banco vazio: aplica os recursos com estado (Wolverine + migrações dos módulos) antes de atender.
             services.AddResourceSetupOnStartup(StartupAction.SetupOnly);
+
+            // IP de origem simulado por requisição (cabeçalho de teste), aplicado antes de todo o pipeline da Api.
+            services.AddSingleton<IStartupFilter, TestRemoteIpStartupFilter>();
 
             foreach (var configure in _serviceConfigurations)
             {
