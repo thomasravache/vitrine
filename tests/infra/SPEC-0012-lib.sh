@@ -9,6 +9,7 @@
 
 COMPOSE_PROJECT="vitrine"
 RUN_SH="$INFRA_TESTS_DIR/run.sh"
+# shellcheck disable=SC2034 # usado pelos scripts que carregam este arquivo
 FIXTURE_IT="SPEC-0012-FX-up"
 COMPOSE_BASE_FILE="$REPO_ROOT/deploy/compose.yaml"
 COMPOSE_OVERRIDE_FILE="$REPO_ROOT/deploy/compose.override.yaml"
@@ -47,16 +48,20 @@ stack_down() {
   docker compose -p "$COMPOSE_PROJECT" down -v --remove-orphans >/dev/null 2>&1 || true
 }
 
-# Roda o runner (tests/infra/run.sh <args>) e devolve o código de saída; saída em $RUN_LOG.
+# Roda o runner (tests/infra/run.sh <args>) e devolve o código de saída; saída em $RUN_OUTPUT.
 run_runner() {
-  RUN_LOG="$(mktemp)"
   local rc=0
-  bash "$RUN_SH" "$@" >"$RUN_LOG" 2>&1 || rc=$?
+  RUN_OUTPUT="$(bash "$RUN_SH" "$@" 2>&1)" || rc=$?
   return "$rc"
 }
 
 runner_tail() {
-  tail -n 15 "$RUN_LOG" | sed "s/^/$SPEC_ID:$TEST_ID   run.sh: /" >&2
+  tail -n 15 <<<"$RUN_OUTPUT" | sed "s/^/$SPEC_ID:$TEST_ID   run.sh: /" >&2
+}
+
+# Volumes do projeto (rótulo do Compose), um por linha, ordenados.
+stack_volumes() {
+  docker volume ls -q --filter "label=com.docker.compose.project=$COMPOSE_PROJECT" 2>/dev/null | sort
 }
 
 # Precondição de UT-01: nenhuma stack `vitrine` no ar. Com SPEC0012_TAKE_DOWN=1 o teste a derruba

@@ -38,7 +38,7 @@ fi
 # Então: a stack continua no ar, com os mesmos containers.
 after="$(stack_ids)"
 [[ -n "$after" ]] || fail "run.sh took down the '$COMPOSE_PROJECT' stack that was already up before it"
-missing="$(comm -23 <(printf '%s\n' "$before") <(printf '%s\n' "$after"))"
-[[ -z "$missing" ]] \
-  || fail "run.sh stopped $(wc -l <<<"$missing") container(s) of the '$COMPOSE_PROJECT' stack that was up before it"
+gone="$(comm -23 <(printf '%s\n' "$before") <(printf '%s\n' "$after"))"
+[[ -z "$gone" ]] \
+  || fail "run.sh stopped $(wc -l <<<"$gone") container(s) of the '$COMPOSE_PROJECT' stack that was up before it"
 pass "the '$COMPOSE_PROJECT' stack that was up before run.sh is still up ($(wc -l <<<"$after") container(s))"

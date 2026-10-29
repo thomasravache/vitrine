@@ -5,7 +5,11 @@
 # Local (Docker). O IT executado é a fixture SPEC-0012-FX-up (sobe só o postgres do projeto `vitrine`
 # pelos arquivos do Compose de deploy/ e não o derruba). Dois casos:
 #   1. `tests/infra/run.sh SPEC-0012-FX-up`         -> sai 0 e nenhum container do projeto fica no ar;
-#   2. `tests/infra/run.sh --keep SPEC-0012-FX-up`  -> sai 0 e os containers continuam no ar.
+#   2. `tests/infra/run.sh --keep SPEC-0012-FX-up`  -> sai 0 e os containers continuam no ar;
+#   3. `tests/infra/run.sh SPEC-0012-FX-up --keep`  -> idem (`--keep` também vale depois dos IDs);
+#   4. projeto `vitrine` existente mas PARADO antes (fixture + `docker compose -p vitrine stop`):
+#      `tests/infra/run.sh SPEC-0012-FX-up` -> sai 0 e os volumes do projeto continuam existindo
+#      (a máquina volta como estava: o runner não apaga dados de uma stack que não criou).
 # Precondição: nenhuma stack `vitrine` no ar (SPEC0012_TAKE_DOWN=1 deixa o teste derrubá-la).
 # Entre os casos e ao sair, o teste derruba o que sobrou do projeto (`docker compose -p vitrine down -v`,
 # como o runner): o volume postgres_data do ambiente local é apagado (só dados sintéticos).
@@ -52,8 +56,44 @@ else
   errors+=("run.sh --keep $FIXTURE_IT exited non-zero (is --keep supported?)")
 fi
 
+stack_down
+
+# Caso 3 — --keep depois dos IDs também preserva a stack.
+log "run.sh $FIXTURE_IT --keep (no stack before)"
+if run_runner "$FIXTURE_IT" --keep; then
+  if stack_is_up; then
+    log "after run.sh $FIXTURE_IT --keep: $(stack_ids | wc -l) container(s) still running"
+  else
+    errors+=("run.sh $FIXTURE_IT --keep took the '$COMPOSE_PROJECT' stack down (expected --keep after the IDs to keep it)")
+  fi
+else
+  runner_tail
+  errors+=("run.sh $FIXTURE_IT --keep exited non-zero (is --keep accepted after the IDs?)")
+fi
+stack_down
+
+# Caso 4 — projeto existente mas parado: o runner não apaga seus volumes.
+log "run.sh $FIXTURE_IT (project '$COMPOSE_PROJECT' exists but is stopped)"
+fixture_up || fail "could not bring up the '$COMPOSE_PROJECT' stack for case 4"
+docker compose -p "$COMPOSE_PROJECT" stop >/dev/null 2>&1 || fail "could not stop the '$COMPOSE_PROJECT' stack"
+stack_is_up && fail "the '$COMPOSE_PROJECT' stack is still up after 'docker compose stop'"
+volumes_before="$(stack_volumes)"
+[[ -n "$volumes_before" ]] || fail "case 4 precondition: the '$COMPOSE_PROJECT' project has no volumes"
+log "before run.sh: stopped project with volume(s) ${volumes_before//$'\n'/ }"
+if run_runner "$FIXTURE_IT"; then
+  lost="$(comm -23 <(printf '%s\n' "$volumes_before") <(stack_volumes))"
+  if [[ -n "$lost" ]]; then
+    errors+=("run.sh $FIXTURE_IT removed volume(s) of the stopped '$COMPOSE_PROJECT' project that existed before it: ${lost//$'\n'/ }")
+  else
+    log "after run.sh: volume(s) of the stopped project still exist"
+  fi
+else
+  runner_tail
+  errors+=("run.sh $FIXTURE_IT exited non-zero (stopped project before)")
+fi
+
 if ((${#errors[@]} > 0)); then
   for e in "${errors[@]}"; do printf '%s:%s   %s\n' "$SPEC_ID" "$TEST_ID" "$e" >&2; done
-  fail "${#errors[@]} violation(s): run.sh must take down the stack it brought up, unless --keep"
+  fail "${#errors[@]} violation(s): run.sh must take down only the stack it brought up, unless --keep"
 fi
-pass "run.sh takes down the '$COMPOSE_PROJECT' stack it brought up; --keep keeps it"
+pass "run.sh takes down only the '$COMPOSE_PROJECT' stack it brought up; --keep (before or after the IDs) keeps it"
