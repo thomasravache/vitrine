@@ -24,15 +24,15 @@ internal sealed class AuthRateLimitOptions
 }
 
 /// <summary>
-/// Rate limiting nativo nos endpoints de autenticação (ADR-0007, SPEC-0008): 10 req/min por IP real do cliente em
-/// <c>/api/v1/auth/*</c> (o IP vem dos forwarded headers confiáveis — nunca o do Caddy) e 10 logins/min por e-mail
+/// Rate limiting nativo nos endpoints de autenticação (ADR-0007, SPEC-0008 v3): 10 req/min por IP real do cliente nos
+/// POST de cadastro e login (o IP vem dos forwarded headers confiáveis — nunca o do Caddy) e 10 logins/min por e-mail
 /// (normalizado) em <c>POST /api/v1/auth/login</c>; excedido, 429 com <c>Retry-After</c>. O bloqueio de conta da SPEC-0006
 /// (5 falhas → 423) dispara antes do limite por e-mail, que protege e-mails inexistentes e o custo do hash.
 /// </summary>
 internal static class AuthRateLimiting
 {
-    public const string AuthPathPrefix = "/api/v1/auth";
     public const string LoginPath = "/api/v1/auth/login";
+    public const string RegisterPath = "/api/v1/auth/register";
 
     private static readonly TimeSpan Window = TimeSpan.FromMinutes(1);
     private static readonly object LoginEmailKey = new();
@@ -58,7 +58,7 @@ internal static class AuthRateLimiting
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
             options.GlobalLimiter = PartitionedRateLimiter.CreateChained(
                 PartitionedRateLimiter.Create<HttpContext, string>(context =>
-                    context.Request.Path.StartsWithSegments(AuthPathPrefix, StringComparison.OrdinalIgnoreCase)
+                    IsLimitedPerIp(context.Request)
                     && !(exemptLoopback && context.Connection.RemoteIpAddress is { } local && IPAddress.IsLoopback(local))
                         ? FixedWindow("ip:" + (context.Connection.RemoteIpAddress?.ToString() ?? "desconhecido"), perIp)
                         : RateLimitPartition.GetNoLimiter(string.Empty)),
@@ -105,6 +105,12 @@ internal static class AuthRateLimiting
 
             await next(context);
         });
+
+    // Contrato v3: só os POST de cadastro e login contam no limite por IP (GET /antiforgery e logout não).
+    private static bool IsLimitedPerIp(HttpRequest request) =>
+        HttpMethods.IsPost(request.Method)
+        && (request.Path.Equals(LoginPath, StringComparison.OrdinalIgnoreCase)
+            || request.Path.Equals(RegisterPath, StringComparison.OrdinalIgnoreCase));
 
     private static RateLimitPartition<string> FixedWindow(string key, int permitLimit) =>
         RateLimitPartition.GetFixedWindowLimiter(key, _ => new FixedWindowRateLimiterOptions
