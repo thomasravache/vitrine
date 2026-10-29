@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Logging;
@@ -28,6 +29,9 @@ public static class Extensions
     public const string ReadyTag = "ready";
 
     private const string HealthEndpointPrefix = "/health";
+
+    // Sondas só por GET, como a lista de anônimos do contrato (SPEC-0008).
+    private static readonly HttpMethodMetadata GetOnly = new([HttpMethods.Get]);
     private const string LiveTag = "live";
 
     public static TBuilder AddServiceDefaults<TBuilder>(this TBuilder builder)
@@ -109,7 +113,9 @@ public static class Extensions
     /// <summary>
     /// Mapeia <c>GET /health/live</c> e <c>GET /health/ready</c> em todos os ambientes. Os endpoints só expõem o
     /// estado agregado (Healthy/Unhealthy; 503 quando Unhealthy), sem nomes de checagem, hosts nem exceções:
-    /// liveness em texto (<c>Healthy</c>) e readiness em JSON (<c>{"status":"Healthy"}</c>).
+    /// liveness em texto (<c>Healthy</c>) e readiness em JSON (<c>{"status":"Healthy"}</c>). São anônimos pelo
+    /// metadado <c>AllowAnonymous</c> (sondas do orquestrador não têm sessão), não por exceção de caminho na política
+    /// de autorização do host, e só aceitam GET (SPEC-0008).
     /// </summary>
     public static WebApplication MapDefaultEndpoints(this WebApplication app)
     {
@@ -118,13 +124,13 @@ public static class Extensions
         app.MapHealthChecks(LivenessEndpointPath, new HealthCheckOptions
         {
             Predicate = registration => registration.Tags.Contains(LiveTag),
-        });
+        }).WithMetadata(GetOnly).AllowAnonymous();
 
         app.MapHealthChecks(ReadinessEndpointPath, new HealthCheckOptions
         {
             Predicate = registration => registration.Tags.Contains(ReadyTag),
             ResponseWriter = WriteStatusOnlyAsync,
-        });
+        }).WithMetadata(GetOnly).AllowAnonymous();
 
         return app;
     }

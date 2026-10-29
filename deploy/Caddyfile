@@ -2,8 +2,12 @@
 # SITE_ADDRESS: domínio público no servidor (certificado Let's Encrypt automático) ou
 # vitrine.localhost no ambiente local (Caddy usa a própria CA interna para *.localhost).
 # O HTTPS automático do Caddy redireciona http:// -> https:// (308).
-# Cabeçalhos de segurança detalhados: SPEC-0008.
+# Cabeçalhos de segurança (CSP, HSTS, nosniff...): emitidos pela Api em toda resposta (SPEC-0008), sem duplicar aqui.
+# O Caddy só remove a própria identificação; a Api enxerga HTTPS e o IP do cliente por X-Forwarded-Proto/For, aceitos
+# só da rede `proxy` do Compose.
 {$SITE_ADDRESS} {
 	encode zstd gzip
+	header -Server
+	header -Via
 	reverse_proxy api:8080
 }

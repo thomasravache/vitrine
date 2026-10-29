@@ -14,3 +14,6 @@ e0e91328a5ac9390b506c52b26e237f75690a79d:tests/Vitrine.IntegrationTests/Identity
 434024a25a7d741ea021d0844c39e6611cab950a:web/src/observability/sentry.test.tsx:generic-api-key:85
 889eea85078ca1c46ec1986be6e1c84a69e58ee4:tests/Vitrine.IntegrationTests/Observability/LogMaskingTests.cs:generic-api-key:20
 889eea85078ca1c46ec1986be6e1c84a69e58ee4:tests/Vitrine.UnitTests/Observability/SensitiveDataMaskingTests.cs:generic-api-key:19
+
+# SPEC-0008: chave mestra SINTÉTICA e pública do ambiente local prod-like (decodifica para texto legível; nunca usada fora dele).
+10146e435e87c584ddf8428535b712d9eae35253:deploy/local/.env.example:generic-api-key:26
