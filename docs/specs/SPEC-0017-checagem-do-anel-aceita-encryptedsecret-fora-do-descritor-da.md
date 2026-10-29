@@ -29,7 +29,7 @@ Reproduzido pelo Reviewer no G4 da SPEC-0014: um `<key>` cujo descritor guarda a
 `src/Api/Security/DataProtectionKeyRingCheck.cs`: `key.Descendants(EncryptedSecret)` aceita o elemento em qualquer profundidade do `<key>`, em vez de exigir a posição em que o Data Protection o lê (`key/descriptor/descriptor/encryptedSecret`). O filtro de `<key>` usa `Name.LocalName`, enquanto o Data Protection só reconhece `key` sem namespace.
 
 ## 3. Mudança Proposta
-A checagem exige o `encryptedSecret` (com `masterKeyEncrypted`) exatamente na posição do descritor e recusa qualquer `<key>` cujo descritor tenha segredo em claro; o filtro de chave passa a ser o `XName` `key` sem namespace, igual ao Data Protection. Não muda: mensagens de erro, Development, revogações ignoradas, rotação.
+A checagem exige o `encryptedSecret` (com `masterKeyEncrypted`) exatamente na posição do descritor, com `decryptorType` que resolva para o decifrador da chave mestra do Vitrine (`MasterKeyXmlDecryptor`, comparado pelo nome do tipo como o framework faz, sem depender da versão do assembly) e recusa qualquer `<key>` cujo descritor tenha segredo em claro; o filtro de chave passa a ser o `XName` `key` sem namespace, igual ao Data Protection. Não muda: mensagens de erro, Development, revogações ignoradas, rotação.
 
 **Padrão seguido:** `DataProtectionKeyRingCheck.cs` e `MasterKeyXmlEncryption.cs` (SPEC-0008/0014); testes em `KeyRingRevocationTests.cs` e `MasterKeyTests.cs`.
 
@@ -41,7 +41,7 @@ A checagem exige o `encryptedSecret` (com `masterKeyEncrypted`) exatamente na po
 <!-- Mínimo: um teste de regressão que reproduz o problema e FALHA antes da correção, no nível em que o defeito aparece (IT para fronteiras de I/O, E2E para jornadas de usuário). Código sem cobertura: primeiro CH-xx fixando o comportamento atual. Tag no código: `SPEC-0017:<ID>`. Modo privado: sem tag no código; aponte o teste no fim da linha com `→ caminho::nome` (ex.: `→ tests/test_soma.py::test_soma`). Categoria sem teste: "N/A — motivo" SEM ID. -->
 - Caracterização: N/A — área já coberta pelos testes de chave mestra e de revogação das SPEC-0008/0014.
 - Unitários: N/A — o defeito aparece na subida do host com o anel real no PostgreSQL.
-- - **IT-01** — Dado um anel no PostgreSQL com uma `<key>` de descritor em claro contendo, fora do descritor, um `encryptedSecret` válido copiado de outra chave, quando o host sobe fora de Development, então a subida falha com a mensagem de chave sem a cifra da chave mestra; um `<key>` em claro em outro namespace é ignorado como pelo Data Protection (o host sobe e a chave não é carregada); e um anel válido (com e sem revogações) continua subindo.
+- - **IT-01** — Dado um anel no PostgreSQL com uma `<key>` de descritor em claro contendo, fora do descritor, um `encryptedSecret` válido copiado de outra chave, quando o host sobe fora de Development, então a subida falha com a mensagem de chave sem a cifra da chave mestra; um `<key>` com `encryptedSecret` de outro `decryptorType` (ex.: `NullXmlDecryptor` com o segredo em claro dentro de `masterKeyEncrypted`, isolado, como cópia de um segredo legítimo com o tipo trocado, ou ao lado de um `<masterKey>` em claro sem o atributo `requiresEncryption`) também impede a subida; um `<key>` em claro em outro namespace é ignorado como pelo Data Protection (o host sobe e a chave não é carregada); e um anel válido (com e sem revogações) continua subindo.
 
 ## 5. Questões em Aberto
 <!-- Dúvidas que impedem fechar a spec, respondidas ANTES do H1. Aberta: `- [ ] pergunta (quem responde)`. Respondida: `- [x] pergunta — resposta (quem, data)`. Com alguma aberta o G0 reprova. Sem dúvidas: escreva "Nenhuma". Dúvida que surge depois da aprovação vira impedimento (seção Registro de Impedimentos). -->
@@ -71,7 +71,7 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 | G1 Red | PASS | verify G1: PASS; `dotnet test tests/Vitrine.UnitTests && npm --prefix web run test` exit 127 (red: sh: 1: vitest: not found) — d47fe37 | 2026-10-29 |
 | G2 Green | PASS | build exit 0 (npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts a); test exit 0 (Duration  364ms (environment 61%, import 17%, transform 16%, tests 5%, worker 2%)); lint exit 0 (> tsc --noEmit && tsc --noEmit -p tsconfig.node.json); coverage exit 0 (Coverage: 91%) — c3ac213 | 2026-10-29 |
 | G3 Arquitetura | PASS | arch_test exit 0 (duration: 1s 379ms) — c3ac213 | 2026-10-29 |
-| G4 Review | PENDING | | |
+| G4 Review | FAIL | CHANGES_REQUESTED (Reviewer independente) em c3ac213: BLOCKER — decryptorType do encryptedSecret não é conferido; <key> com encryptedSecret decryptorType=NullXmlDecryptor contendo masterKey em claro passa na checagem e o Data Protection carrega o segredo do atacante (reproduzido em Production com PostgreSQL; variantes copied-decryptortype-null e plain-sibling-null-junk). Demais 11 sondas sem brecha; verify PASS; 158/158 | 2026-10-29 |
 | G5 Integração & CI | PENDING | | |
 | H2 Integração aprovada | PENDING | | |
 | G6 Deploy | PENDING | | |
@@ -114,4 +114,5 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 <!-- Mudança em spec aprovada: uma linha por emenda, aprovada pelo humano. -->
 | Versão | Data | Mudança | Motivo | Specs impactadas | Aprovado por |
 |---|---|---|---|---|---|
+| v1.2 (escopo) | 2026-10-29 | A checagem exige `decryptorType` do decifrador da chave mestra em cada `encryptedSecret` do descritor; IT-01 ganha os casos com `NullXmlDecryptor`. Mantida a semântica atual da chave errada (basta uma chave do anel decifrar): com o decifrador travado, chave que não decifra não é carregada | G4 CHANGES_REQUESTED: `NullXmlDecryptor` no `decryptorType` burlava a checagem e o Data Protection carregava o segredo em claro (reproduzido) | nenhuma | thomas (2026-10-29, piloto automático) |
 | v1.1 (esclarecimento) | 2026-10-29 | IT-01 explicita o caso do `<key>` em outro namespace, consequência do filtro pelo `XName` `key` sem namespace já previsto na Mudança Proposta | Test-writer: o caso derivava da seção 3 mas não estava no texto do teste | nenhuma | thomas (2026-10-29, piloto automático) |
