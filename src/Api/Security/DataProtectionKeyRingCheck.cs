@@ -132,11 +132,13 @@ internal sealed class DataProtectionKeyRingCheck(IServiceScopeFactory scopes, IH
             return false;
         }
 
+        // Como o DefaultTypeNameResolver do Data Protection: Type.GetType lança mesmo com throwOnError: false (tipo genérico
+        // inválido, TypeLoadException etc.), e qualquer falha na resolução significa "não é o decifrador da chave mestra".
         try
         {
             return Type.GetType(WithoutAssemblyVersion(decryptorTypeName), throwOnError: false) == expected;
         }
-        catch (Exception exception) when (exception is ArgumentException or IOException or BadImageFormatException)
+        catch (Exception)
         {
             return false;
         }
