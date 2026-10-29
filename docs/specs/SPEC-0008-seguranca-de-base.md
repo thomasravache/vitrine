@@ -9,7 +9,7 @@ created: 2026-10-13
 parent: SPEC-0001
 depends_on: [SPEC-0006]
 consumes_contract: [SPEC-0006@1]
-contract_version: 3
+contract_version: 4
 touches: [src/Api/Security/**, src/Api/Program.cs, src/Api/Vitrine.Api.csproj, src/Api/appsettings*.json, src/ServiceDefaults/**, src/Common/Vitrine.Common.Security/**, src/Modules/Identity/Vitrine.Identity.Presentation/**, src/Modules/Identity/Vitrine.Identity.Infrastructure/**, Vitrine.slnx, Directory.Packages.props, "**/packages.lock.json", deploy/compose.yaml, deploy/compose.override.yaml, deploy/Caddyfile, deploy/local/.env.example, tests/Vitrine.UnitTests/Security/**, tests/Vitrine.UnitTests/Vitrine.UnitTests.csproj, tests/Vitrine.IntegrationTests/Security/**, tests/Vitrine.IntegrationTests/Support/**, tests/Vitrine.IntegrationTests/Vitrine.IntegrationTests.csproj, tests/Vitrine.ArchitectureTests/**, docs/runbooks/**, .gitleaksignore, web/vite.config.ts]
 adrs: [ADR-0007, ADR-0006]
 external: []
@@ -77,6 +77,8 @@ Cabeçalhos em toda resposta: Content-Security-Policy (default-src 'self'; scrip
 Rate limit: POST /api/v1/auth/register e POST /api/v1/auth/login, 10/min por IP (IP real do cliente, via forwarded headers confiáveis;
   GET /antiforgery e logout não contam — evitam bloquear quem divide IP por CGNAT); login 10/min por e-mail -> 429 + Retry-After
   Em Development, conexões de loopback não contam no limite por IP (AppHost/Vite locais)
+  A decisão de limitar usa o endpoint roteado (vale para `/login/`, `/LOGIN` etc.); o e-mail da partição é o mesmo que o endpoint usa
+  (JSON com `email` repetido -> 400); corpo do login/cadastro acima de 4 KB -> 413 sem ser lido por inteiro
   Ordem: o bloqueio da SPEC-0006 (5 falhas -> 423) vem antes do limite por e-mail; o limite por e-mail protege e-mails inexistentes e o custo do hash
 src/Common/Security:
   interface IFieldProtector { string Protect(string plaintext, string purpose); string Unprotect(string ciphertext, string purpose); }
@@ -84,6 +86,7 @@ src/Common/Security:
   Erro: CryptographicException -> nunca devolve texto parcial
 Config: DataProtection__MasterKey (secret do Environment; 32 bytes aleatórios em Base64; ausente fora de Development -> a API não sobe)
   DataProtection__PreviousMasterKey (opcional, só durante a rotação: a API lê com as duas e `--migrate` recifra o anel de chaves)
+  Fora de Development, se o anel tem chaves e nenhuma decifra com a chave mestra (ou a anterior) -> a API não sobe (mensagem clara)
   RateLimiting__AuthPerIp__PermitLimit (padrão 10), RateLimiting__LoginPerEmail__PermitLimit (padrão 10)
   ForwardedHeaders__KnownNetworks__0 (CIDR da rede do Compose onde está o Caddy)
   CSP connect-src inclui a origem de ingestão do Sentry derivada de Sentry__Dsn quando configurado (backend e SPA usam o mesmo projeto do Sentry)
@@ -100,6 +103,8 @@ Config: DataProtection__MasterKey (secret do Environment; 32 bytes aleatórios e
 | Acesso anônimo negado | GET de rota protegida sem cookie | 401 | IT-01 |
 | Cabeçalhos | qualquer resposta | todos os cabeçalhos do contrato presentes; `Server` ausente | IT-02 |
 | Rate limit | 11º POST de cadastro/login por minuto do mesmo IP, ou 11º login/min do mesmo e-mail | 429 + Retry-After; GET /antiforgery não conta | IT-03 |
+| Variações de rota e corpo | `POST /api/v1/auth/login/`, caixa diferente, `email` duplicado no JSON, corpo > 4 KB | mesmos limites (429 no 11º); `email` duplicado -> 400; corpo grande -> 413 | IT-03 |
+| Chave mestra | rotação com chave anterior; chave ausente ou errada fora de Development | rotação preserva sessão e campos; ausente/errada -> API não sobe | IT-08 |
 | Bloqueio antes do limite | 6ª tentativa após 5 falhas de um e-mail existente | 423 (contrato SPEC-0006), não 429 | IT-03 |
 | Cifra de campo | valor protegido gravado | coluna no banco não contém o texto claro; leitura devolve o original | UT-02, IT-04 |
 | Propósito errado / adulteração | decifrar com propósito diferente ou texto alterado | CryptographicException | UT-03 |
@@ -121,10 +126,11 @@ Config: DataProtection__MasterKey (secret do Environment; 32 bytes aleatórios e
 ### 7.3 Testes de Integração
 - **IT-01** — Dado a API, quando cada rota protegida conhecida é chamada sem cookie, então 401; e cada rota da lista anônima responde sem exigir login.
 - **IT-02** — Dado a API em ambiente `Production` simulado, quando `GET /` e `GET /api/v1/me`, então as respostas trazem todos os cabeçalhos do contrato (incluindo HSTS) e não trazem `Server`.
-- **IT-03** — Dado a API, quando 11 POST de cadastro/login do mesmo IP chegam em um minuto, então o 11º recebe 429 com `Retry-After` e `GET /antiforgery` do mesmo IP não é limitado; e 11 tentativas de login para o mesmo e-mail (inexistente) de IPs diferentes resultam em 429 na 11ª; e, para um e-mail existente, a 6ª tentativa após 5 falhas continua 423 (contrato da SPEC-0006).
+- **IT-03** — Dado a API, quando 11 POST de cadastro/login do mesmo IP chegam em um minuto, então o 11º recebe 429 com `Retry-After` e `GET /antiforgery` do mesmo IP não é limitado; e 11 tentativas de login para o mesmo e-mail (inexistente) de IPs diferentes resultam em 429 na 11ª; e, para um e-mail existente, a 6ª tentativa após 5 falhas continua 423 (contrato da SPEC-0006). Regressões: o mesmo vale com `/login/`, `/register/` e caixa diferente; JSON com `email` duplicado responde 400; corpo acima de 4 KB responde 413.
 - **IT-04** — Dado uma entidade de teste com campo `IsProtected`, quando gravada no Postgres real, então a coluna lida por SQL cru não contém o texto claro e a leitura via EF devolve o original.
 - **IT-05** — Dado sessão ativa e um campo cifrado gravado, quando o host é reiniciado com a mesma chave mestra, então a sessão continua válida e o campo é decifrado.
 - **IT-06** — Dado a API configurada para confiar só na rede do proxy, quando chega `GET /api/v1/auth/antiforgery` com `X-Forwarded-Proto: https` de um IP confiável, então o cookie antiforgery sai com `Secure`; e o mesmo cabeçalho vindo de IP não confiável é ignorado.
+- **IT-08** — Dado chaves do Data Protection gravadas com a chave mestra A, quando o host sobe com A como anterior e B como atual e `--migrate` roda, então campos e sessão antigos continuam válidos só com B; e fora de Development, sem chave mestra ou com uma chave que não decifra nenhuma chave do anel, o host não sobe e a mensagem diz o motivo sem expor a chave.
 - **IT-07** — Dado um `index.html` de teste no web root, quando `GET /health/live`, `GET /health/ready` (anônimos) e `GET /api/v1/nao-existe`, então os health checks respondem 200 sem login pelo metadado `AllowAnonymous` e a rota de API inexistente responde 404 sem devolver o `index.html`.
 
 ### 7.4 Testes de Contrato
@@ -178,9 +184,9 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 |---|---|---|---|
 | G0 Spec | PASS | validate: 0 erro(s) — 4602cbe (árvore suja) | 2026-10-13 |
 | G1 Red | PASS | verify G1: PASS; `dotnet test tests/Vitrine.UnitTests && npm --prefix web run test` exit 2 (red: Test run completed with non-success exit code: 2 (see: https://aka.ms/testingplatform/exit) — 890a444 | 2026-10-28 |
-| G2 Green | PENDING | | |
-| G3 Arquitetura | PENDING | | |
-| G4 Review | PENDING | | |
+| G2 Green | PASS | build exit 0 (npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts a); test exit 0 (Duration  359ms (environment 59%, import 18%, transform 17%, tests 5%, worker 1%)); lint exit 0 (> tsc --noEmit && tsc --noEmit -p tsconfig.node.json); coverage exit 0 (Coverage: 86%) — 0b6aa62 | 2026-10-28 |
+| G3 Arquitetura | PASS | arch_test exit 0 (duration: 1s 242ms) — 0b6aa62 | 2026-10-28 |
+| G4 Review | FAIL | Reviewer independente: CHANGES_REQUESTED em 0b6aa62 — M1: barra final (/login/, /register/) contorna os limites por IP e por e-mail (20 POST sem 429, reproduzido); M2: propriedade email duplicada no JSON contorna o limite por e-mail (partição usa a primeira, binding a última; 15 tentativas sem 429, reproduzido); m1 corpo do login lido sem teto antes do limitador; m2 rotação/chave ausente sem teste; m3 chave mestra errada sobe sem aviso; m4 corrida no runbook de rotação | 2026-10-28 |
 | G5 Integração & CI | PENDING | | |
 | H2 Integração aprovada | PENDING | | |
 | G6 Deploy | PENDING | | |
@@ -230,6 +236,7 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 <!-- Mudança em spec aprovada: uma linha por emenda. Mudou o contrato? Incremente `contract_version` e rode `spec_graph.py impacted SPEC-0008`. -->
 | Versão do contrato | Data | Mudança | Motivo | Specs impactadas | Aprovado por |
 |---|---|---|---|---|---|
+| v4 | 2026-10-29 | Limite decidido pelo endpoint roteado; `email` duplicado -> 400; teto de 4 KB no corpo de login/cadastro (413); chave mestra errada fora de Development impede a subida; IT-03 com regressões e IT-08 novo (rotação, chave ausente/errada); runbook de rotação sem corrida | G4 CHANGES_REQUESTED: barra final e `email` duplicado contornavam os limites (reproduzido), corpo lido sem teto, rotação/chave sem teste, chave errada subia em silêncio, corrida no runbook | nenhuma | thomas (2026-10-29, piloto automático) |
 | v3 | 2026-10-29 | Limite por IP só nos POST de cadastro/login (GET /antiforgery e logout fora); isenção de loopback em Development; rotação com `DataProtection__PreviousMasterKey`; chave mestra obrigatória fora de Development; `web/vite.config.ts` no escopo para não embutir fontes como `data:` (CSP estrita mantida) | Implementer: o smoke do deploy (2 projetos Playwright) estourava 10/min porque a SPA busca o token antiforgery antes de cada POST — mesmo risco para usuários atrás de CGNAT; fonte embutida bloqueada pela CSP; rotação sem chave anterior perderia os dados cifrados | nenhuma | thomas (2026-10-29, piloto automático) |
 | v2 | 2026-10-29 | Limite de login por e-mail 5/min → 10/min, com o bloqueio da SPEC-0006 (423) antes dele; chaves de configuração formalizadas (`DataProtection__MasterKey` Base64 de 32 bytes, `RateLimiting__*`, `ForwardedHeaders__KnownNetworks__0`, origem do Sentry na CSP a partir de `Sentry__Dsn`); IT-03 ajustado | SPEC_DEFECT do Test-writer: 5/min por e-mail e o bloqueio de 5 falhas disparavam juntos na 6ª tentativa (429 × 423), quebrando o contrato SPEC-0006@1 | nenhuma (SPEC-0006 mantém o 423) | thomas (2026-10-29, piloto automático) |
 | v1.1 (escopo, sem mudança de contrato) | 2026-10-29 | `touches` alinhado ao código real: projeto novo `src/Common/Vitrine.Common.Security` (+ `Vitrine.slnx`), rate limit e antiforgery onde já estão (`Identity.Presentation`/`Infrastructure`, `Api/Program.cs`), csproj/appsettings da API, suporte e csproj de testes, `.env.example`/override do Compose (chave mestra), lockfiles e `.gitleaksignore` (valores falsos de teste); pacote `Microsoft.AspNetCore.DataProtection.EntityFrameworkCore` 10.0.13 registrado no ADR-0006; seção 7.5 deixa de citar ID de teste de outra spec | A spec foi escrita antes do módulo Identity e de qualquer projeto em `src/Common` existirem | — | thomas (2026-10-29, piloto automático) |
