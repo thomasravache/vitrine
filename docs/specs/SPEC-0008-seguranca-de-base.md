@@ -4,7 +4,7 @@ title: Segurança de base
 tier: full
 type: foundation
 user_facing: false
-status: in-progress
+status: implemented
 created: 2026-10-13
 parent: SPEC-0001
 depends_on: [SPEC-0006]
@@ -163,20 +163,20 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 ## 11. Checklist de Implementação
 <!-- Preenchido na fase PLAN, após a aprovação. Cada fase começa pelos testes. -->
 **Fase 1: Cifra de campos e autorização por padrão**
-- [ ] Red: escrever UT-01, UT-02, UT-03 com a tag `SPEC-0008:<ID>` e confirmar que falham pelo motivo certo
-- [ ] Green: `IFieldProtector` + conversor EF `IsProtected`, chaves do Data Protection no PostgreSQL, `FallbackPolicy` e lista de endpoints anônimos
-- [ ] Refactor mantendo tudo verde
+- [x] Red: escrever UT-01, UT-02, UT-03 com a tag `SPEC-0008:<ID>` e confirmar que falham pelo motivo certo
+- [x] Green: `IFieldProtector` + conversor EF `IsProtected`, chaves do Data Protection no PostgreSQL, `FallbackPolicy` e lista de endpoints anônimos
+- [x] Refactor mantendo tudo verde
 
 **Fase 2: Cabeçalhos, limites e contrato**
-- [ ] Red: escrever IT-01..IT-07 e CT-01 e confirmar que falham pelo motivo certo
-- [ ] Green: cabeçalhos de segurança, HSTS em produção, rate limiting de auth, chave mestra por ambiente + runbook de rotação
-- [ ] Validar: build + suíte completa + arquitetura (G2/G3)
+- [x] Red: escrever IT-01..IT-07 e CT-01 e confirmar que falham pelo motivo certo
+- [x] Green: cabeçalhos de segurança, HSTS em produção, rate limiting de auth, chave mestra por ambiente + runbook de rotação
+- [x] Validar: build + suíte completa + arquitetura (G2/G3)
 
 **Fase final: Integração, entrega e documentação**
-- [ ] Review independente (G4)
-- [ ] Integração + CI verde (G5) e aprovação (H2)
-- [ ] Deploy no ambiente local prod-like com smoke; varredura de cabeçalhos em staging na SPEC-0009 (G6)
-- [ ] Relatório de Entrega, docs raiz e CHANGELOG (G7)
+- [x] Review independente (G4)
+- [x] Integração + CI verde (G5) e aprovação (H2)
+- [x] Deploy no ambiente local prod-like com smoke; varredura de cabeçalhos em staging na SPEC-0009 (G6)
+- [x] Relatório de Entrega, docs raiz e CHANGELOG (G7)
 
 ## 12. Registro de Gates
 <!-- Status: PENDING | PASS | FAIL | N/A. PASS e N/A exigem evidência (comando + resultado, SHA, execução de CI, veredito). -->
@@ -187,10 +187,10 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 | G2 Green | PASS | build exit 0 (npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts a); test exit 0 (Duration  370ms (environment 59%, import 18%, transform 17%, tests 4%, worker 2%)); lint exit 0 (> tsc --noEmit && tsc --noEmit -p tsconfig.node.json); coverage exit 0 (Coverage: 92%) — 1458fee | 2026-10-28 |
 | G3 Arquitetura | PASS | arch_test exit 0 (duration: 1s 170ms) — 1458fee | 2026-10-28 |
 | G4 Review | PASS | MANUAL: Re-review em 1458fee: M1 (barra final), M2 (email duplicado), M3 (BOM) e m1–m4 fechados; probes repetidos com variações de caminho, charset, Content-Type e forma do corpo — 0 contornos; nits aceitos como pendência (email nulo sem partição por e-mail; elementos <revocation> no check do anel); verify PASS 12/12; dotnet 139/139; lint/build/audit/vulnerable ok; gitleaks 0 | 2026-10-28 |
-| G5 Integração & CI | PENDING | | |
-| H2 Integração aprovada | PENDING | | |
-| G6 Deploy | PENDING | | |
-| G7 Pronto & Docs | PENDING | | |
+| G5 Integração & CI | PASS | MANUAL: PR #33 (sdd/int-SPEC-0008 @ d793184): CI 7/7 verde + CodeQL (runs/40806468786); local no integrado: build 0 avisos, format/lint ok, dotnet 139/139, vitest 6/6, e2e 30/30, npm audit high 0 | 2026-10-28 |
+| H2 Integração aprovada | PASS | política auto-on-green (aprovada por thomas em 2026-10-13); G5 PASS | 2026-10-28 |
+| G6 Deploy | PASS | smoke_test exit 0 (2 passed (3.5s)) — d793184 (árvore suja) | 2026-10-29 |
+| G7 Pronto & Docs | PASS | Relatório de Entrega e Definição de Pronto: ok — 443e943 (árvore suja) | 2026-10-29 |
 
 ## 13. Registro de Impedimentos
 <!-- Toda parada é registrada pelo Architect com `spec_graph.py impede` e fechada com `resolve` — não edite à mão. Tipos: spec (spec errada/incompleta → resolve com Emenda) | decisão (só o humano decide → resposta ou ADR) | trabalho (falta algo que exige código → SPEC-NNNN nova) | externo (acesso, ambiente, terceiro → ação tomada) | falha (3 FAILs seguidos no mesmo gate → diagnóstico e decisão). Com impedimento aberto a spec aparece como parada no INDEX e não pode ser fechada. -->
@@ -202,35 +202,53 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 
 ### O que foi entregue
 <!-- comportamento entregue do ponto de vista do usuário/sistema -->
+Base de segurança antes do primeiro dado de cliente: autorização negada por padrão (só cadastro, login, token antiforgery, health checks e a SPA são anônimos), guardada por teste de arquitetura; cabeçalhos de segurança em toda resposta (CSP estrita, HSTS fora de Development, X-Frame-Options, nosniff, Referrer-Policy, Permissions-Policy, sem `Server`); limite de 10/min por IP nos POST de cadastro/login e de 10/min por e-mail no login (429 + `Retry-After`, depois do bloqueio 423 da SPEC-0006), fechado contra variações de rota, caixa, corpo e codificação; `IFieldProtector` (AES-256-GCM via Data Protection, propósito por campo) com conversor EF `IsProtected`, chaves persistidas no PostgreSQL e cifradas pela chave mestra do ambiente, com rotação (`PreviousMasterKey` + `--migrate`) e recusa de subida com chave ausente ou errada; forwarded headers só da rede do Caddy; health checks anônimos por metadado.
 
 ### Como foi feito
 <!-- decisões de implementação, módulos/arquivos principais, desvios e emendas (com versão), dívidas assumidas -->
+Projeto novo `src/Common/Vitrine.Common.Security` (`IFieldProtector`, `IsProtected`); host em `src/Api/Security/` (`AuthRateLimiting` com middleware que lê até 4 KB do corpo e decide pelo endpoint roteado, `SecurityHeaders`, `DataProtectionMasterKey`/`MasterKeyXml`, `DataProtectionKeyRingCheck`, forwarded headers); `FallbackPolicy` + `AllowAnonymous` nos endpoints de ServiceDefaults e Identity. Pacote novo: `Microsoft.AspNetCore.DataProtection.EntityFrameworkCore` 10.0.13 (ADR-0006). Compose/`.env.example` com `DATA_PROTECTION_MASTER_KEY` (valor sintético local), `PROXY_SUBNET` e `RATE_LIMIT_*`; runbook `docs/runbooks/rotacao-chave-mestra.md`; `web/vite.config.ts` sem fontes `data:` para a CSP estrita. Emendas v1, v1.1, v2, v3, v4 e v4.1 (ver seção 15). Review: FAIL, FAIL e APPROVED na 3ª rodada (três contornos do limite reproduzidos e fechados). Alerta CodeQL `cs/sensitive-data-transmission` no teste `AuthRateLimitBypassTests` (senha falsa contra o TestServer) dispensado como "used in tests" a pedido do dono do repositório.
 
 ### Prova de Correção
 <!-- type fix: o teste de regressão falhou antes da correção (commit red + saída) e passa depois (commit green + execução). Outros tipos: "N/A". -->
+N/A — type foundation.
 
 ### Verificação
 <!-- Uma linha por teste do plano (todos os IDs da seção 7). Resultado: PASS. Evidência: execução de CI, commit ou relatório. -->
 | Teste | Comportamento | Resultado | Evidência |
 |---|---|---|---|
+| UT-01 | Endpoint sem política nem na lista anônima falha o teste de arquitetura | PASS | CI PR #33 run 40806468786 (d793184); main run 40933777578 (443e943) |
+| UT-02 | Protect/Unprotect com propósito; texto claro fora de ToString() | PASS | CI PR #33 run 40806468786 (d793184); main run 40933777578 (443e943) |
+| UT-03 | Propósito errado ou byte alterado → CryptographicException; p95 < 1 ms em 1.000 operações | PASS | CI PR #33 run 40806468786 (d793184); main run 40933777578 (443e943) |
+| IT-01 | Rotas protegidas sem cookie → 401; lista anônima sem login | PASS | CI PR #33 run 40806468786 (d793184); main run 40933777578 (443e943) |
+| IT-02 | Todos os cabeçalhos do contrato (com HSTS em Production) e sem Server | PASS | CI PR #33 run 40806468786 (d793184); main run 40933777578 (443e943); G6: `curl -I` no ambiente local com CSP, HSTS, X-Frame-Options, nosniff, Referrer/Permissions-Policy |
+| IT-03 | 429 + Retry-After no 11º POST por IP e no 11º login por e-mail; 423 antes; regressões de barra final, caixa, email duplicado (400), corpo > 4 KB (413), BOM, JSON ilegível (400) e NFC/NFD | PASS | CI PR #33 run 40806468786 (d793184); main run 40933777578 (443e943) |
+| IT-04 | Coluna cifrada no Postgres sem o texto claro; EF devolve o original | PASS | CI PR #33 run 40806468786 (d793184); main run 40933777578 (443e943) |
+| IT-05 | Reinício com a mesma chave mestra mantém sessão e campo cifrado | PASS | CI PR #33 run 40806468786 (d793184); main run 40933777578 (443e943) |
+| IT-06 | X-Forwarded-Proto só da rede confiável; antiforgery com Secure | PASS | CI PR #33 run 40806468786 (d793184); main run 40933777578 (443e943) |
+| IT-07 | /health/* 200 anônimo por metadado; /api inexistente 404 sem index.html | PASS | CI PR #33 run 40806468786 (d793184); main run 40933777578 (443e943) |
+| IT-08 | Rotação com PreviousMasterKey + --migrate; chave ausente/errada impede a subida sem expor a chave | PASS | CI PR #33 run 40806468786 (d793184); main run 40933777578 (443e943) |
+| CT-01 | Cadastro/login pelo cliente gerado mantêm 201/204/401/409/423 sob CSP, antiforgery e rate limit | PASS | CI PR #33 run 40806468786 (d793184); main run 40933777578 (443e943); G6: smoke @smoke 2/2 (login sob CSP) |
 
 ### Definição de Pronto
-- [ ] Todos os testes do plano passando e listados na Verificação
-- [ ] Todo comportamento do Mapa de Comportamentos coberto e verificado
-- [ ] Suíte completa, arquitetura e CI verdes no resultado integrado (G5)
-- [ ] Review independente sem achados blocker/major (G4)
-- [ ] Padrão arquitetural existente mantido, ou desvio coberto por ADR aprovado
-- [ ] Requisitos não-funcionais medidos com evidência (ou N/A justificado)
-- [ ] Disponível no ambiente-alvo via pipeline, com smoke/E2E passando no ambiente (G6)
-- [ ] Observabilidade e rollback prontos conforme o Plano de Rollout
-- [ ] Documentação raiz e CHANGELOG atualizados (G7)
-- [ ] Pendências registradas como novas specs (ou nenhuma)
+- [x] Todos os testes do plano passando e listados na Verificação
+- [x] Todo comportamento do Mapa de Comportamentos coberto e verificado
+- [x] Suíte completa, arquitetura e CI verdes no resultado integrado (G5)
+- [x] Review independente sem achados blocker/major (G4)
+- [x] Padrão arquitetural existente mantido, ou desvio coberto por ADR aprovado
+- [x] Requisitos não-funcionais medidos com evidência (ou N/A justificado) — cifra p95 < 1 ms (UT-03), OWASP A01/A02/A05/A07 (IT-01..03, UT-01..02, G4), reinício (IT-05)
+- [x] Disponível no ambiente-alvo via pipeline, com smoke/E2E passando no ambiente (G6)
+- [x] Observabilidade e rollback prontos conforme o Plano de Rollout — 401/429 nas métricas e logs da SPEC-0007; rollback = redeploy da tag anterior (o anel no banco é compatível)
+- [x] Documentação raiz e CHANGELOG atualizados (G7)
+- [x] Pendências registradas como novas specs (ou nenhuma)
 
 ### Deploy
 <!-- ambiente(s), versão/tag, data, estratégia, estado da feature flag, execução do pipeline -->
+Ambiente local prod-like: imagem `ghcr.io/thomasravache/vitrine-api:443e94382d794853b1213cc174ea6ab53cd83779` da CI da `main` (run 40933777578) via `deploy/deploy.sh`, health 200 em 3 s, chave mestra sintética do `.env.example`, smoke `@smoke` 2/2 e `curl -I` com todos os cabeçalhos do contrato (2026-10-29). Staging/produção com chave mestra real na SPEC-0009.
 
 ### Pendências
 <!-- specs criadas para o que ficou de fora, ou "Nenhuma" -->
+- SPEC-0014 — login sem e-mail responde 400 antes do Identity; revogações no anel não impedem a subida (nits do G4).
+- SPEC-0009 (emenda v1.2 pendente, a revisar juntos no go-live) — `DATA_PROTECTION_MASTER_KEY` real no `DEPLOY_ENV_FILE` de staging/produção com cópia no cofre; `PROXY_SUBNET`/`RATE_LIMIT_*` por ambiente; Mozilla Observatory em staging.
 
 ## 15. Emendas
 <!-- Mudança em spec aprovada: uma linha por emenda. Mudou o contrato? Incremente `contract_version` e rode `spec_graph.py impacted SPEC-0008`. -->

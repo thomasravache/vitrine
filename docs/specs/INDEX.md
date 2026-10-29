@@ -1,11 +1,11 @@
 # Índice de Specs
 
-> Gerado por `spec_graph.py index` em 2026-10-28 — não edite manualmente.
+> Gerado por `spec_graph.py index` em 2026-10-29 — não edite manualmente.
 
 ## Saúde
 
-- Validação (G0): **0 erro(s), 17 aviso(s)** — rode `spec_graph.py validate`
-- Specs: approved 4, in-progress 1, implemented 7
+- Validação (G0): **0 erro(s), 21 aviso(s)** — rode `spec_graph.py validate`
+- Specs: approved 5, implemented 8
 - Impedimentos: **0 aberto(s)**, 5 resolvido(s)
 
 ## Cobertura de Pilares
@@ -35,23 +35,23 @@ Perfil: **padrao**
 
 ## Plano de Execução
 
-**Em andamento:** SPEC-0008  
+**Em andamento:** —  
 **Paradas por impedimento:** —  
-**Próximo lote:** —
+**Próximo lote:** SPEC-0009, SPEC-0011, SPEC-0013
 
 | Onda | Spec | Título | Tier/Tam. | Status | Prontidão | Observação |
 |---|---|---|---|---|---|---|
-| 1 | SPEC-0008 | Segurança de base | full/M | in-progress | 🔄 em andamento |  |
-| 2 | SPEC-0009 | Provisionamento na nuvem e go-live | full/M | approved | ⛔ aguarda implementação de SPEC-0008 |  |
-| 2 | SPEC-0011 | Checagem de drift do cliente OpenAPI no CI | lite/S | approved | ✅ pronta | saiu da onda 1: arquivos em comum com SPEC-0008 |
-| 2 | SPEC-0013 | Exceção repassada ao Sentry com segredo repetido em propriedade sensível | lite/S | approved | ✅ pronta | saiu da onda 1: arquivos em comum com SPEC-0008 |
-| 3 | SPEC-0012 | Testes de infra deixam a stack local rodando | lite/S | approved | ✅ pronta | saiu da onda 1: arquivos em comum com SPEC-0008; saiu da onda 2: arquivos em comum com SPEC-0009 |
+| 1 | SPEC-0009 | Provisionamento na nuvem e go-live | full/M | approved | ✅ pronta |  |
+| 1 | SPEC-0011 | Checagem de drift do cliente OpenAPI no CI | lite/S | approved | ✅ pronta |  |
+| 1 | SPEC-0013 | Exceção repassada ao Sentry com segredo repetido em propriedade sensível | lite/S | approved | ✅ pronta |  |
+| 2 | SPEC-0012 | Testes de infra deixam a stack local rodando | lite/S | approved | ✅ pronta | saiu da onda 1: arquivos em comum com SPEC-0009 |
+| 2 | SPEC-0014 | Limitador sem partição por e-mail nulo e revogações no check do anel | lite/S | approved | ✅ pronta | saiu da onda 1: max_parallel=3 |
 
 ## Épicos
 
 | Épico | Título | Status | Progresso |
 |---|---|---|---|
-| SPEC-0001 | Fundação da plataforma Vitrine | approved | 7/12 implementadas |
+| SPEC-0001 | Fundação da plataforma Vitrine | approved | 8/13 implementadas |
 
 ## Grafo de Dependências
 
@@ -63,11 +63,12 @@ flowchart LR
     S0005["SPEC-0005<br/>Ambientes, IaC e deploy em VPS"]:::implemented
     S0006["SPEC-0006<br/>Walking skeleton: cadastro, login e pai…"]:::implemented
     S0007["SPEC-0007<br/>Observabilidade de base"]:::implemented
-    S0008["SPEC-0008<br/>Segurança de base"]:::inprogress
+    S0008["SPEC-0008<br/>Segurança de base"]:::implemented
     S0009["SPEC-0009<br/>Provisionamento na nuvem e go-live"]:::approved
     S0011["SPEC-0011<br/>Checagem de drift do cliente OpenAPI no…"]:::approved
     S0012["SPEC-0012<br/>Testes de infra deixam a stack local ro…"]:::approved
     S0013["SPEC-0013<br/>Exceção repassada ao Sentry com segredo…"]:::approved
+    S0014["SPEC-0014<br/>Limitador sem partição por e-mail nulo …"]:::approved
   end
   S0005 --> S0006
   S0006 --> S0007
@@ -78,6 +79,7 @@ flowchart LR
   S0006 --> S0009
   S0007 --> S0009
   S0008 --> S0009
+  S0008 --> S0014
   classDef proposed fill:#fef3c7,stroke:#d97706,color:#111
   classDef approved fill:#dbeafe,stroke:#2563eb,color:#111
   classDef inprogress fill:#ede9fe,stroke:#7c3aed,color:#111
@@ -96,12 +98,13 @@ flowchart LR
 | [SPEC-0005](SPEC-0005-ambientes-iac-e-deploy-em-vps.md) | Ambientes, IaC e deploy em VPS | full | foundation | implemented | 2026-10-13 | SPEC-0001 | SPEC-0002 | SPEC-0004@2 |
 | [SPEC-0006](SPEC-0006-walking-skeleton-cadastro-login-e-painel-vazio.md) | Walking skeleton: cadastro, login e painel vazio | full | foundation | implemented | 2026-10-13 | SPEC-0001 | SPEC-0003, SPEC-0004, SPEC-0005 | — |
 | [SPEC-0007](SPEC-0007-observabilidade-de-base.md) | Observabilidade de base | full | foundation | implemented | 2026-10-13 | SPEC-0001 | SPEC-0006 | SPEC-0006@1 |
-| [SPEC-0008](SPEC-0008-seguranca-de-base.md) | Segurança de base | full | foundation | in-progress | 2026-10-13 | SPEC-0001 | SPEC-0006 | SPEC-0006@1 |
+| [SPEC-0008](SPEC-0008-seguranca-de-base.md) | Segurança de base | full | foundation | implemented | 2026-10-13 | SPEC-0001 | SPEC-0006 | SPEC-0006@1 |
 | [SPEC-0009](SPEC-0009-provisionamento-na-nuvem-e-go-live.md) | Provisionamento na nuvem e go-live | full | foundation | approved | 2026-10-13 | SPEC-0001 | SPEC-0005, SPEC-0006, SPEC-0007, SPEC-0008 | — |
 | [SPEC-0010](SPEC-0010-avisos-de-seguranca-novos-em-dependencias-quebram-o-build-da.md) | Avisos de segurança novos em dependências quebram o build da main | lite | fix | implemented | 2026-10-28 | SPEC-0001 | — | — |
 | [SPEC-0011](SPEC-0011-checagem-de-drift-do-cliente-openapi-no-ci.md) | Checagem de drift do cliente OpenAPI no CI | lite | feature | approved | 2026-10-28 | SPEC-0001 | — | — |
 | [SPEC-0012](SPEC-0012-testes-de-infra-deixam-a-stack-local-rodando.md) | Testes de infra deixam a stack local rodando | lite | fix | approved | 2026-10-28 | SPEC-0001 | — | — |
 | [SPEC-0013](SPEC-0013-excecao-repassada-ao-sentry-com-segredo-repetido-em-propried.md) | Exceção repassada ao Sentry com segredo repetido em propriedade sensível | lite | fix | approved | 2026-10-28 | SPEC-0001 | — | — |
+| [SPEC-0014](SPEC-0014-limitador-sem-particao-por-e-mail-nulo-e-revogacoes-no-check.md) | Limitador sem partição por e-mail nulo e revogações no check do anel | lite | fix | approved | 2026-10-29 | SPEC-0001 | SPEC-0008 | — |
 
 ## ADRs
 
