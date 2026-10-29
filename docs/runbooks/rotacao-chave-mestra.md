@@ -67,6 +67,15 @@ docker compose -p vitrine exec postgres psql -U vitrine -d vitrine -c 'delete fr
 # Produção (banco gerenciado): o mesmo comando com psql na connection string do Environment.
 ```
 
+## Chave do anel sem a cifra da chave mestra
+Fora de Development a Api não sobe se alguma linha de `security.data_protection_keys` não estiver cifrada pela chave
+mestra (`... chave sem a cifra da chave mestra`): alguém gravou o anel por outro meio. Investigue a origem (incidente),
+apague só essas linhas e faça o deploy de novo:
+```bash
+docker compose -p vitrine exec postgres psql -U vitrine -d vitrine \
+  -c "delete from security.data_protection_keys where xml not like '%<masterKeyEncrypted%'"
+```
+
 ## Restauração de backup
 O backup do banco leva o anel de chaves cifrado; restaurar exige a chave mestra que o cifrava na data do backup.
 Guarde no cofre a chave anterior até que exista backup feito depois da rotação (passo 6).

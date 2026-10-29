@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Net;
+using System.Text;
 using System.Text.Json;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Mvc;
@@ -45,6 +46,7 @@ internal static class AuthRateLimiting
 
     private static readonly TimeSpan Window = TimeSpan.FromMinutes(1);
     private static readonly object LoginEmailKey = new();
+    private static readonly byte[] Utf8Bom = [0xEF, 0xBB, 0xBF];
 
     public static IServiceCollection AddAuthRateLimiting(this IServiceCollection services)
     {
@@ -85,7 +87,7 @@ internal static class AuthRateLimiting
     /// Nos endpoints de login e cadastro (pelo endpoint roteado): lê o corpo com teto de <see cref="MaxBodyBytes"/>
     /// (413 sem ler além do teto, com ou sem <c>Content-Length</c>), recusa JSON com <c>email</c> repetido (400) e, no
     /// login, guarda o e-mail normalizado para a partição por e-mail. O corpo lido volta para o model binding.
-    /// JSON malformado não particiona: o endpoint responde o 400 do contrato.
+    /// JSON que o limitador não consegue ler (ou que não é um objeto) responde 400 aqui: falha fechada.
     /// </summary>
     public static IApplicationBuilder UseLoginEmailPartition(this IApplicationBuilder app) =>
         app.Use(async (context, next) =>
@@ -109,25 +111,36 @@ internal static class AuthRateLimiting
 
             if (request.HasJsonContentType())
             {
+                // Falha fechada (contrato v4.1): JSON que o limitador não lê não segue sem partição — 400 aqui mesmo.
+                // O BOM UTF-8 é aceito (o model binding também o aceita).
+                List<JsonElement> emails;
                 try
                 {
-                    using var document = JsonDocument.Parse(body);
-                    var emails = EmailProperties(document.RootElement);
-                    if (emails.Count > 1)
+                    using var document = JsonDocument.Parse(WithoutUtf8Bom(body));
+                    if (document.RootElement.ValueKind != JsonValueKind.Object)
                     {
-                        await WriteProblemAsync(context, StatusCodes.Status400BadRequest, "Dados inválidos.", ValidationFailedCode,
-                            new Dictionary<string, string[]>(StringComparer.Ordinal) { ["email"] = ["Informe o e-mail uma única vez."] });
+                        await WriteInvalidBodyAsync(context);
                         return;
                     }
 
-                    if (endpointName == LoginEndpointName && emails.Count == 1 && Normalize(emails[0]) is { } email)
-                    {
-                        context.Items[LoginEmailKey] = email;
-                    }
+                    emails = [.. EmailProperties(document.RootElement).Select(element => element.Clone())];
                 }
                 catch (JsonException)
                 {
-                    // Corpo inválido: o model binding devolve o 400 do contrato.
+                    await WriteInvalidBodyAsync(context);
+                    return;
+                }
+
+                if (emails.Count > 1)
+                {
+                    await WriteProblemAsync(context, StatusCodes.Status400BadRequest, "Dados inválidos.", ValidationFailedCode,
+                        new Dictionary<string, string[]>(StringComparer.Ordinal) { ["email"] = ["Informe o e-mail uma única vez."] });
+                    return;
+                }
+
+                if (endpointName == LoginEndpointName && emails.Count == 1 && Normalize(emails[0]) is { } email)
+                {
+                    context.Items[LoginEmailKey] = email;
                 }
             }
 
@@ -173,11 +186,19 @@ internal static class AuthRateLimiting
                 .Where(property => string.Equals(property.Name, "email", StringComparison.OrdinalIgnoreCase))
                 .Select(property => property.Value)];
 
-    // Mesma normalização do ASP.NET Core Identity (UpperInvariantLookupNormalizer) sobre o e-mail aparado do login.
+    // Mesma normalização do ASP.NET Core Identity (UpperInvariantLookupNormalizer: Normalize() em FormC e maiúsculas
+    // invariantes) sobre o e-mail aparado do login: formas Unicode equivalentes caem na mesma partição.
     private static string? Normalize(JsonElement value) =>
         value.ValueKind == JsonValueKind.String && value.GetString() is { } email && !string.IsNullOrWhiteSpace(email)
-            ? email.Trim().ToUpperInvariant()
+            ? email.Trim().Normalize(NormalizationForm.FormC).ToUpperInvariant()
             : null;
+
+    private static ReadOnlyMemory<byte> WithoutUtf8Bom(byte[] body) =>
+        body.AsSpan().StartsWith(Utf8Bom) ? body.AsMemory(Utf8Bom.Length) : body;
+
+    private static Task WriteInvalidBodyAsync(HttpContext context) =>
+        WriteProblemAsync(context, StatusCodes.Status400BadRequest, "Dados inválidos.", ValidationFailedCode,
+            new Dictionary<string, string[]>(StringComparer.Ordinal) { ["body"] = ["O corpo deve ser um objeto JSON válido."] });
 
     private static async Task WriteProblemAsync(
         HttpContext context, int status, string title, string? code = null, IDictionary<string, string[]>? errors = null)

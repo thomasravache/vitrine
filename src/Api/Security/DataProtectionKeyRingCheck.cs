@@ -17,6 +17,10 @@ internal sealed class DataProtectionKeyRingCheck(IServiceScopeFactory scopes, IH
         + "gravado no banco: a chave mestra está errada. Use a chave com que o anel foi gravado (cofre pessoal) ou, durante "
         + "a rotação, informe-a em DataProtection__PreviousMasterKey (docs/runbooks/rotacao-chave-mestra.md).";
 
+    public const string UnprotectedKeyMessage =
+        "O anel do Data Protection no banco tem chave sem a cifra da chave mestra (DataProtection__MasterKey): entrada "
+        + "gravada sem proteção ou por outro meio. Remova-a (docs/runbooks/rotacao-chave-mestra.md) antes de subir a Api.";
+
     private static readonly XName EncryptedSecret = XName.Get("encryptedSecret", "http://schemas.asp.net/2015/03/dataProtection");
 
     // Antes de qualquer StartAsync: o serviço hospedado do Data Protection carrega o anel na subida e, sem chave que o
@@ -43,12 +47,20 @@ internal sealed class DataProtectionKeyRingCheck(IServiceScopeFactory scopes, IH
             return;
         }
 
-        var encrypted = ring
-            .Where(xml => !string.IsNullOrEmpty(xml))
-            .SelectMany(xml => XElement.Parse(xml!).Descendants(EncryptedSecret))
-            .Select(secret => secret.Element(MasterKeyXml.ElementName))
-            .OfType<XElement>()
-            .ToList();
+        // Toda chave do anel precisa estar cifrada pela chave mestra: entrada em claro (ou cifrada por outro meio) no
+        // banco fora de Development é recusada.
+        var keys = ring.Where(xml => !string.IsNullOrEmpty(xml)).Select(xml => XElement.Parse(xml!)).ToList();
+        var encrypted = new List<XElement>(keys.Count);
+        foreach (var key in keys)
+        {
+            var secret = key.Descendants(EncryptedSecret).Select(element => element.Element(MasterKeyXml.ElementName)).OfType<XElement>().FirstOrDefault();
+            if (secret is null)
+            {
+                throw new InvalidOperationException(UnprotectedKeyMessage);
+            }
+
+            encrypted.Add(secret);
+        }
 
         if (encrypted.Count > 0 && !encrypted.Any(element => CanDecrypt(element, masterKey)))
         {
