@@ -4,6 +4,7 @@ using JasperFx.Resources;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Vitrine.Api.Observability;
+using Vitrine.Api.Security;
 using Vitrine.Identity.Infrastructure;
 using Vitrine.Identity.Presentation;
 using Wolverine;
@@ -29,24 +30,24 @@ builder.Services.AddProblemDetails(options => options.CustomizeProblemDetails = 
     context.ProblemDetails.Extensions.TryAdd("code", ProblemCodes.For(context.ProblemDetails.Status ?? context.HttpContext.Response.StatusCode)));
 builder.Services.AddOpenApi();
 
-// Acesso (ADR-0007): autorização negada por padrão; endpoints públicos usam AllowAnonymous. Os health checks
-// (ServiceDefaults) são públicos por natureza: sondas do orquestrador não têm sessão.
+// Acesso (ADR-0007, SPEC-0008): autorização negada por padrão, sem exceção por caminho. Só a lista AnonymousEndpoints
+// do contrato é pública, cada endpoint com AllowAnonymous (auth, health checks do ServiceDefaults e fallbacks da SPA).
 builder.Services.AddAuthorizationBuilder()
-    .SetFallbackPolicy(new AuthorizationPolicyBuilder()
-        .RequireAssertion(context => context.User.Identity?.IsAuthenticated == true
-            || (context.Resource is HttpContext http && http.Request.Path.StartsWithSegments(HealthPathPrefix)))
-        .Build());
+    .SetFallbackPolicy(new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build());
 
 // CSRF (ADR-0007): a SPA busca o token em GET /api/v1/auth/antiforgery e o devolve neste cabeçalho nos POST.
 builder.Services.AddAntiforgery(options =>
 {
     options.HeaderName = "X-XSRF-TOKEN";
     options.Cookie.Name = "vitrine.antiforgery";
-    // SameAsRequest: com Always o antiforgery recusa (500) requisições que chegam em HTTP ao Kestrel — o caso do
-    // proxy TLS (Caddy) sem cabeçalhos encaminhados e do Vite em desenvolvimento. Em HTTPS o cookie sai Secure.
-    options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+    // Always: atrás do Caddy a Api enxerga HTTPS pelos forwarded headers (SPEC-0008); requisição em HTTP puro nos
+    // endpoints de auth recebe 400. Só em Development (Vite e Api em http://localhost) o cookie segue a requisição.
+    options.Cookie.SecurePolicy = builder.Environment.IsDevelopment() ? CookieSecurePolicy.SameAsRequest : CookieSecurePolicy.Always;
     options.Cookie.SameSite = SameSiteMode.Lax;
 });
+
+// Segurança de base (SPEC-0008): forwarded headers, cabeçalhos, rate limiting de auth, Data Protection e cifra de campos.
+builder.AddSecurity();
 
 // Módulos (ADR-0001).
 builder.Services.AddIdentityModule(builder.Configuration);
@@ -83,6 +84,9 @@ if (migrateOnly)
     return await MigrateAsync(app);
 }
 
+// Antes de tudo: IP/esquema reais vindos do proxy confiável e cabeçalhos de segurança em toda resposta.
+app.UseEdgeSecurity();
+
 app.UseExceptionHandler(new ExceptionHandlerOptions
 {
     // Requisição malformada (JSON inválido, corpo ausente...) é 400, não 500, em qualquer ambiente.
@@ -91,6 +95,9 @@ app.UseExceptionHandler(new ExceptionHandlerOptions
         : StatusCodes.Status500InternalServerError,
 });
 app.UseStatusCodePages();
+
+// Limites de /api/v1/auth/* (429 + Retry-After) com o IP real do cliente.
+app.UseAuthRateLimiting();
 
 // SPA estática (web/dist em wwwroot, só na imagem publicada — ADR-0013), pública e antes da autenticação.
 var hasSpa = app.Environment.WebRootFileProvider.GetFileInfo("index.html").Exists;
@@ -106,11 +113,13 @@ app.UseAuthorization();
 app.MapDefaultEndpoints();
 app.MapIdentityEndpoints();
 
+// /api e /health desconhecidas: 404 (problem+json) com ou sem sessão — nem 401 da política de fallback, nem a SPA.
+app.MapFallback("/api/{**path}", () => Results.NotFound()).AllowAnonymous();
+app.MapFallback("/health/{**path}", () => Results.NotFound()).AllowAnonymous();
+
 if (hasSpa)
 {
-    // Rotas da SPA (/cadastro, /painel, ...) caem no index.html; /api e /health desconhecidas continuam 404.
-    app.MapFallback("/api/{**path}", () => Results.NotFound()).AllowAnonymous();
-    app.MapFallback("/health/{**path}", () => Results.NotFound()).AllowAnonymous();
+    // Rotas da SPA (/cadastro, /painel, ...) caem no index.html.
     app.MapFallbackToFile("index.html").AllowAnonymous();
 }
 
@@ -164,13 +173,11 @@ internal static class ProblemCodes
         StatusCodes.Status404NotFound => "NOT_FOUND",
         StatusCodes.Status405MethodNotAllowed => "METHOD_NOT_ALLOWED",
         StatusCodes.Status415UnsupportedMediaType => "UNSUPPORTED_MEDIA_TYPE",
+        StatusCodes.Status429TooManyRequests => "TOO_MANY_REQUESTS",
         >= 500 => "INTERNAL_ERROR",
         _ => $"HTTP_{status}",
     };
 }
 
 /// <summary>Exposto para <c>WebApplicationFactory&lt;Program&gt;</c> nos testes de integração (SPEC-0003).</summary>
-public partial class Program
-{
-    private const string HealthPathPrefix = "/health";
-}
+public partial class Program;

@@ -109,7 +109,9 @@ public static class Extensions
     /// <summary>
     /// Mapeia <c>GET /health/live</c> e <c>GET /health/ready</c> em todos os ambientes. Os endpoints só expõem o
     /// estado agregado (Healthy/Unhealthy; 503 quando Unhealthy), sem nomes de checagem, hosts nem exceções:
-    /// liveness em texto (<c>Healthy</c>) e readiness em JSON (<c>{"status":"Healthy"}</c>).
+    /// liveness em texto (<c>Healthy</c>) e readiness em JSON (<c>{"status":"Healthy"}</c>). São anônimos pelo
+    /// metadado <c>AllowAnonymous</c> (sondas do orquestrador não têm sessão), não por exceção de caminho na política
+    /// de autorização do host (SPEC-0008).
     /// </summary>
     public static WebApplication MapDefaultEndpoints(this WebApplication app)
     {
@@ -118,13 +120,13 @@ public static class Extensions
         app.MapHealthChecks(LivenessEndpointPath, new HealthCheckOptions
         {
             Predicate = registration => registration.Tags.Contains(LiveTag),
-        });
+        }).AllowAnonymous();
 
         app.MapHealthChecks(ReadinessEndpointPath, new HealthCheckOptions
         {
             Predicate = registration => registration.Tags.Contains(ReadyTag),
             ResponseWriter = WriteStatusOnlyAsync,
-        });
+        }).AllowAnonymous();
 
         return app;
     }

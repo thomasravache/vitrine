@@ -22,7 +22,7 @@ public static class IdentityEndpoints
     {
         ArgumentNullException.ThrowIfNull(endpoints);
 
-        var auth = endpoints.MapGroup("/api/v1/auth").WithTags("Auth");
+        var auth = endpoints.MapGroup("/api/v1/auth").WithTags("Auth").AddEndpointFilter<HttpsRequiredFilter>();
         auth.MapGet("/antiforgery", IssueAntiforgeryToken).WithName("GetAntiforgeryToken").AllowAnonymous();
         auth.MapPost("/register", Register).WithName("Register").AllowAnonymous()
             .AddEndpointFilter<SignupOpenFilter>()

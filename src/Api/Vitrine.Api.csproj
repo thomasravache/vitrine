@@ -14,6 +14,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.DataProtection.EntityFrameworkCore" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
     <PackageReference Include="Microsoft.Extensions.ApiDescription.Server" PrivateAssets="all" IncludeAssets="runtime; build; native; contentfiles; analyzers; buildtransitive" />
     <PackageReference Include="Npgsql.OpenTelemetry" />
@@ -25,6 +26,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Modules\Identity\Vitrine.Identity.Infrastructure\Vitrine.Identity.Infrastructure.csproj" />
     <ProjectReference Include="..\Modules\Identity\Vitrine.Identity.Presentation\Vitrine.Identity.Presentation.csproj" />
+    <ProjectReference Include="..\Common\Vitrine.Common.Security\Vitrine.Common.Security.csproj" />
     <ProjectReference Include="..\ServiceDefaults\Vitrine.ServiceDefaults.csproj" />
   </ItemGroup>
 
