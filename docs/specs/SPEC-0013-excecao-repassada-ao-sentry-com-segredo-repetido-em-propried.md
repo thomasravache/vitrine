@@ -71,7 +71,7 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 | G1 Red | PASS | verify G1: PASS; `dotnet test tests/Vitrine.UnitTests && npm --prefix web run test` exit 127 (red: sh: 1: vitest: not found) — 549eeaa | 2026-10-29 |
 | G2 Green | PASS | build exit 0 (npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts a); test exit 0 (Duration  388ms (environment 58%, import 18%, transform 18%, tests 4%, worker 2%)); lint exit 0 (> tsc --noEmit && tsc --noEmit -p tsconfig.node.json); coverage exit 0 (Coverage: 100%) — c468645 | 2026-10-29 |
 | G3 Arquitetura | PASS | arch_test exit 0 (duration: 1s 530ms) — c468645 | 2026-10-29 |
-| G4 Review | PENDING | | |
+| G4 Review | PASS | verify G1+G4: PASS; revisão: APPROVED (Reviewer independente) em c468645: red 549eeaa e green reproduzidos; 8 sondas sem vazamento (AggregateException, breadcrumb do evento seguinte, Warning, 64 logs paralelos, pilha preservada); ThreadStatic+finally conferido no SDK 6.12.1; Observability 14/14; minors pré-existentes viram pendência (Exception.Data em mechanism.data; segredo só em escopo/CaptureException direto) — c468645 | 2026-10-29 |
 | G5 Integração & CI | PENDING | | |
 | H2 Integração aprovada | PENDING | | |
 | G6 Deploy | PENDING | | |

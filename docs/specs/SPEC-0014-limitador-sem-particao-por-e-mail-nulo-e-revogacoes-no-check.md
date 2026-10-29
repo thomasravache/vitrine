@@ -86,6 +86,7 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 <!-- Toda parada é registrada pelo Architect com `spec_graph.py impede` e fechada com `resolve` — não edite à mão. Tipos: spec (spec errada/incompleta → resolve com Emenda) | decisão (só o humano decide → resposta ou ADR) | trabalho (falta algo que exige código → SPEC-NNNN nova) | externo (acesso, ambiente, terceiro → ação tomada) | falha (3 FAILs seguidos no mesmo gate → diagnóstico e decisão). Com impedimento aberto a spec aparece como parada no INDEX e não pode ser fechada. -->
 | ID | Aberto em | Fase/Gate | Tipo | Descrição | Tentativas | Responsável | Resolução | Fechado em |
 |---|---|---|---|---|---|---|---|---|
+| IMP-01 | 2026-10-29 | G2 | trabalho | TEST_DEFECT: os 9 testes novos (LoginWithoutEmailTests, KeyRingRevocationTests) sobem host/banco próprios e estouram max_connections do Postgres compartilhado (53300 too many clients) na suíte de integração completa; em c6ce8cd 87/87 sem 53300, no red 9156efa já aparece | Implementer: 49/49 no namespace Security, 93/96 na suíte completa (3x 53300, não asserção) | Test-writer |  |  |
 
 ## 10. Relatório de Entrega
 <!-- Preenchido no CLOSE (G7). Para status implemented o validate exige tudo preenchido, todo teste do plano com PASS + evidência e a Definição de Pronto marcada. -->

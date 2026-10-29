@@ -4,9 +4,15 @@
 
 ## Saúde
 
-- Validação (G0): **0 erro(s), 17 aviso(s)** — rode `spec_graph.py validate`
-- Specs: approved 2, in-progress 3, implemented 8
-- Impedimentos: **0 aberto(s)**, 6 resolvido(s)
+- Validação (G0): **0 erro(s), 18 aviso(s)** — rode `spec_graph.py validate`
+- Specs: approved 3, in-progress 3, implemented 8
+- Impedimentos: **1 aberto(s)**, 6 resolvido(s)
+
+## Impedimentos Abertos
+
+| Spec | ID | Tipo | Fase/Gate | Responsável | Aberto em | Idade | Descrição |
+|---|---|---|---|---|---|---|---|
+| SPEC-0014 | IMP-01 | trabalho | G2 | Test-writer | 2026-10-29 | 0d | TEST_DEFECT: os 9 testes novos (LoginWithoutEmailTests, KeyRingRevocationTests) sobem host/banco próprios e estouram max_connections do Postgres compartilhado (53300 too many clients) na suíte de integração completa; em c6ce8cd 87/87 sem 53300, no red 9156efa já aparece |
 
 ## Cobertura de Pilares
 
@@ -35,23 +41,24 @@ Perfil: **padrao**
 
 ## Plano de Execução
 
-**Em andamento:** SPEC-0011, SPEC-0013, SPEC-0014  
-**Paradas por impedimento:** —  
+**Em andamento:** SPEC-0011, SPEC-0013  
+**Paradas por impedimento:** SPEC-0014  
 **Próximo lote:** —
 
 | Onda | Spec | Título | Tier/Tam. | Status | Prontidão | Observação |
 |---|---|---|---|---|---|---|
 | 1 | SPEC-0011 | Checagem de drift do cliente OpenAPI no CI | lite/S | in-progress | 🔄 em andamento |  |
 | 1 | SPEC-0013 | Exceção repassada ao Sentry com segredo repetido em propriedade sensível | lite/S | in-progress | 🔄 em andamento |  |
-| 1 | SPEC-0014 | Limitador sem partição por e-mail nulo e revogações no check do anel | lite/S | in-progress | 🔄 em andamento |  |
+| 1 | SPEC-0014 | Limitador sem partição por e-mail nulo e revogações no check do anel | lite/S | in-progress | 🚧 parada por impedimento: IMP-01 (trabalho → Test-writer, 0d) |  |
 | 2 | SPEC-0009 | Provisionamento na nuvem e go-live | full/M | approved | ✅ pronta | saiu da onda 1: max_parallel=3 |
+| 2 | SPEC-0015 | Exception.Data repassado cru ao Sentry em mechanism.data | lite/S | approved | ⛔ aguarda implementação de SPEC-0013 |  |
 | 3 | SPEC-0012 | Testes de infra deixam a stack local rodando | lite/S | approved | ✅ pronta | saiu da onda 1: max_parallel=3; saiu da onda 2: arquivos em comum com SPEC-0009 |
 
 ## Épicos
 
 | Épico | Título | Status | Progresso |
 |---|---|---|---|
-| SPEC-0001 | Fundação da plataforma Vitrine | approved | 8/13 implementadas |
+| SPEC-0001 | Fundação da plataforma Vitrine | approved | 8/14 implementadas |
 
 ## Grafo de Dependências
 
@@ -69,6 +76,7 @@ flowchart LR
     S0012["SPEC-0012<br/>Testes de infra deixam a stack local ro…"]:::approved
     S0013["SPEC-0013<br/>Exceção repassada ao Sentry com segredo…"]:::inprogress
     S0014["SPEC-0014<br/>Limitador sem partição por e-mail nulo …"]:::inprogress
+    S0015["SPEC-0015<br/>Exception.Data repassado cru ao Sentry …"]:::approved
   end
   S0005 --> S0006
   S0006 --> S0007
@@ -80,6 +88,7 @@ flowchart LR
   S0007 --> S0009
   S0008 --> S0009
   S0008 --> S0014
+  S0013 --> S0015
   classDef proposed fill:#fef3c7,stroke:#d97706,color:#111
   classDef approved fill:#dbeafe,stroke:#2563eb,color:#111
   classDef inprogress fill:#ede9fe,stroke:#7c3aed,color:#111
@@ -105,6 +114,7 @@ flowchart LR
 | [SPEC-0012](SPEC-0012-testes-de-infra-deixam-a-stack-local-rodando.md) | Testes de infra deixam a stack local rodando | lite | fix | approved | 2026-10-28 | SPEC-0001 | — | — |
 | [SPEC-0013](SPEC-0013-excecao-repassada-ao-sentry-com-segredo-repetido-em-propried.md) | Exceção repassada ao Sentry com segredo repetido em propriedade sensível | lite | fix | in-progress | 2026-10-28 | SPEC-0001 | — | — |
 | [SPEC-0014](SPEC-0014-limitador-sem-particao-por-e-mail-nulo-e-revogacoes-no-check.md) | Limitador sem partição por e-mail nulo e revogações no check do anel | lite | fix | in-progress | 2026-10-29 | SPEC-0001 | SPEC-0008 | — |
+| [SPEC-0015](SPEC-0015-exception-data-repassado-cru-ao-sentry-em-mechanism-data.md) | Exception.Data repassado cru ao Sentry em mechanism.data | lite | fix | approved | 2026-10-29 | SPEC-0001 | SPEC-0013 | — |
 
 ## ADRs
 
