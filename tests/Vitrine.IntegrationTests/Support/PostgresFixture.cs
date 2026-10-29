@@ -33,6 +33,19 @@ public sealed class PostgresFixture : IAsyncLifetime
             .ConnectionString;
     }
 
+    /// <summary>
+    /// Fecha as conexões ociosas que o pool do Npgsql mantém para <paramref name="connectionString"/> (SPEC-0016).
+    /// Chame ao descartar um host próprio que usou um banco de <see cref="CreateDatabaseAsync"/>, para a suíte não
+    /// esgotar o limite de clientes do container; o <see cref="ApiFactory"/> já faz isso no próprio descarte.
+    /// Só o pool dessa connection string é limpo: os bancos dos outros testes não são afetados.
+    /// </summary>
+    public static void ReleaseConnections(string connectionString)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);
+        using var connection = new NpgsqlConnection(connectionString);
+        NpgsqlConnection.ClearPool(connection);
+    }
+
     // Os bancos criados por teste somem junto com o container.
     public async ValueTask DisposeAsync() => await _container.DisposeAsync();
 }
