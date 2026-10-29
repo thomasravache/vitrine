@@ -1,6 +1,7 @@
 # SPEC-0005 — overrides do Compose da aplicação, iguais no servidor e no ambiente local prod-like.
 #   migrate  : one-shot da mesma imagem com `--migrate` (ADR-0011); roda só via `docker compose run`.
 #   caddy    : HTTPS na frente da API (Let's Encrypt no servidor; CA interna para *.localhost).
+#   proxy    : rede só do Caddy e da API, com sub-rede fixa (PROXY_SUBNET): a API aceita X-Forwarded-* só dela (SPEC-0008).
 #   postgres : banco em container (perfil `db-container`): ambiente local e staging; produção usa o PostgreSQL gerenciado.
 #   alloy    : Grafana Alloy (perfil `observability`, SPEC-0007): métricas do host para o Grafana Cloud. Não sobe
 #              sem o perfil — o ambiente local não tem credenciais (COMPOSE_PROFILES=db-container,observability liga).
@@ -10,6 +11,10 @@ services:
       postgres:
         condition: service_healthy
         required: false
+    # default: banco (e migrate); proxy: o único caminho do Caddy até a API.
+    networks:
+      - default
+      - proxy
 
   migrate:
     image: ${IMAGE_REPO:-vitrine-api}:${IMAGE_TAG:?IMAGE_TAG não definido (deploy/deploy.sh grava no .env)}
@@ -19,6 +24,9 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
       ConnectionStrings__vitrine: ${DB_CONNECTION_STRING:?DB_CONNECTION_STRING não definido}
+      # Rotação da chave mestra (SPEC-0008): com a anterior definida, o --migrate recifra o anel de chaves com a atual.
+      DataProtection__MasterKey: ${DATA_PROTECTION_MASTER_KEY:-}
+      DataProtection__PreviousMasterKey: ${DATA_PROTECTION_PREVIOUS_MASTER_KEY:-}
     depends_on:
       postgres:
         condition: service_healthy
@@ -33,6 +41,9 @@ services:
       - "443:443/udp"
     environment:
       SITE_ADDRESS: ${SITE_ADDRESS:?SITE_ADDRESS não definido}
+    # Só na rede do proxy: toda conexão do Caddy com a API sai de PROXY_SUBNET (forwarded headers confiáveis).
+    networks:
+      - proxy
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
@@ -80,6 +91,12 @@ services:
       # Propriedades udev dos discos (rótulos do coletor diskstats).
       - /run/udev/data:/run/udev/data:ro
       - alloy_data:/var/lib/alloy/data
+
+networks:
+  proxy:
+    ipam:
+      config:
+        - subnet: ${PROXY_SUBNET:-10.250.0.0/24}
 
 volumes:
   alloy_data:
