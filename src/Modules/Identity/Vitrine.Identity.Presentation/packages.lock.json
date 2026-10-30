@@ -2,6 +2,9 @@
   "version": 2,
   "dependencies": {
     "net10.0": {
+      "vitrine.common.web": {
+        "type": "Project"
+      },
       "vitrine.identity.application": {
         "type": "Project",
         "dependencies": {

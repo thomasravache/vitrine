@@ -8,6 +8,7 @@
   </Folder>
   <Folder Name="/src/Common/">
     <Project Path="src/Common/Vitrine.Common.Security/Vitrine.Common.Security.csproj" />
+    <Project Path="src/Common/Vitrine.Common.Web/Vitrine.Common.Web.csproj" />
   </Folder>
   <Folder Name="/src/Modules/" />
   <Folder Name="/src/Modules/Identity/">

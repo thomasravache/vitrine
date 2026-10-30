@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Building block da borda HTTP (SPEC-0020, ADR-0001): filtros de endpoint reutilizados pelos módulos
+       (antiforgery e HTTPS obrigatório). Sem regra de negócio e sem dependência de módulos. -->
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+</Project>
