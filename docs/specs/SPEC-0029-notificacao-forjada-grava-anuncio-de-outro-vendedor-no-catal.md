@@ -69,7 +69,7 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 | Gate | Status | Evidência | Data |
 |---|---|---|---|
 | G0 Spec | PASS | validate: 0 erro(s) — 570f56b (árvore suja) | 2026-10-30 |
-| G1 Red | FAIL | verify G1: FAIL — testes do plano sem tag no código versionado: SPEC-0029:UT-01, SPEC-00 — 86c6509 | 2026-10-30 |
+| G1 Red | PASS | MANUAL: verify G1: PASS (IT-01 com tag no código, commit test 26f0ab2 antes de qualquer fix); red do IT-01 no HEAD 86c6509: Assert.DoesNotContain falhou — o anúncio de outro vendedor foi gravado no catálogo da conta; o comando de red do gate (testes unitários) não cobre IT | 2026-10-30 |
 | G2 Green | PENDING | | |
 | G3 Arquitetura | PENDING | | |
 | G4 Review | PENDING | | |
