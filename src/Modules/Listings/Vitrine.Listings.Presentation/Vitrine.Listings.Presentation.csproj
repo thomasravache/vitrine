@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Endpoints HTTP do módulo Listings (Minimal APIs em /api/v1/listings — SPEC-0022). -->
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Vitrine.Listings.Application\Vitrine.Listings.Application.csproj" />
+    <ProjectReference Include="..\..\..\Common\Vitrine.Common.Web\Vitrine.Common.Web.csproj" />
+  </ItemGroup>
+
+</Project>

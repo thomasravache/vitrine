@@ -1,0 +1,49 @@
+{
+  "version": 2,
+  "dependencies": {
+    "net10.0": {
+      "Microsoft.AspNetCore.OpenApi": {
+        "type": "Direct",
+        "requested": "[10.0.14, )",
+        "resolved": "10.0.14",
+        "contentHash": "3M6yO4nv8fmvM/1X7DqQcMxw/ptNLBcUzZt19SBEyfZF32gqZuwoPNnYd1xlDnFvQOGOkZDncf7p9E24blcTkQ==",
+        "dependencies": {
+          "Microsoft.OpenApi": "[2.12.2, 3.0.0)"
+        }
+      },
+      "Microsoft.OpenApi": {
+        "type": "Transitive",
+        "resolved": "2.12.2",
+        "contentHash": "ZkT7qiJe0Kj0+DTZOZo+xrDy1kNmdsWFQVPIQLNx9ZJ0T9cB2LG7r+Bi60so8/+yg1nkS7QCPadrzsTG4VPKrA=="
+      },
+      "vitrine.common.web": {
+        "type": "Project"
+      },
+      "vitrine.identity.publicapi": {
+        "type": "Project"
+      },
+      "vitrine.listings.application": {
+        "type": "Project",
+        "dependencies": {
+          "Vitrine.Identity.PublicApi": "[1.0.0, )",
+          "Vitrine.Listings.Domain": "[1.0.0, )",
+          "Vitrine.Listings.IntegrationEvents": "[1.0.0, )",
+          "Vitrine.MercadoLivre.IntegrationEvents": "[1.0.0, )",
+          "Vitrine.MercadoLivre.PublicApi": "[1.0.0, )"
+        }
+      },
+      "vitrine.listings.domain": {
+        "type": "Project"
+      },
+      "vitrine.listings.integrationevents": {
+        "type": "Project"
+      },
+      "vitrine.mercadolivre.integrationevents": {
+        "type": "Project"
+      },
+      "vitrine.mercadolivre.publicapi": {
+        "type": "Project"
+      }
+    }
+  }
+}

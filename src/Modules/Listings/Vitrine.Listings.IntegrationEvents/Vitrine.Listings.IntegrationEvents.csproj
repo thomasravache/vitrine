@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Contrato público do módulo Listings (ADR-0001): reservado, sem eventos na SPEC-0022. -->
+
+</Project>

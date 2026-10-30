@@ -15,6 +15,51 @@ export interface ConnectedAccountResponse {
   status: string;
 }
 
+export interface ListingResponse {
+  itemId: string;
+  accountId: string;
+  title: string;
+  price: number;
+  currencyId: string;
+  availableQuantity: number;
+  soldQuantity: number;
+  status: string;
+  /** @nullable */
+  permalink: string | null;
+  /** @nullable */
+  thumbnailUrl: string | null;
+  lastUpdated: string;
+}
+
+export interface ListingsAccountSummaryResponse {
+  accountId: string;
+  itemCount: number;
+  syncStatus: string;
+  /** @nullable */
+  lastSyncedAt: string | null;
+  /** @nullable */
+  lastError: string | null;
+}
+
+export interface ListingsByStatusResponse {
+  active: number;
+  paused: number;
+  closed: number;
+  other: number;
+}
+
+export interface ListingsPageResponse {
+  items: ListingResponse[];
+  /** @nullable */
+  nextCursor: string | null;
+}
+
+export interface ListingsSummaryResponse {
+  total: number;
+  byStatus: ListingsByStatusResponse;
+  accounts: ListingsAccountSummaryResponse[];
+}
+
 export interface LoginRequest {
   email: string;
   password: string;
@@ -72,6 +117,23 @@ export interface RegisterResponse {
 export interface StartConnectionResponse {
   authorizationUrl: string;
 }
+
+export interface SyncListingsRequest {
+  /** @nullable */
+  accountId?: string | null;
+}
+
+export interface SyncListingsResponse {
+  queued: string[];
+}
+
+export type ListListingsParams = {
+  status?: string;
+  accountId?: string;
+  q?: string;
+  limit?: number;
+  cursor?: string;
+};
 
 export type getMeResponse200 = {
   data: MeResponse;
@@ -549,4 +611,191 @@ export const disconnectMercadoLivreAccount = async (
       method: "DELETE",
     },
   );
+};
+
+export type listListingsResponse200 = {
+  data: ListingsPageResponse;
+  status: 200;
+};
+
+export type listListingsResponse400 = {
+  data: ProblemDetails;
+  status: 400;
+};
+
+export type listListingsResponse401 = {
+  data: ProblemDetails;
+  status: 401;
+};
+
+export type listListingsResponse403 = {
+  data: ProblemDetails;
+  status: 403;
+};
+
+export type listListingsResponseSuccess = listListingsResponse200 & {
+  headers: Headers;
+};
+export type listListingsResponseError = (
+  | listListingsResponse400
+  | listListingsResponse401
+  | listListingsResponse403
+) & {
+  headers: Headers;
+};
+
+export type listListingsResponse = listListingsResponseSuccess | listListingsResponseError;
+
+export const getListListingsUrl = (params?: ListListingsParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : String(value));
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/v1/listings?${stringifiedParams}`
+    : `/api/v1/listings`;
+};
+
+export const listListings = async (
+  params?: ListListingsParams,
+  options?: Parameters<typeof http>[1],
+): Promise<listListingsResponse> => {
+  return http<listListingsResponse>(getListListingsUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export type getListingsSummaryResponse200 = {
+  data: ListingsSummaryResponse;
+  status: 200;
+};
+
+export type getListingsSummaryResponse401 = {
+  data: ProblemDetails;
+  status: 401;
+};
+
+export type getListingsSummaryResponse403 = {
+  data: ProblemDetails;
+  status: 403;
+};
+
+export type getListingsSummaryResponseSuccess = getListingsSummaryResponse200 & {
+  headers: Headers;
+};
+export type getListingsSummaryResponseError = (
+  | getListingsSummaryResponse401
+  | getListingsSummaryResponse403
+) & {
+  headers: Headers;
+};
+
+export type getListingsSummaryResponse =
+  | getListingsSummaryResponseSuccess
+  | getListingsSummaryResponseError;
+
+export const getGetListingsSummaryUrl = () => {
+  return `/api/v1/listings/summary`;
+};
+
+export const getListingsSummary = async (
+  options?: Parameters<typeof http>[1],
+): Promise<getListingsSummaryResponse> => {
+  return http<getListingsSummaryResponse>(getGetListingsSummaryUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export type syncListingsResponse202 = {
+  data: SyncListingsResponse;
+  status: 202;
+};
+
+export type syncListingsResponse400 = {
+  data: ProblemDetails;
+  status: 400;
+};
+
+export type syncListingsResponse401 = {
+  data: ProblemDetails;
+  status: 401;
+};
+
+export type syncListingsResponse403 = {
+  data: ProblemDetails;
+  status: 403;
+};
+
+export type syncListingsResponse404 = {
+  data: ProblemDetails;
+  status: 404;
+};
+
+export type syncListingsResponse409 = {
+  data: ProblemDetails;
+  status: 409;
+};
+
+export type syncListingsResponse429 = {
+  data: ProblemDetails;
+  status: 429;
+};
+
+export type syncListingsResponseSuccess = syncListingsResponse202 & {
+  headers: Headers;
+};
+export type syncListingsResponseError = (
+  | syncListingsResponse400
+  | syncListingsResponse401
+  | syncListingsResponse403
+  | syncListingsResponse404
+  | syncListingsResponse409
+  | syncListingsResponse429
+) & {
+  headers: Headers;
+};
+
+export type syncListingsResponse = syncListingsResponseSuccess | syncListingsResponseError;
+
+export const getSyncListingsUrl = () => {
+  return `/api/v1/listings/sync`;
+};
+
+export const syncListings = async (
+  syncListingsRequest?: SyncListingsRequest,
+  options?: Parameters<typeof http>[1],
+): Promise<syncListingsResponse> => {
+  const getHeaders = (
+    h?: NonNullable<RequestInit["headers"]>,
+  ): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(
+          h as Iterable<Iterable<string>>,
+          (entry) => Array.from(entry) as [string, string],
+        ),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+  return http<syncListingsResponse>(getSyncListingsUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...getHeaders(options?.headers) },
+    body: JSON.stringify(syncListingsRequest),
+  });
 };

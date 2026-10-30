@@ -17,6 +17,7 @@ Cada entrada cita a spec de origem (`SPEC-NNNN`); gere-as com `spec_graph.py rep
 - Segurança de base: autorização negada por padrão guardada por teste de arquitetura, cabeçalhos de segurança (CSP, HSTS), limite de tentativas no cadastro e login (429), cifra de campos sensíveis (AES-256-GCM) com chaves no PostgreSQL protegidas pela chave mestra e runbook de rotação (SPEC-0008)
 - O CI reprova o PR quando o cliente da API da SPA (`web/src/api`) está desatualizado em relação ao OpenAPI (SPEC-0011)
 - Conectar e desconectar contas do Mercado Livre pelo OAuth oficial com PKCE, com tokens cifrados e eventos de conta conectada/desconectada (SPEC-0020)
+- Gateway interno da API do Mercado Livre: renovação automática do token sem repetir o refresh, reconexão sinalizada por evento, busca de anúncios com `scan` e leitura em lote pelo `/items/bulk` (SPEC-0021)
 
 ### Fixed
 - Cifra de campos (`UseFieldProtection`) não cria mais um provedor interno do EF Core por protetor; o módulo do Mercado Livre volta ao caminho padrão (SPEC-0026)
