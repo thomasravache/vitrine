@@ -1038,6 +1038,28 @@
       "vitrine.identity.publicapi": {
         "type": "Project"
       },
+      "vitrine.mercadolivre.application": {
+        "type": "Project",
+        "dependencies": {
+          "Vitrine.Identity.PublicApi": "[1.0.0, )",
+          "Vitrine.MercadoLivre.Domain": "[1.0.0, )",
+          "Vitrine.MercadoLivre.IntegrationEvents": "[1.0.0, )"
+        }
+      },
+      "vitrine.mercadolivre.domain": {
+        "type": "Project"
+      },
+      "vitrine.mercadolivre.infrastructure": {
+        "type": "Project",
+        "dependencies": {
+          "Vitrine.MercadoLivre.Application": "[1.0.0, )",
+          "Vitrine.MercadoLivre.Domain": "[1.0.0, )",
+          "Vitrine.MercadoLivre.IntegrationEvents": "[1.0.0, )"
+        }
+      },
+      "vitrine.mercadolivre.integrationevents": {
+        "type": "Project"
+      },
       "vitrine.servicedefaults": {
         "type": "Project",
         "dependencies": {
