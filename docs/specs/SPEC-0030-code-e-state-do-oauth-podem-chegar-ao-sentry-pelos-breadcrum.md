@@ -4,7 +4,7 @@ title: Code e state do OAuth podem chegar ao Sentry pelos breadcrumbs de navega√
 tier: lite
 type: fix
 user_facing: false
-status: approved
+status: in-progress
 created: 2026-10-30
 parent: SPEC-0019
 depends_on: [SPEC-0025]
