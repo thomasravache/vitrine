@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Persistência no schema "listings" (ADR-0011), handlers Wolverine duráveis e agendador da reconciliação (ADR-0014). -->
+
+  <ItemGroup>
+    <ProjectReference Include="..\Vitrine.Listings.Application\Vitrine.Listings.Application.csproj" />
+    <ProjectReference Include="..\Vitrine.Listings.Domain\Vitrine.Listings.Domain.csproj" />
+  </ItemGroup>
+
+</Project>

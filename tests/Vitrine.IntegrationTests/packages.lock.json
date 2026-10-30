@@ -2247,6 +2247,8 @@
           "Vitrine.Common.Security": "[1.0.0, )",
           "Vitrine.Identity.Infrastructure": "[1.0.0, )",
           "Vitrine.Identity.Presentation": "[1.0.0, )",
+          "Vitrine.Listings.Infrastructure": "[1.0.0, )",
+          "Vitrine.Listings.Presentation": "[1.0.0, )",
           "Vitrine.MercadoLivre.Infrastructure": "[1.0.0, )",
           "Vitrine.MercadoLivre.Presentation": "[1.0.0, )",
           "Vitrine.ServiceDefaults": "[1.0.0, )",
@@ -2298,6 +2300,32 @@
       },
       "vitrine.identity.publicapi": {
         "type": "Project"
+      },
+      "vitrine.listings.application": {
+        "type": "Project",
+        "dependencies": {
+          "Vitrine.Identity.PublicApi": "[1.0.0, )",
+          "Vitrine.Listings.Domain": "[1.0.0, )",
+          "Vitrine.MercadoLivre.IntegrationEvents": "[1.0.0, )",
+          "Vitrine.MercadoLivre.PublicApi": "[1.0.0, )"
+        }
+      },
+      "vitrine.listings.domain": {
+        "type": "Project"
+      },
+      "vitrine.listings.infrastructure": {
+        "type": "Project",
+        "dependencies": {
+          "Vitrine.Listings.Application": "[1.0.0, )",
+          "Vitrine.Listings.Domain": "[1.0.0, )"
+        }
+      },
+      "vitrine.listings.presentation": {
+        "type": "Project",
+        "dependencies": {
+          "Vitrine.Common.Web": "[1.0.0, )",
+          "Vitrine.Listings.Application": "[1.0.0, )"
+        }
       },
       "vitrine.mercadolivre.application": {
         "type": "Project",

@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Módulo Listings (SPEC-0022, ADR-0001): cópia local dos anúncios das contas conectadas, sem dependências de framework. -->
+
+</Project>

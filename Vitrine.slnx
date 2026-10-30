@@ -19,6 +19,13 @@
     <Project Path="src/Modules/Identity/Vitrine.Identity.Presentation/Vitrine.Identity.Presentation.csproj" />
     <Project Path="src/Modules/Identity/Vitrine.Identity.PublicApi/Vitrine.Identity.PublicApi.csproj" />
   </Folder>
+  <Folder Name="/src/Modules/Listings/">
+    <Project Path="src/Modules/Listings/Vitrine.Listings.Application/Vitrine.Listings.Application.csproj" />
+    <Project Path="src/Modules/Listings/Vitrine.Listings.Domain/Vitrine.Listings.Domain.csproj" />
+    <Project Path="src/Modules/Listings/Vitrine.Listings.Infrastructure/Vitrine.Listings.Infrastructure.csproj" />
+    <Project Path="src/Modules/Listings/Vitrine.Listings.IntegrationEvents/Vitrine.Listings.IntegrationEvents.csproj" />
+    <Project Path="src/Modules/Listings/Vitrine.Listings.Presentation/Vitrine.Listings.Presentation.csproj" />
+  </Folder>
   <Folder Name="/src/Modules/MercadoLivre/">
     <Project Path="src/Modules/MercadoLivre/Vitrine.MercadoLivre.Application/Vitrine.MercadoLivre.Application.csproj" />
     <Project Path="src/Modules/MercadoLivre/Vitrine.MercadoLivre.Domain/Vitrine.MercadoLivre.Domain.csproj" />

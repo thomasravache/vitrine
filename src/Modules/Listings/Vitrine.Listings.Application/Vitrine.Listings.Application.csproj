@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Casos de uso do módulo Listings (SPEC-0022). Não referencia Infrastructure nem Presentation (ADR-0001); de outros
+       módulos, só os contratos públicos: MercadoLivre.PublicApi/IntegrationEvents e Identity.PublicApi. -->
+
+  <ItemGroup>
+    <ProjectReference Include="..\Vitrine.Listings.Domain\Vitrine.Listings.Domain.csproj" />
+    <ProjectReference Include="..\..\MercadoLivre\Vitrine.MercadoLivre.PublicApi\Vitrine.MercadoLivre.PublicApi.csproj" />
+    <ProjectReference Include="..\..\MercadoLivre\Vitrine.MercadoLivre.IntegrationEvents\Vitrine.MercadoLivre.IntegrationEvents.csproj" />
+    <ProjectReference Include="..\..\Identity\Vitrine.Identity.PublicApi\Vitrine.Identity.PublicApi.csproj" />
+  </ItemGroup>
+
+</Project>
