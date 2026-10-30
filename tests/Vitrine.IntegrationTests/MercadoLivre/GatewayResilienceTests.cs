@@ -173,8 +173,9 @@ public sealed class GatewayResilienceTests(PostgresFixture postgres)
         elapsed.Stop();
 
         // Então a 1ª tentativa foi cancelada pelo timeout de 10 s e a 2ª concluiu, sem esperar a resposta lenta
+        // (contadas na chegada: a requisição lenta só entra no log do WireMock quando a resposta dela fica pronta)
         Assert.IsType<MercadoLivreItemResult.Found>(Assert.Single(results));
-        Assert.Equal(2, fake.BulkCalls.Count);
+        Assert.Equal(2, fake.BulkArrivals);
         Assert.Contains(TimeSpan.FromSeconds(10), clock.Requested);
         Assert.True(elapsed.Elapsed < TimeSpan.FromSeconds(6), $"A tentativa lenta não foi cancelada pelo timeout ({elapsed.Elapsed}).");
     }

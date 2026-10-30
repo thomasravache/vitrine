@@ -163,6 +163,12 @@ internal sealed class MercadoLivreFake(WireMockServer server)
         return QueryHelpers.ParseQuery(body).ToDictionary(field => field.Key, field => field.Value.ToString(), StringComparer.Ordinal);
     }
 
+    /// <summary>
+    /// Chamadas de <c>/items/bulk</c> que chegaram ao ML simulado desde a última configuração do bulk, contadas na
+    /// chegada (o log do WireMock só registra a requisição depois da resposta, que pode ainda estar sendo produzida).
+    /// </summary>
+    public int BulkArrivals => Volatile.Read(ref _bulkCalls);
+
     /// <summary>Requisições recebidas em <c>GET /items/bulk</c>.</summary>
     public IReadOnlyList<ILogEntry> BulkCalls => [.. Calls.Where(entry => entry.RequestMessage?.Path == BulkPath)];
 
