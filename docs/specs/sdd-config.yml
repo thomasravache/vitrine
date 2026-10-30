@@ -54,6 +54,7 @@ test_paths:
   - "**/*.test.*"
   - "**/*.spec.*"
   - "e2e/**"
+  - "web/e2e/**"
 # Nunca contam como fora de escopo.
 scope_exempt:
   - "docs/specs/**"
