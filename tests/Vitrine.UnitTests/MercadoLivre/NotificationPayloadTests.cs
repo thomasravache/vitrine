@@ -99,6 +99,26 @@ public sealed class NotificationPayloadTests
         Assert.Contains("_id", invalid.Errors.Keys);
     }
 
+    [Theory]
+    [Trait("spec", "SPEC-0023:UT-02")]
+    [InlineData("_id", "\"a\"", "\"b\"")]
+    [InlineData("user_id", "3000000001", "3000000002")]
+    [InlineData("resource", "\"/items/MLB1\"", "\"/items/MLB2\"")]
+    [InlineData("topic", "\"items\"", "\"items\"")]
+    [InlineData("application_id", "2069392825111111", "2069392825111111")]
+    public void JSON_com_chave_duplicada_e_recusado(string field, string first, string second)
+    {
+        // Dado o payload documentado com a mesma chave duas vezes (emenda v1.2), ex.: {"_id":"a","_id":"b",...}
+        var payload = Payload();
+        payload.Remove(field);
+        var json = payload.ToJsonString();
+        var duplicated = "{\"" + field + "\":" + first + ",\"" + field + "\":" + second + "," + json[1..];
+
+        // Quando validado; então é recusado (o valor não depende de qual cópia o leitor escolhe)
+        var invalid = Assert.IsType<NotificationPayloadResult.Invalid>(NotificationPayload.Parse(Encoding.UTF8.GetBytes(duplicated)));
+        Assert.NotEmpty(invalid.Errors);
+    }
+
     [Fact]
     [Trait("spec", "SPEC-0023:UT-02")]
     public void Payload_sem_actions_e_com_campos_desconhecidos_e_aceito()
