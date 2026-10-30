@@ -13,7 +13,7 @@ public sealed record CleanupNotificationsInbox;
 /// <summary>
 /// Apaga do inbox (emenda v1.2): as processadas com sucesso há mais de <see cref="InboxNotification.Retention"/>, as
 /// <c>unknown_user</c>/<c>invalid</c> processadas há mais de <see cref="InboxNotification.RejectedRetention"/> e as não
-/// processadas (retentativas esgotadas) recebidas há mais de <see cref="InboxNotification.UnprocessedRetention"/>.
+/// processadas (retentativas esgotadas) aceitas (<c>accepted_at</c>, hora do servidor) há mais de <see cref="InboxNotification.UnprocessedRetention"/>.
 /// </summary>
 public static partial class CleanupNotificationsInboxHandler
 {
@@ -40,7 +40,7 @@ public static partial class CleanupNotificationsInboxHandler
                 || (notification.ProcessedAt != null
                     && notification.Outcome != InboxNotificationOutcome.ItemChanged
                     && notification.ProcessedAt < rejectedBefore)
-                || (notification.ProcessedAt == null && notification.ReceivedAt < unprocessedBefore))
+                || (notification.ProcessedAt == null && notification.AcceptedAt < unprocessedBefore))
             .ExecuteDeleteAsync(cancellationToken);
         Deleted(logger, deleted);
     }

@@ -14,7 +14,7 @@ public sealed class InboxNotification
     /// <summary>Quanto tempo uma notificação processada como <c>unknown_user</c>/<c>invalid</c> continua no inbox (emenda v1.2).</summary>
     public static readonly TimeSpan RejectedRetention = TimeSpan.FromDays(1);
 
-    /// <summary>Quanto tempo, desde o <c>received_at</c>, uma notificação não processada continua no inbox (emenda v1.2).</summary>
+    /// <summary>Quanto tempo, desde o <c>accepted_at</c> (hora do servidor), uma notificação não processada continua no inbox (emenda v1.2).</summary>
     public static readonly TimeSpan UnprocessedRetention = TimeSpan.FromDays(7);
 
     // Materialização pelo EF Core.
