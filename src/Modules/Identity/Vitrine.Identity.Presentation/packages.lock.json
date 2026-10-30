@@ -2,17 +2,24 @@
   "version": 2,
   "dependencies": {
     "net10.0": {
+      "vitrine.common.web": {
+        "type": "Project"
+      },
       "vitrine.identity.application": {
         "type": "Project",
         "dependencies": {
           "Vitrine.Identity.Domain": "[1.0.0, )",
-          "Vitrine.Identity.IntegrationEvents": "[1.0.0, )"
+          "Vitrine.Identity.IntegrationEvents": "[1.0.0, )",
+          "Vitrine.Identity.PublicApi": "[1.0.0, )"
         }
       },
       "vitrine.identity.domain": {
         "type": "Project"
       },
       "vitrine.identity.integrationevents": {
+        "type": "Project"
+      },
+      "vitrine.identity.publicapi": {
         "type": "Project"
       }
     }

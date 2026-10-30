@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Persistência no schema "mercadolivre" (ADR-0011), cliente HTTP do ML com Http.Resilience e publicação via
+       outbox (ADR-0014). -->
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+
+    <PackageReference Include="Microsoft.Extensions.Http.Resilience" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+    <PackageReference Include="WolverineFx.EntityFrameworkCore" />
+    <PackageReference Include="WolverineFx.Postgresql" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Vitrine.MercadoLivre.Application\Vitrine.MercadoLivre.Application.csproj" />
+    <ProjectReference Include="..\Vitrine.MercadoLivre.Domain\Vitrine.MercadoLivre.Domain.csproj" />
+    <ProjectReference Include="..\Vitrine.MercadoLivre.IntegrationEvents\Vitrine.MercadoLivre.IntegrationEvents.csproj" />
+    <ProjectReference Include="..\..\..\Common\Vitrine.Common.Security\Vitrine.Common.Security.csproj" />
+  </ItemGroup>
+
+</Project>

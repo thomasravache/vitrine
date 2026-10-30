@@ -19,6 +19,13 @@
     <ProjectReference Include="..\..\src\Modules\Identity\Vitrine.Identity.Infrastructure\Vitrine.Identity.Infrastructure.csproj" />
   </ItemGroup>
 
+  <!-- Módulo MercadoLivre (SPEC-0020): PKCE/state, conta, autorização pendente e configuração MercadoLivre:*. -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Modules\MercadoLivre\Vitrine.MercadoLivre.Application\Vitrine.MercadoLivre.Application.csproj" />
+    <ProjectReference Include="..\..\src\Modules\MercadoLivre\Vitrine.MercadoLivre.Domain\Vitrine.MercadoLivre.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Modules\MercadoLivre\Vitrine.MercadoLivre.Infrastructure\Vitrine.MercadoLivre.Infrastructure.csproj" />
+  </ItemGroup>
+
   <!-- Segurança (SPEC-0008): cifra de campos (IFieldProtector e conversor EF Core). -->
   <ItemGroup>
     <ProjectReference Include="..\..\src\Common\Vitrine.Common.Security\Vitrine.Common.Security.csproj" />

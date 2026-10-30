@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Options;
+using Vitrine.Common.Web;
 using Vitrine.Identity.Application.Abstractions;
 using Vitrine.Identity.Application.CurrentUser;
 using Vitrine.Identity.Application.Register;

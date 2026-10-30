@@ -8,6 +8,8 @@ using Vitrine.Api.Observability;
 using Vitrine.Api.Security;
 using Vitrine.Identity.Infrastructure;
 using Vitrine.Identity.Presentation;
+using Vitrine.MercadoLivre.Infrastructure;
+using Vitrine.MercadoLivre.Presentation;
 using Wolverine;
 using Wolverine.Postgresql;
 
@@ -54,6 +56,7 @@ OpenApiGeneration.Configure(builder, generatingOpenApi);
 
 // Módulos (ADR-0001).
 builder.Services.AddIdentityModule(builder.Configuration);
+builder.Services.AddMercadoLivreModule(builder.Configuration);
 
 // Mensageria interna e jobs com filas duráveis e outbox/inbox no PostgreSQL (ADR-0014).
 if (!generatingOpenApi)
@@ -70,6 +73,9 @@ if (!generatingOpenApi)
             || builder.Configuration.GetValue<bool>("Wolverine:AutoBuildMessageStorageOnStartup");
         options.AutoBuildMessageStorageOnStartup = buildStorageOnStartup ? AutoCreate.CreateOrUpdate : AutoCreate.None;
         options.UseRuntimeCompilation();
+
+        // Mensagens recorrentes dos módulos (jobs agendados — ADR-0014).
+        options.AddMercadoLivreSchedules();
     });
 }
 
@@ -115,6 +121,7 @@ app.UseAuthorization();
 
 app.MapDefaultEndpoints();
 app.MapIdentityEndpoints();
+app.MapMercadoLivreEndpoints();
 
 // /api e /health desconhecidas: 404 (problem+json) com ou sem sessão — nem 401 da política de fallback, nem a SPA.
 app.MapFallback("/api/{**path}", () => Results.NotFound()).AllowAnonymous();

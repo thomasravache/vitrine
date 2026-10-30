@@ -6,6 +6,7 @@ using Sentry;
 using Sentry.AspNetCore;
 using Sentry.Extensibility;
 using Vitrine.Identity.Infrastructure;
+using Vitrine.MercadoLivre.Infrastructure;
 using Vitrine.ServiceDefaults.Logging;
 
 namespace Vitrine.Api.Observability;
@@ -29,10 +30,10 @@ internal static class ObservabilityExtensions
         builder.Services.AddHealthChecks()
             .AddCheck<PostgresReadinessCheck>("postgres", HealthStatus.Unhealthy, [Extensions.ReadyTag], ReadinessTimeout);
 
-        // Spans do Npgsql (filhos do span HTTP) e métricas da jornada de acesso (vitrine.auth.*).
+        // Spans do Npgsql (filhos do span HTTP) e métricas dos módulos (vitrine.auth.*, vitrine.mercadolivre.*).
         builder.Services.AddOpenTelemetry()
             .WithTracing(tracing => tracing.AddNpgsql())
-            .WithMetrics(metrics => metrics.AddMeter(IdentityModule.MeterName));
+            .WithMetrics(metrics => metrics.AddMeter(IdentityModule.MeterName, MercadoLivreModule.MeterName));
 
         // Sentry só com DSN configurado (secret do Environment); sem ele, nada é inicializado (exportação opcional).
         if (!string.IsNullOrWhiteSpace(builder.Configuration[SentryDsnKey]))

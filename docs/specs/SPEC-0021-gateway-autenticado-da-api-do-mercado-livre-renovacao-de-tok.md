@@ -204,7 +204,7 @@ Configuração nova: MercadoLivre:BulkBatchSize (padrão 20, 1..100), MercadoLiv
   - `Infrastructure` não é referenciado por outros módulos.
 
 ### 7.3 Testes de Integração
-<!-- Postgres real + WireMock no lugar de api.mercadolibre.com (SPEC-0003:IT-03). Conta criada direto no banco pelo builder da SPEC-0020 (tokens cifrados). -->
+<!-- Postgres real + WireMock no lugar de api.mercadolibre.com (SPEC-0003 (IT 03)). Conta criada direto no banco pelo builder da SPEC-0020 (tokens cifrados). -->
 - **IT-01** — Dado uma conta com token válido, quando `GetItemsAsync` é chamado, então o WireMock recebe `Authorization: Bearer <token>` e nenhum `/oauth/token`. Para conta inexistente, lança `AccountNotFound`. Para conta em `reauthorization_required`, lança `ReauthorizationRequired`. Nos dois últimos casos, sem chamada ao ML.
 - **IT-02** — Dado uma conta com token expirando, quando há uma chamada:
   - com o refresh 200, os tokens novos ficam gravados cifrados (o refresh token novo substitui o antigo) e a chamada segue com o token novo;
@@ -226,7 +226,7 @@ Configuração nova: MercadoLivre:BulkBatchSize (padrão 20, 1..100), MercadoLiv
 - **CT-02** — Dado a fixture de resposta do `/items/bulk` copiada da documentação do ML (versionada em `tests/.../Fixtures`, com URL e data), quando mapeada pelo gateway, então produz `MercadoLivreItem` com todos os campos do contrato. É o contrato do `PublicApi` consumido pela SPEC-0022, que testa contra um dublê dessa interface.
 
 ### 7.5 Testes E2E
-- N/A — sem jornada de usuário própria. A jornada com renovação e reconexão é a SPEC-0025:E2E-02, contra o simulador.
+- N/A — sem jornada de usuário própria. A jornada com renovação e reconexão é a SPEC-0025 (E2E 02), contra o simulador.
 
 ### 7.6 Outros
 - N/A.

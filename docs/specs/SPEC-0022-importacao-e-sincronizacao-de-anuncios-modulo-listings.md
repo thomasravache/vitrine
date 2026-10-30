@@ -235,7 +235,7 @@ Configuração: Listings:ReconciliationInterval (padrão 1.00:00:00), Listings:M
 - **CT-02** — Dado o documento OpenAPI gerado, quando comparado com o contrato da seção 6, então `GET /listings`, `GET /listings/summary` e `POST /listings/sync` têm os campos, tipos e códigos de resposta documentados. A SPEC-0025 consome esse contrato.
 
 ### 7.5 Testes E2E
-- N/A nesta spec: a jornada "ver anúncios" é a SPEC-0025:E2E-01, contra o simulador.
+- N/A nesta spec: a jornada "ver anúncios" é a SPEC-0025 (E2E 01), contra o simulador.
 
 ### 7.6 Outros
 - Desempenho: IT-11.

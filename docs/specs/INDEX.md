@@ -4,9 +4,9 @@
 
 ## Saúde
 
-- Validação (G0): **0 erro(s), 29 aviso(s)** — rode `spec_graph.py validate`
-- Specs: approved 7, implemented 16
-- Impedimentos: **0 aberto(s)**, 8 resolvido(s)
+- Validação (G0): **0 erro(s), 30 aviso(s)** — rode `spec_graph.py validate`
+- Specs: proposed 1, approved 6, in-progress 1, implemented 16
+- Impedimentos: **0 aberto(s)**, 9 resolvido(s)
 
 ## Cobertura de Pilares
 
@@ -36,26 +36,27 @@ Perfil: **padrao**
 
 ## Plano de Execução
 
-**Em andamento:** —  
+**Em andamento:** SPEC-0020  
 **Paradas por impedimento:** —  
-**Próximo lote:** SPEC-0009, SPEC-0020
+**Próximo lote:** SPEC-0009
 
 | Onda | Spec | Título | Tier/Tam. | Status | Prontidão | Observação |
 |---|---|---|---|---|---|---|
+| 1 | SPEC-0020 | Conectar e desconectar conta do Mercado Livre (OAuth com PKCE) | full/M | in-progress | 🔄 em andamento |  |
 | 1 | SPEC-0009 | Provisionamento na nuvem e go-live | full/M | approved | ✅ pronta |  |
-| 1 | SPEC-0020 | Conectar e desconectar conta do Mercado Livre (OAuth com PKCE) | full/M | approved | ✅ pronta |  |
 | 2 | SPEC-0021 | Gateway autenticado da API do Mercado Livre (renovação de token e resiliência) | full/M | approved | ✅ pronta | saiu da onda 1: arquivos em comum com SPEC-0020 |
 | 3 | SPEC-0022 | Importação e sincronização de anúncios (módulo Listings) | full/M | approved | ✅ pronta | saiu da onda 1: arquivos em comum com SPEC-0020; saiu da onda 2: arquivos em comum com SPEC-0021 |
 | 4 | SPEC-0023 | Notificações do Mercado Livre (webhook de anúncios) | full/M | approved | ✅ pronta | saiu da onda 1: arquivos em comum com SPEC-0020; saiu da onda 2: arquivos em comum com SPEC-0021; saiu da onda 3: arquivos em comum com SPEC-0022 |
-| 5 | SPEC-0024 | Simulador do Mercado Livre para desenvolvimento e E2E | full/M | approved | ✅ pronta | saiu da onda 1: arquivos em comum com SPEC-0009, SPEC-0020; saiu da onda 2: arquivos em comum com SPEC-0021; saiu da onda 3: arquivos em comum com SPEC-0022; saiu da onda 4: arquivos em comum com SPEC-0023 |
+| 5 | SPEC-0024 | Simulador do Mercado Livre para desenvolvimento e E2E | full/M | approved | ✅ pronta | saiu da onda 1: arquivos em comum com SPEC-0020, SPEC-0009; saiu da onda 2: arquivos em comum com SPEC-0021; saiu da onda 3: arquivos em comum com SPEC-0022; saiu da onda 4: arquivos em comum com SPEC-0023 |
 | 6 | SPEC-0025 | Telas de contas e anúncios (jornada conectar-conta) | full/M | approved | ⛔ aguarda implementação de SPEC-0024 |  |
+| 7 | SPEC-0026 | UseFieldProtection cria um provedor interno do EF por protetor | lite/S | proposed | ⏳ aguardando aprovação (H1) | saiu da onda 2: arquivos em comum com SPEC-0021; saiu da onda 3: arquivos em comum com SPEC-0022; saiu da onda 4: arquivos em comum com SPEC-0023; saiu da onda 5: arquivos em comum com SPEC-0024; saiu da onda 6: arquivos em comum com SPEC-0025 |
 
 ## Épicos
 
 | Épico | Título | Status | Progresso |
 |---|---|---|---|
 | SPEC-0001 | Fundação da plataforma Vitrine | approved | 16/17 implementadas |
-| SPEC-0019 | Conectar conta do Mercado Livre e ver os anúncios | approved | 0/6 implementadas |
+| SPEC-0019 | Conectar conta do Mercado Livre e ver os anúncios | approved | 0/7 implementadas |
 
 ## Grafo de Dependências
 
@@ -71,12 +72,13 @@ flowchart LR
     S0009["SPEC-0009<br/>Provisionamento na nuvem e go-live"]:::approved
   end
   subgraph E0019["SPEC-0019 · Conectar conta do Mercado Livre e ver os anúncios"]
-    S0020["SPEC-0020<br/>Conectar e desconectar conta do Mercado…"]:::approved
+    S0020["SPEC-0020<br/>Conectar e desconectar conta do Mercado…"]:::inprogress
     S0021["SPEC-0021<br/>Gateway autenticado da API do Mercado L…"]:::approved
     S0022["SPEC-0022<br/>Importação e sincronização de anúncios …"]:::approved
     S0023["SPEC-0023<br/>Notificações do Mercado Livre (webhook …"]:::approved
     S0024["SPEC-0024<br/>Simulador do Mercado Livre para desenvo…"]:::approved
     S0025["SPEC-0025<br/>Telas de contas e anúncios (jornada con…"]:::approved
+    S0026["SPEC-0026<br/>UseFieldProtection cria um provedor int…"]:::proposed
   end
   S0005 --> S0006
   S0006 --> S0007
@@ -95,6 +97,7 @@ flowchart LR
   S0024 --> S0025
   S0020 -. contrato v1 .-> S0025
   S0022 -. contrato v1 .-> S0025
+  S0020 --> S0026
   classDef proposed fill:#fef3c7,stroke:#d97706,color:#111
   classDef approved fill:#dbeafe,stroke:#2563eb,color:#111
   classDef inprogress fill:#ede9fe,stroke:#7c3aed,color:#111
@@ -125,12 +128,13 @@ flowchart LR
 | [SPEC-0017](SPEC-0017-checagem-do-anel-aceita-encryptedsecret-fora-do-descritor-da.md) | Checagem do anel aceita encryptedSecret fora do descritor da chave | lite | fix | implemented | 2026-10-29 | SPEC-0001 | SPEC-0014 | — |
 | [SPEC-0018](SPEC-0018-mascaramento-do-sentry-ignora-contexts-extras-nao-string-e-v.md) | Mascaramento do Sentry ignora contexts, extras não-string e valores sensíveis de Exception.Data | lite | fix | implemented | 2026-10-29 | SPEC-0001 | SPEC-0015 | — |
 | [SPEC-0019](SPEC-0019-conectar-conta-do-mercado-livre-e-ver-os-anuncios.md) | Conectar conta do Mercado Livre e ver os anúncios | epic | feature | approved | 2026-10-30 | — | SPEC-0006, SPEC-0008 | — |
-| [SPEC-0020](SPEC-0020-conectar-e-desconectar-conta-do-mercado-livre-oauth-com-pkce.md) | Conectar e desconectar conta do Mercado Livre (OAuth com PKCE) | full | feature | approved | 2026-10-30 | SPEC-0019 | — | — |
+| [SPEC-0020](SPEC-0020-conectar-e-desconectar-conta-do-mercado-livre-oauth-com-pkce.md) | Conectar e desconectar conta do Mercado Livre (OAuth com PKCE) | full | feature | in-progress | 2026-10-30 | SPEC-0019 | — | — |
 | [SPEC-0021](SPEC-0021-gateway-autenticado-da-api-do-mercado-livre-renovacao-de-tok.md) | Gateway autenticado da API do Mercado Livre (renovação de token e resiliência) | full | feature | approved | 2026-10-30 | SPEC-0019 | — | SPEC-0020@1 |
 | [SPEC-0022](SPEC-0022-importacao-e-sincronizacao-de-anuncios-modulo-listings.md) | Importação e sincronização de anúncios (módulo Listings) | full | feature | approved | 2026-10-30 | SPEC-0019 | — | SPEC-0020@1, SPEC-0021@1, SPEC-0023@1 |
 | [SPEC-0023](SPEC-0023-notificacoes-do-mercado-livre-webhook-de-anuncios.md) | Notificações do Mercado Livre (webhook de anúncios) | full | feature | approved | 2026-10-30 | SPEC-0019 | — | SPEC-0020@1 |
 | [SPEC-0024](SPEC-0024-simulador-do-mercado-livre-para-desenvolvimento-e-e2e.md) | Simulador do Mercado Livre para desenvolvimento e E2E | full | feature | approved | 2026-10-30 | SPEC-0019 | — | — |
 | [SPEC-0025](SPEC-0025-telas-de-contas-e-anuncios-jornada-conectar-conta.md) | Telas de contas e anúncios (jornada conectar-conta) | full | feature | approved | 2026-10-30 | SPEC-0019 | SPEC-0024 | SPEC-0020@1, SPEC-0022@1 |
+| [SPEC-0026](SPEC-0026-usefieldprotection-cria-um-provedor-interno-do-ef-por-protet.md) | UseFieldProtection cria um provedor interno do EF por protetor | lite | fix | proposed | 2026-10-30 | SPEC-0019 | SPEC-0020 | — |
 
 ## ADRs
 
