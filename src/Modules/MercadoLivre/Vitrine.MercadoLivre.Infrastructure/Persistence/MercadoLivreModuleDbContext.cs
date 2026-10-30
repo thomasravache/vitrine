@@ -1,35 +1,23 @@
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Infrastructure;
-using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Vitrine.Common.Security;
 using Vitrine.MercadoLivre.Domain.Accounts;
 using Vitrine.MercadoLivre.Domain.Authorizations;
-using Wolverine.EntityFrameworkCore.Internals;
 
 namespace Vitrine.MercadoLivre.Infrastructure.Persistence;
 
 /// <summary>
 /// DbContext do módulo MercadoLivre: contas conectadas e autorizações OAuth pendentes, no schema <c>mercadolivre</c>
-/// (ADR-0001, ADR-0011). Tokens e <c>code_verifier</c> são gravados cifrados pelo <see cref="IFieldProtector"/> do host
-/// (propósito <see cref="MercadoLivreModule.TokensProtectionPurpose"/> — SPEC-0008).
+/// (ADR-0001, ADR-0011). Tokens e <c>code_verifier</c> são gravados cifrados (<c>IsProtected</c> com o
+/// <see cref="IFieldProtector"/> ligado por <c>UseFieldProtection</c>, propósito
+/// <see cref="MercadoLivreModule.TokensProtectionPurpose"/> — SPEC-0008, SPEC-0026).
 /// </summary>
-/// <remarks>
-/// O protetor entra pelo construtor e o conversor é montado no modelo, cacheado por protetor
-/// (<see cref="ProtectorModelCacheKeyFactory"/>): todos os hosts do processo compartilham um único provedor interno do
-/// EF Core, em vez de um por protetor (<c>UseFieldProtection</c>), que estoura o limite de provedores quando vários hosts
-/// sobem no mesmo processo (testes).
-/// </remarks>
-public sealed class MercadoLivreModuleDbContext(DbContextOptions<MercadoLivreModuleDbContext> options, IFieldProtector protector)
-    : DbContext(options)
+public sealed class MercadoLivreModuleDbContext(DbContextOptions<MercadoLivreModuleDbContext> options) : DbContext(options)
 {
     public const string Schema = "mercadolivre";
 
     public DbSet<MercadoLivreAccount> Accounts => Set<MercadoLivreAccount>();
 
     public DbSet<PendingAuthorization> PendingAuthorizations => Set<PendingAuthorization>();
-
-    /// <summary>Protetor dos campos cifrados (parte da chave do cache do modelo).</summary>
-    internal IFieldProtector Protector => protector;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -48,8 +36,10 @@ public sealed class MercadoLivreModuleDbContext(DbContextOptions<MercadoLivreMod
             account.Property(a => a.SiteId).HasColumnName("site_id").HasMaxLength(10).IsRequired();
             account.Property(a => a.Status).HasColumnName("status").HasMaxLength(30)
                 .HasConversion(status => AccountStatusNames.ToName(status), name => AccountStatusNames.FromName(name));
-            account.Property(a => a.AccessToken).HasColumnName("access_token").IsRequired().HasConversion(Protected());
-            account.Property(a => a.RefreshToken).HasColumnName("refresh_token").IsRequired().HasConversion(Protected());
+            account.Property(a => a.AccessToken).HasColumnName("access_token").IsRequired()
+                .IsProtected(MercadoLivreModule.TokensProtectionPurpose);
+            account.Property(a => a.RefreshToken).HasColumnName("refresh_token").IsRequired()
+                .IsProtected(MercadoLivreModule.TokensProtectionPurpose);
             account.Property(a => a.AccessTokenExpiresAt).HasColumnName("access_token_expires_at");
             account.Property(a => a.ConnectedAt).HasColumnName("connected_at");
             account.Property(a => a.UpdatedAt).HasColumnName("updated_at");
@@ -66,7 +56,8 @@ public sealed class MercadoLivreModuleDbContext(DbContextOptions<MercadoLivreMod
             authorization.Property(p => p.WorkspaceId).HasColumnName("workspace_id");
             authorization.Property(p => p.UserId).HasColumnName("user_id");
             authorization.Property(p => p.StateHash).HasColumnName("state_hash").HasMaxLength(64).IsRequired();
-            authorization.Property(p => p.CodeVerifier).HasColumnName("code_verifier").IsRequired().HasConversion(Protected());
+            authorization.Property(p => p.CodeVerifier).HasColumnName("code_verifier").IsRequired()
+                .IsProtected(MercadoLivreModule.TokensProtectionPurpose);
             authorization.Property(p => p.ExpiresAt).HasColumnName("expires_at");
             authorization.Property(p => p.UsedAt).HasColumnName("used_at");
 
@@ -78,30 +69,6 @@ public sealed class MercadoLivreModuleDbContext(DbContextOptions<MercadoLivreMod
         });
     }
 
-    // Grava cifrado e lê decifrado (texto adulterado lança CryptographicException, nunca texto parcial).
-    // O modelo cacheado guarda só o protetor (cópia local), nunca o contexto que o montou.
-    private ValueConverter<string, string> Protected()
-    {
-        var fields = protector;
-        return new(
-            plaintext => fields.Protect(plaintext, MercadoLivreModule.TokensProtectionPurpose),
-            ciphertext => fields.Unprotect(ciphertext, MercadoLivreModule.TokensProtectionPurpose));
-    }
-}
-
-/// <summary>
-/// Um modelo por (chave do Wolverine, protetor): cada host usa o conversor com o próprio <see cref="IFieldProtector"/>.
-/// Decora a chave do Wolverine, que separa os modelos pelo schema de envelopes do host (o Wolverine também troca esta
-/// fábrica no <c>AddDbContextWithWolverineIntegration</c>; esta é registrada depois e a inclui).
-/// </summary>
-internal sealed class ProtectorModelCacheKeyFactory : IModelCacheKeyFactory
-{
-    private readonly WolverineModelCacheKeyFactory _wolverine = new();
-
-    public object Create(DbContext context, bool designTime) =>
-        context is MercadoLivreModuleDbContext module
-            ? (_wolverine.Create(context, designTime), module.Protector)
-            : _wolverine.Create(context, designTime);
 }
 
 /// <summary>Valores de <c>accounts.status</c> (os mesmos do contrato da API).</summary>

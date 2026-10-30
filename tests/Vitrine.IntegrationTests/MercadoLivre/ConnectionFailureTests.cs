@@ -190,15 +190,14 @@ public sealed class ConnectionFailureTests(PostgresFixture postgres)
             try
             {
                 // Então nenhuma responde 409 (a conta é do próprio workspace): uma conecta (201) e a outra reconecta
-                // (200) ou responde 502; nunca 500
+                // (200); nunca 409, 500 nem 502
                 var bodies = await Task.WhenAll(responses.Select(response => response.Content.ReadAsStringAsync(cancellationToken)));
                 var detail = $"rodada {round}: {string.Join(" | ", responses.Zip(bodies, (response, body) => $"{(int)response.StatusCode} {body}"))}";
                 var statuses = responses.Select(response => (int)response.StatusCode).Order().ToList();
                 Assert.False(statuses.Contains(409), $"Conclusão da conta do próprio workspace respondeu 409 ML_ACCOUNT_IN_USE: {detail}");
                 Assert.False(statuses.Contains(500), $"Conclusão simultânea respondeu 500: {detail}");
-                Assert.True(statuses.Contains(201), $"Nenhuma conclusão conectou a conta: {detail}");
-                Assert.True(statuses.All(status => status is 200 or 201 or 502), $"Status fora do aceitável: {detail}");
-                Assert.True(statuses.Count(status => status == 201) == 1, $"A conta foi criada duas vezes: {detail}");
+                Assert.False(statuses.Contains(502), $"Conclusão simultânea respondeu 502: {detail}");
+                Assert.True(statuses.SequenceEqual([200, 201]), $"Esperado o par 201 (conecta) + 200 (reconecta): {detail}");
             }
             finally
             {

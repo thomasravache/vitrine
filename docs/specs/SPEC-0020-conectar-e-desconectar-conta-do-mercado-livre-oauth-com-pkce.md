@@ -4,7 +4,7 @@ title: Conectar e desconectar conta do Mercado Livre (OAuth com PKCE)
 tier: full
 type: feature
 user_facing: false
-status: in-progress
+status: implemented
 created: 2026-10-30
 parent: SPEC-0019
 depends_on: []
@@ -339,9 +339,9 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 
 **Fase final: Integração, entrega e documentação**
 - [x] Review independente (G4)
-- [ ] Integração + CI verde (G5) e aprovação (H2)
-- [ ] Deploy no ambiente local prod-like com smoke (G6)
-- [ ] Relatório de Entrega, docs raiz e CHANGELOG (G7)
+- [x] Integração + CI verde (G5) e aprovação (H2)
+- [x] Deploy no ambiente local prod-like com smoke (G6)
+- [x] Relatório de Entrega, docs raiz e CHANGELOG (G7)
 
 ## 12. Registro de Gates
 <!-- Status: PENDING | PASS | FAIL | N/A. PASS e N/A exigem evidência (comando + resultado, SHA, execução de CI, veredito). -->
@@ -352,10 +352,10 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 | G2 Green | PASS | build exit 0 (npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts a); test exit 0 (Duration  387ms (environment 66%, import 15%, transform 14%, tests 4%, worker 1%)); lint exit 0 ([0m[34mChecked 40 files in 20[0m[0m[2m[34mms[0m[0m[34m.[0m[0m[34m No fixes app); coverage exit 0 (Coverage: 89%) — 3ed9e04 | 2026-10-30 |
 | G3 Arquitetura | PASS | arch_test exit 0 (duration: 1s 604ms) — 3ed9e04 | 2026-10-30 |
 | G4 Review | PASS | verify G1+G4: PASS; revisão: Reviewer independente: APPROVED_WITH_NOTES (2ª rodada, 0 blocker/major; nits de teste e desvio de cifra → SPEC-0026) — 2ff43bc | 2026-10-30 |
-| G5 Integração & CI | PENDING | | |
-| H2 Integração aprovada | PENDING | | |
-| G6 Deploy | PENDING | | |
-| G7 Pronto & Docs | PENDING | | |
+| G5 Integração & CI | PASS | MANUAL: PR #47 (sdd/SPEC-0020 @ 4352c36): CI 8/8 verde + CodeQL (runs/41060031791); local no integrado via gate --run: build, unit, integração (2m10s), e2e 30/30, arquitetura OK; security_scan rodado em bash (o sh do gate não aceita pipefail): 0 vulneráveis high/critical, npm audit 0, gitleaks 263 commits sem vazamento | 2026-10-30 |
+| H2 Integração aprovada | PASS | política auto-on-green (aprovada por thomas em 2026-10-13); G5 PASS | 2026-10-30 |
+| G6 Deploy | PASS | MANUAL: Deploy local prod-like via pipeline local (deploy/deploy.sh 333ab7f --env-file deploy/local/.env): health 200 em 5 s; migração do schema mercadolivre aplicada; smoke @smoke 2/2 (desktop+mobile); GET /api/v1/mercadolivre/accounts sem sessão → 401; agente wolverine-recurring iniciado; staging/produção na SPEC-0009 (go-live com o usuário) | 2026-10-30 |
+| G7 Pronto & Docs | PASS | Relatório de Entrega e Definição de Pronto: ok — bb491a2 | 2026-10-30 |
 
 ## 13. Registro de Impedimentos
 <!-- Toda parada é registrada pelo Architect com `spec_graph.py impede` e fechada com `resolve` — não edite à mão. Tipos: spec (spec errada/incompleta → resolve com Emenda) | decisão (só o humano decide → resposta ou ADR) | trabalho (falta algo que exige código → SPEC-NNNN nova) | externo (acesso, ambiente, terceiro → ação tomada) | falha (3 FAILs seguidos no mesmo gate → diagnóstico e decisão). Com impedimento aberto a spec aparece como parada no INDEX e não pode ser fechada. -->
@@ -367,37 +367,62 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 <!-- Preenchido no CLOSE (G7). Diz o que foi feito, como, e prova que foi resolvido. Para status implemented o validate exige todas as subseções preenchidas, todo teste do plano com PASS + evidência e a Definição de Pronto toda marcada. -->
 
 ### O que foi entregue
-<!-- comportamento entregue do ponto de vista do usuário/sistema -->
+O dono do workspace conecta uma ou mais contas do Mercado Livre (MLB) pelo OAuth oficial com PKCE S256 e as desconecta quando quiser; qualquer membro vê a lista de contas. API: `POST /api/v1/mercadolivre/connections`, `POST /api/v1/mercadolivre/connections/complete`, `GET /api/v1/mercadolivre/accounts` e `DELETE /api/v1/mercadolivre/accounts/{id}`, com os erros do contrato (`OAUTH_STATE_INVALID`, `OAUTH_CODE_INVALID`, `ML_UNAVAILABLE`, `ML_SITE_NOT_SUPPORTED`, `ML_ACCOUNT_IN_USE`, `ML_NOT_CONFIGURED`, `FORBIDDEN`). Tokens cifrados que nunca chegam à SPA; eventos `MercadoLivreAccountConnected`/`Disconnected` v1 publicados pela outbox. Sem credenciais do ML configuradas, a API responde `503 ML_NOT_CONFIGURED` (estado atual do ambiente local).
 
 ### Como foi feito
-<!-- decisões de implementação, módulos/arquivos principais, desvios e emendas (com versão), dívidas assumidas -->
+- Módulo novo `src/Modules/MercadoLivre/` (Domain, Application, Infrastructure, Presentation, PublicApi) no padrão do Identity; schema `mercadolivre` (migração `InitialMercadoLivre`); `Identity.PublicApi` com `IWorkspaceMembership`; filtros `AntiforgeryFilter`/`HttpsRequiredFilter` extraídos para `src/Common/Vitrine.Common.Web` (CH-01 guarda o comportamento).
+- `state` gravado como SHA-256, consumido em transação própria antes de chamar o ML (Emenda v1.1); timeout total de 10 s para token + `/users/me`; lock consultivo por `ml_user_id` evita corrida entre conclusões; limpeza diária das autorizações por mensagem recorrente do Wolverine (`CleanupPendingAuthorizations`, 03:00 UTC, ADR-0014).
+- **Desvios registrados (G4, aceitos pelo Reviewer):**
+  1. o cliente `mercadolivre` usa `RemoveAllResilienceHandlers()` (API experimental EXTEXP0001, suprimida com `#pragma` no trecho) para não repetir o POST `/oauth/token`, já que o `code` é de uso único;
+  2. a cifra dos tokens usa `IFieldProtector` (mesmo algoritmo e chaves da SPEC-0008), mas ligada por `ValueConverter` próprio + `ProtectorModelCacheKeyFactory`, em vez de `UseFieldProtection`, que cria um provedor interno do EF por protetor e estoura o limite nos testes. Dívida assumida e corrigida na SPEC-0026;
+  3. `IAcceptsMetadata` removido do endpoint `complete` para que POST sem corpo e sem sessão responda 401, e não caia no fallback da SPA.
+- Emenda v1.1 (contrato inalterado): §5 alinhado ao §6 e `user_facing: false` (jornada de navegador na SPEC-0025).
 
 ### Prova de Correção
-<!-- type fix: o teste de regressão falhou antes da correção (commit red + saída) e passa depois (commit green + execução). Outros tipos: "N/A". -->
+N/A — `type: feature`.
 
 ### Verificação
-<!-- Uma linha por teste do plano (todos os IDs da seção 7). Resultado: PASS. Evidência: execução de CI, commit ou relatório. -->
 | Teste | Comportamento | Resultado | Evidência |
 |---|---|---|---|
+| CH-01 | Filtros antiforgery/HTTPS e lista de endpoints anônimos preservados na extração para Common.Web | PASS | CI PR #47 run 41060031791 (4352c36); main 333ab7f |
+| UT-01 | PKCE S256 (vetor RFC 7636) e state de 32 bytes | PASS | CI PR #47 run 41060031791 (4352c36); main 333ab7f |
+| UT-02 | Conta: conectar, reconectar, status e evento com `reconnected` | PASS | CI PR #47 run 41060031791 (4352c36); main 333ab7f |
+| UT-03 | Autorização pendente: 10 min, uso único, presa ao usuário | PASS | CI PR #47 run 41060031791 (4352c36); main 333ab7f |
+| UT-04 | Validação de `MercadoLivre:*`, endpoints não oficiais só fora de Production e HTTPS fora de Development | PASS | CI PR #47 run 41060031791 (4352c36); main 333ab7f |
+| UT-05 | Papel no workspace (Owner/Member) via `IWorkspaceMembership` | PASS | CI PR #47 run 41060031791 (4352c36); main 333ab7f |
+| UT-06 | Arquitetura: camadas, schema `mercadolivre`, PublicApi sem segredos, Common.Web sem módulos | PASS | CI PR #47 run 41060031791 (4352c36); main 333ab7f |
+| IT-01 | Conectar: URL de autorização, conclusão, tokens cifrados e evento na outbox | PASS | CI PR #47 run 41060031791 (4352c36); main 333ab7f |
+| IT-02 | Início da conexão só para o Owner com ML configurado | PASS | CI PR #47 run 41060031791 (4352c36); main 333ab7f |
+| IT-03 | State inválido/expirado/reutilizado/de outro usuário → 400; corpo inválido → VALIDATION_FAILED; limpeza das expiradas | PASS | CI PR #47 run 41060031791 (4352c36); main 333ab7f |
+| IT-04 | Falhas do ML (code inválido, timeout total de 10 s, divergência de usuário, corrida no mesmo workspace) → 400/502 | PASS | CI PR #47 run 41060031791 (4352c36); main 333ab7f |
+| IT-05 | Desconectar apaga tokens e publica evento; DELETE concorrente nunca 500 | PASS | CI PR #47 run 41060031791 (4352c36); main 333ab7f |
+| IT-06 | Member e usuário sem workspace → 403 FORBIDDEN | PASS | CI PR #47 run 41060031791 (4352c36); main 333ab7f |
+| IT-07 | Tokens nunca aparecem em respostas, logs nem em texto claro no banco | PASS | CI PR #47 run 41060031791 (4352c36); main 333ab7f |
+| IT-08 | Conta em outro workspace → 409 ML_ACCOUNT_IN_USE | PASS | CI PR #47 run 41060031791 (4352c36); main 333ab7f |
+| IT-09 | Site diferente de MLB → 422 ML_SITE_NOT_SUPPORTED; ML não configurado → 503 | PASS | CI PR #47 run 41060031791 (4352c36); main 333ab7f |
+| IT-10 | `IWorkspaceMembership` resolvido pelo Identity com dados reais | PASS | CI PR #47 run 41060031791 (4352c36); main 333ab7f |
+| CT-01 | Eventos `MercadoLivreAccountConnected`/`Disconnected` v1 conforme o contrato | PASS | CI PR #47 run 41060031791 (4352c36); main 333ab7f |
 
 ### Definição de Pronto
-- [ ] Todos os testes do plano passando e listados na Verificação
-- [ ] Todo comportamento do Mapa de Comportamentos coberto e verificado
-- [ ] Suíte completa, arquitetura e CI verdes no resultado integrado (G5)
-- [ ] Review independente sem achados blocker/major (G4)
-- [ ] Padrão arquitetural existente mantido, ou desvio coberto por ADR aprovado
-- [ ] Requisitos não-funcionais medidos com evidência (ou N/A justificado)
-- [ ] Disponível no ambiente-alvo via pipeline, com smoke/E2E passando no ambiente (G6)
-- [ ] Observabilidade e rollback prontos conforme o Plano de Rollout
-- [ ] Documentação raiz e CHANGELOG atualizados (G7)
-- [ ] Guia de jornadas e mapa do sistema atualizados quando a entrega muda uma jornada ou um componente (G7)
-- [ ] Pendências registradas como novas specs (ou nenhuma)
+- [x] Todos os testes do plano passando e listados na Verificação
+- [x] Todo comportamento do Mapa de Comportamentos coberto e verificado
+- [x] Suíte completa, arquitetura e CI verdes no resultado integrado (G5)
+- [x] Review independente sem achados blocker/major (G4)
+- [x] Padrão arquitetural existente mantido, ou desvio coberto por ADR aprovado — fronteiras de módulo, outbox e cifra por `IFieldProtector` (ADR-0006) mantidas; o desvio de ligação da cifra no EF é dívida registrada e corrigida pela SPEC-0026
+- [x] Requisitos não-funcionais medidos com evidência (ou N/A justificado) — timeout total ≤ 10 s (IT-04), tokens fora de logs/respostas (IT-07), int64 em `ml_user_id` (IT-01)
+- [x] Disponível no ambiente-alvo via pipeline, com smoke/E2E passando no ambiente (G6) — ambiente local prod-like; staging/produção na SPEC-0009
+- [x] Observabilidade e rollback prontos conforme o Plano de Rollout — métrica `vitrine.mercadolivre.connections`, logs de erro do ML sem segredos; rollback por revert/imagem anterior (migração só cria o schema novo)
+- [x] Documentação raiz e CHANGELOG atualizados (G7)
+- [x] Guia de jornadas e mapa do sistema atualizados quando a entrega muda uma jornada ou um componente (G7) — N/A: o projeto não tem `living_docs`; README atualizado
+- [x] Pendências registradas como novas specs (ou nenhuma)
 
 ### Deploy
-<!-- ambiente(s), versão/tag, data, estratégia, estado da feature flag, execução do pipeline -->
+Ambiente local prod-like, imagem `ghcr.io/thomasravache/vitrine-api:333ab7f`, 2026-10-30, deploy direto por `deploy/deploy.sh` (health 200 em 5 s, smoke 2/2). Sem feature flag: sem `MercadoLivre__ClientId/ClientSecret` a API responde 503 `ML_NOT_CONFIGURED`. Staging/produção e o app no DevCenter do ML ficam para a SPEC-0009 (go-live com o usuário).
 
 ### Pendências
-<!-- specs criadas para o que ficou de fora, ou "Nenhuma" -->
+- SPEC-0026 — `UseFieldProtection` sem provedor interno por protetor (remove o contorno de cifra deste módulo).
+- Nits de teste do G4 (asserção 201+200 na corrida no mesmo workspace; asserção de que o agendamento recorrente está registrado) — entram na SPEC-0026, que mexe nos mesmos testes do módulo.
+- Simulador do ML fora de Development precisa de HTTPS (Caddy) — já previsto na SPEC-0024.
 
 ## 15. Emendas
 <!-- Mudança em spec aprovada: uma linha por emenda. Mudou o contrato? Incremente `contract_version` e rode `spec_graph.py impacted SPEC-0020`. -->

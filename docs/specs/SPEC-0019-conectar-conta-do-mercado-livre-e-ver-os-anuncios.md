@@ -95,11 +95,12 @@ Contratos entre as filhas:
 | Spec | Título | Tier | Tipo | Tamanho | Depende de | Consome contrato de |
 |---|---|---|---|---|---|---|
 | SPEC-0020 | Conectar e desconectar conta do Mercado Livre (OAuth com PKCE) | full | feature | M | — | — |
-| SPEC-0021 | Gateway autenticado da API do Mercado Livre (renovação de token e resiliência) | full | feature | M | — | SPEC-0020@1 |
+| SPEC-0021 | Gateway autenticado da API do Mercado Livre (renovação de token e resiliência) | full | feature | M | SPEC-0026 | SPEC-0020@1 |
 | SPEC-0022 | Importação e sincronização de anúncios (módulo Listings) | full | feature | M | — | SPEC-0020@1, SPEC-0021@1, SPEC-0023@1 |
 | SPEC-0023 | Notificações do Mercado Livre (webhook de anúncios) | full | feature | M | — | SPEC-0020@1 |
 | SPEC-0024 | Simulador do Mercado Livre para desenvolvimento e E2E | full | feature | M | — | — |
 | SPEC-0025 | Telas de contas e anúncios (jornada conectar-conta) | full | feature | M | SPEC-0024 | SPEC-0020@1, SPEC-0022@1 |
+| SPEC-0026 | UseFieldProtection cria um provedor interno do EF por protetor (dívida do G4 da SPEC-0020) | lite | fix | S | SPEC-0020 | — |
 
 ## 5. Estratégia de Entrega
 - **Ambientes:**

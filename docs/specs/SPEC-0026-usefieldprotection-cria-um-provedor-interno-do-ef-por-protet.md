@@ -4,17 +4,18 @@ title: UseFieldProtection cria um provedor interno do EF por protetor
 tier: lite
 type: fix
 user_facing: false
-status: proposed
+status: in-progress
 created: 2026-10-30
 parent: SPEC-0019
 depends_on: [SPEC-0020]
 consumes_contract: []
-touches: [src/Common/Vitrine.Common.Security/**, src/Modules/MercadoLivre/Vitrine.MercadoLivre.Infrastructure/Persistence/**, tests/Vitrine.IntegrationTests/Security/**, tests/Vitrine.UnitTests/Security/**]
+touches: [src/Common/Vitrine.Common.Security/**, src/Modules/MercadoLivre/Vitrine.MercadoLivre.Infrastructure/**, tests/Vitrine.IntegrationTests/Security/**, tests/Vitrine.IntegrationTests/MercadoLivre/**, tests/Vitrine.UnitTests/Security/**]
 adrs: [ADR-0006, ADR-0014]
 external: []
 size: S
-approved_by:
-approved_at:
+approved_by: thomas
+approved_at: 2026-10-30
+approved_via: piloto automático autorizado no chat em 2026-10-28/30 (épico SPEC-0019)
 ---
 
 # SPEC-0026 — UseFieldProtection cria um provedor interno do EF por protetor
@@ -32,7 +33,7 @@ approved_at:
 - O módulo MercadoLivre volta a usar `UseFieldProtection`/`IsProtected` e remove o conversor e a fábrica locais.
 - **Não muda:** formato do texto cifrado, purposes, chaves do Data Protection, colunas e dados existentes (nenhuma migração).
 
-**Padrão seguido:** `FieldProtectionModelExtensions` e `FieldProtectionOptionsExtension` (SPEC-0008); uso em `IdentityModuleDbContext`.
+**Padrão seguido:** `FieldProtectionModelExtensions` e `FieldProtectionOptionsExtension` (SPEC-0008); uso nos testes da SPEC-0008 (UT-02, `ProtectedSecretsContext`) — nenhum módulo de produção usa `UseFieldProtection` ainda.
 
 **Rollback:** revert do commit (sem mudança de dados).
 
@@ -40,9 +41,9 @@ approved_at:
 
 ## 4. Plano de Testes (TDD)
 <!-- Mínimo: um teste de regressão que reproduz o problema e FALHA antes da correção, no nível em que o defeito aparece (IT para fronteiras de I/O, E2E para jornadas de usuário). Código sem cobertura: primeiro CH-xx fixando o comportamento atual. Tag no código: `SPEC-0026:<ID>`. Modo privado: sem tag no código; aponte o teste no fim da linha com `→ caminho::nome` (ex.: `→ tests/test_soma.py::test_soma`). Categoria sem teste: "N/A — motivo" SEM ID. -->
-- Caracterização: N/A — os testes da SPEC-0008 (UT-01..03) e da SPEC-0020 (IT-01, IT-07) já fixam o formato cifrado e a leitura.
+- Caracterização: N/A — os testes de cifra da SPEC-0008 e da SPEC-0020 (conta conectada e varredura de tokens) já fixam o formato cifrado e a leitura.
 - **UT-01** — Dado dois `IFieldProtector` distintos, quando dois contextos com `UseFieldProtection` são criados e usados para gravar e ler, então cada um cifra com o seu protetor e o EF não cria um provedor interno a mais por protetor (contagem de provedores estável).
-- **IT-01** — Dado 25 hosts de teste do Vitrine subindo no mesmo processo, quando cada um grava e lê um campo protegido do Identity e do MercadoLivre, então nenhum emite `ManyServiceProvidersCreatedWarning` e os valores voltam decifrados com o protetor do próprio host.
+- **IT-01** — Dado 25 hosts de teste do Vitrine subindo no mesmo processo, quando cada um grava e lê um campo protegido de um contexto com `UseFieldProtection` registrado no host e um do MercadoLivre, então nenhum emite `ManyServiceProvidersCreatedWarning` e os valores voltam decifrados com o protetor do próprio host.
 
 ## 5. Questões em Aberto
 <!-- Dúvidas que impedem fechar a spec, respondidas ANTES do H1. Aberta: `- [ ] pergunta (quem responde)`. Respondida: `- [x] pergunta — resposta (quem, data)`. Com alguma aberta o G0 reprova. Sem dúvidas: escreva "Nenhuma". Dúvida que surge depois da aprovação vira impedimento (seção Registro de Impedimentos). -->
@@ -53,16 +54,27 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 
 ## 7. Checklist de Implementação
 <!-- Preenchido na fase PLAN, após a aprovação. -->
+**Fase 1: Regressão e correção**
+- [x] Red: escrever UT-01 e IT-01 com a tag `SPEC-0026:<ID>` e confirmar que falham pelo motivo certo
+- [x] Green: `UseFieldProtection` sem provedor interno por protetor, compondo com a fábrica de chave de modelo já registrada; MercadoLivre volta a `UseFieldProtection`/`IsProtected` e remove o contorno local
+- [x] Nits do G4 da SPEC-0020: asserção 201+200 na corrida no mesmo workspace e asserção do agendamento recorrente registrado
+- [x] Validar: build + suíte completa + arquitetura (G2/G3)
+
+**Fase final: Integração, entrega e documentação**
+- [x] Review independente (G4)
+- [ ] Integração + CI verde (G5) e aprovação (H2)
+- [ ] Deploy no ambiente local prod-like com smoke (G6)
+- [ ] Relatório de Entrega e CHANGELOG (G7)
 
 ## 8. Registro de Gates
 <!-- Status: PENDING | PASS | FAIL | N/A. PASS e N/A exigem evidência. -->
 | Gate | Status | Evidência | Data |
 |---|---|---|---|
 | G0 Spec | PASS | validate: 0 erro(s) — 7718a74 (árvore suja) | 2026-10-30 |
-| G1 Red | PENDING | | |
-| G2 Green | PENDING | | |
-| G3 Arquitetura | PENDING | | |
-| G4 Review | PENDING | | |
+| G1 Red | PASS | verify G1: PASS; `dotnet test tests/Vitrine.UnitTests && npm --prefix web run test` exit 2 (red: Test run completed with non-success exit code: 2 (see: https://aka.ms/testingplatform/exit) — 193c8a9 | 2026-10-30 |
+| G2 Green | PASS | build exit 0 (npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts a); test exit 0 (Duration  366ms (environment 63%, transform 17%, import 14%, tests 5%, worker 2%)); lint exit 0 ([0m[34mChecked 40 files in 19[0m[0m[2m[34mms[0m[0m[34m.[0m[0m[34m No fixes app); coverage exit 0 (Coverage: 96%) — 7d3ebc4 | 2026-10-30 |
+| G3 Arquitetura | PASS | arch_test exit 0 (duration: 1s 532ms) — 7d3ebc4 | 2026-10-30 |
+| G4 Review | PASS | verify G1+G4: PASS; revisão: Reviewer independente: APPROVED_WITH_NOTES (0 blocker/major; guarda contra ReplaceService<IModelSource> aceita como risco residual) — 7d3ebc4 | 2026-10-30 |
 | G5 Integração & CI | PENDING | | |
 | H2 Integração aprovada | PENDING | | |
 | G6 Deploy | PENDING | | |
@@ -104,3 +116,4 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 <!-- Mudança em spec aprovada: uma linha por emenda, aprovada pelo humano. -->
 | Versão | Data | Mudança | Motivo | Specs impactadas | Aprovado por |
 |---|---|---|---|---|---|
+| v1.1 | 2026-10-30 | Texto do padrão e do IT-01: o Identity não tem campo protegido; o IT-01 usa um contexto com `UseFieldProtection` registrado no host | Apontado pelo Test-writer no G1; sem mudança de comportamento | nenhuma | thomas (piloto automático do épico SPEC-0019) |

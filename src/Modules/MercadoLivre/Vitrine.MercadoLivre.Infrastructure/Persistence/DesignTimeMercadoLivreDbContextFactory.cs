@@ -1,6 +1,5 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
-using Vitrine.Common.Security;
 
 namespace Vitrine.MercadoLivre.Infrastructure.Persistence;
 
@@ -14,14 +13,5 @@ internal sealed class DesignTimeMercadoLivreDbContextFactory : IDesignTimeDbCont
     public MercadoLivreModuleDbContext CreateDbContext(string[] args) =>
         new(new DbContextOptionsBuilder<MercadoLivreModuleDbContext>()
             .UseNpgsql("Host=localhost;Database=design_time", MercadoLivreModule.ConfigureNpgsql)
-            .Options,
-            new DesignTimeProtector());
-
-    // As migrações só leem o modelo: nada é cifrado em tempo de design.
-    private sealed class DesignTimeProtector : IFieldProtector
-    {
-        public string Protect(string plaintext, string purpose) => throw new NotSupportedException();
-
-        public string Unprotect(string ciphertext, string purpose) => throw new NotSupportedException();
-    }
+            .Options);
 }

@@ -47,6 +47,25 @@ public sealed class PendingAuthorizationsCleanupTests(PostgresFixture postgres)
         Assert.Contains(valid, remaining);
     }
 
+    [Fact]
+    [Trait("spec", "SPEC-0020:IT-03")]
+    public async Task Limpeza_esta_agendada_no_Wolverine_do_host_todo_dia_as_03h_UTC()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var connectionString = await postgres.CreateDatabaseAsync(cancellationToken);
+        await using var factory = MercadoLivreHost.Create(connectionString);
+
+        // Dado o host real; quando as mensagens recorrentes registradas no Wolverine são lidas
+        var schedules = factory.Services.GetRequiredService<WolverineOptions>().Schedules;
+        var cleanup = schedules.FindByName(CleanupMessageName);
+
+        // Então a limpeza do módulo está agendada com o cron diário do contrato (03:00 UTC)
+        Assert.True(cleanup is not null, $"{CleanupMessageName} não está agendada nas WolverineOptions do host.");
+        Assert.Equal(CleanupMessageName, cleanup.MessageType.Name);
+        Assert.Equal("0 3 * * *", cleanup.Schedule.Expression);
+        Assert.Equal(TimeZoneInfo.Utc, cleanup.Schedule.TimeZone);
+    }
+
     /// <summary>
     /// Instância da mensagem <c>CleanupPendingAuthorizations</c> de um assembly do módulo, achada por nome para este
     /// projeto compilar antes de o tipo existir (o teste falha com a mensagem abaixo enquanto ele não existe).
