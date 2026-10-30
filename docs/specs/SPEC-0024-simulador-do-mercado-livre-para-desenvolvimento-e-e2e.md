@@ -250,21 +250,21 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 ## 11. Checklist de Implementação
 <!-- Preenchido na fase PLAN, após a aprovação. Cada fase começa pelos testes. -->
 **Fase 0: Caracterização**
-- [ ] CH-01 escrito, passando no código atual (AppHost e Compose local sem o simulador), commitado antes de qualquer mudança
+- [x] CH-01 escrito, passando no código atual (AppHost e Compose local sem o simulador), commitado antes de qualquer mudança
 
 **Fase 1: Estado do simulador**
-- [ ] Red: escrever UT-01..UT-04 com a tag `SPEC-0024:<ID>` e confirmar que falham pelo motivo certo
-- [ ] Green: PKCE, rotação de refresh token, busca com scan e bulk em memória
-- [ ] Refactor mantendo tudo verde
+- [x] Red: escrever UT-01..UT-04 com a tag `SPEC-0024:<ID>` e confirmar que falham pelo motivo certo
+- [x] Green: PKCE, rotação de refresh token, busca com scan e bulk em memória
+- [x] Refactor mantendo tudo verde
 
 **Fase 2: Simulador no AppHost e no Compose**
-- [ ] Red: escrever IT-01..IT-06 e CT-01 com a tag `SPEC-0024:<ID>` e confirmar que falham pelo motivo certo
-- [ ] Green: `tools/MercadoLivreSimulator`, endpoints `/__sim/*`, recurso no AppHost (modo run), perfil `ml-simulator` no Compose + Caddy e fixtures em `tests/Fixtures/MercadoLivre/`
-- [ ] Refactor mantendo tudo verde
-- [ ] Validar: build + suíte completa + arquitetura (G2/G3)
+- [x] Red: escrever IT-01..IT-06 e CT-01 com a tag `SPEC-0024:<ID>` e confirmar que falham pelo motivo certo
+- [x] Green: `tools/MercadoLivreSimulator`, endpoints `/__sim/*`, recurso no AppHost (modo run), perfil `ml-simulator` no Compose + Caddy e fixtures em `tests/Fixtures/MercadoLivre/`
+- [x] Refactor mantendo tudo verde
+- [x] Validar: build + suíte completa + arquitetura (G2/G3)
 
 **Fase final: Integração, entrega e documentação**
-- [ ] Review independente (G4)
+- [x] Review independente (G4)
 - [ ] Integração + CI verde (G5) e aprovação (H2)
 - [ ] Deploy no ambiente local prod-like com smoke (G6)
 - [ ] Relatório de Entrega, docs raiz e CHANGELOG (G7)
@@ -275,9 +275,9 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 |---|---|---|---|
 | G0 Spec | PASS | validate: 0 erro(s) — ddc6ebd (árvore suja) | 2026-10-30 |
 | G1 Red | PASS | verify G1: PASS; `dotnet test tests/Vitrine.UnitTests && npm --prefix web run test` exit 2 (red: Test run completed with non-success exit code: 2 (see: https://aka.ms/testingplatform/exit) — 8fdc08f | 2026-10-30 |
-| G2 Green | PASS | build exit 0 (npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts a); test exit 0 (Duration  333ms (environment 59%, import 18%, transform 17%, tests 5%, worker 1%)); lint exit 0 ([0m[34mChecked 40 files in 17[0m[0m[2m[34mms[0m[0m[34m.[0m[0m[34m No fixes app); coverage exit 0 (Coverage: 88%) — ba7f672 | 2026-10-30 |
-| G3 Arquitetura | PASS | arch_test exit 0 (duration: 2s 085ms) — ba7f672 | 2026-10-30 |
-| G4 Review | PENDING | | |
+| G2 Green | PASS | build exit 0 (npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts a); test exit 0 (Duration  403ms (environment 66%, transform 14%, import 13%, tests 5%, worker 1%)); lint exit 0 ([0m[34mChecked 40 files in 32[0m[0m[2m[34mms[0m[0m[34m.[0m[0m[34m No fixes app); coverage exit 0 (Coverage: 88%) — d36d604 | 2026-10-30 |
+| G3 Arquitetura | PASS | arch_test exit 0 (duration: 2s 124ms) — d36d604 | 2026-10-30 |
+| G4 Review | PASS | verify G1+G4: PASS; revisão: Reviewer independente: APPROVED (2ª rodada; gitleaks 0 no histórico; notas: caddy-sites no deploy.yml, miniaturas externas no E2E, contrato do lado da requisição coberto pela SPEC-0025) — d36d604 | 2026-10-30 |
 | G5 Integração & CI | PENDING | | |
 | H2 Integração aprovada | PENDING | | |
 | G6 Deploy | PENDING | | |
