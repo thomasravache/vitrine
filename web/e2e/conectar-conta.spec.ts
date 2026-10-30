@@ -1,10 +1,13 @@
 import { randomUUID } from "node:crypto";
 import { expect, type Page, test } from "@playwright/test";
 import { expectNoSeriousA11yViolations } from "./support/axe.ts";
+import { pageRequest } from "./support/local-http.ts";
 import {
   changeTitleAndNotify,
   createSimSeller,
   decideOnSimulator,
+  hasSimulator,
+  NO_SIMULATOR_REASON,
   revokeSeller,
   type SimSeller,
   stubMlThumbnails,
@@ -33,6 +36,8 @@ const IMPORT_TIMEOUT = 45_000;
 const PAGE_SIZE = 20;
 
 test.beforeEach(async ({ page }) => {
+  // Sem simulador (staging/produção) a jornada não tem como autorizar no "ML": pula com o motivo, inclusive no @smoke.
+  test.skip(!hasSimulator(), NO_SIMULATOR_REASON);
   await stubMlThumbnails(page);
 });
 
@@ -94,10 +99,9 @@ async function openListings(page: Page): Promise<void> {
 
 test("SPEC-0025:E2E-01 — vendedor conecta a conta do ML, vê a conta conectada e os anúncios, filtra, busca e carrega mais [jornada: conectar-conta] @smoke", async ({
   page,
-  request,
 }) => {
   // Dado um vendedor novo no simulador (15 ativos, 6 pausados, 4 encerrados)
-  const seller = await createSimSeller(request);
+  const seller = await createSimSeller();
 
   // Quando o usuário se cadastra
   await signUpThroughUi(page, newUser());
@@ -159,8 +163,8 @@ test("SPEC-0025:E2E-01 — vendedor conecta a conta do ML, vê a conta conectada
   expect(searchParam(page, "status")).toBe("paused");
 
   // Quando busca pelo título de um anúncio pausado; então só ele aparece, e a busca vai para a URL
-  const paused = await page.request.get("/api/v1/listings?status=paused&limit=1");
-  const [target] = ((await paused.json()) as { items: { title: string }[] }).items;
+  const paused = await pageRequest(page, "GET", "/api/v1/listings?status=paused&limit=1");
+  const [target] = (JSON.parse(paused.text) as { items: { title: string }[] }).items;
   expect(target).toBeDefined();
   const title = target?.title ?? "";
   await page.getByLabel("Buscar por título ou código").fill(title);
@@ -180,16 +184,15 @@ test("SPEC-0025:E2E-01 — vendedor conecta a conta do ML, vê a conta conectada
 
 test("SPEC-0025:E2E-02 — conta revogada no ML aparece como 'Reconectar necessário' e volta a 'Conectada' depois de reconectar", async ({
   page,
-  request,
 }) => {
   // Dado uma conta conectada e importada
-  const seller = await createSimSeller(request);
+  const seller = await createSimSeller();
   await signUpThroughApi(page, newUser());
   await connectFromAccounts(page, seller);
   await waitForImport(page, seller);
 
   // Quando o simulador revoga os tokens e expira o access token, e o usuário clica em "Sincronizar agora"
-  await revokeSeller(request, seller.id);
+  await revokeSeller(seller.id);
   await openListings(page);
   expect(await clickSyncNow(page), "POST /listings/sync").toBe(202);
 
@@ -224,10 +227,9 @@ test("SPEC-0025:E2E-02 — conta revogada no ML aparece como 'Reconectar necess�
 
 test("SPEC-0025:E2E-03 — desconectar pelo diálogo tira a conta de Contas e deixa Anúncios vazio", async ({
   page,
-  request,
 }) => {
   // Dado uma conta conectada com anúncios
-  const seller = await createSimSeller(request);
+  const seller = await createSimSeller();
   await signUpThroughApi(page, newUser());
   await connectFromAccounts(page, seller);
   await waitForImport(page, seller);
@@ -270,11 +272,10 @@ test("SPEC-0025:E2E-03 — desconectar pelo diálogo tira a conta de Contas e de
 
 test("SPEC-0025:E2E-04 — cancelar no ML e vendedor de outro país mostram a mensagem certa, sem code na URL", async ({
   page,
-  request,
 }) => {
   // Dado um vendedor MLB e um MLA no simulador
-  const seller = await createSimSeller(request);
-  const foreign = await createSimSeller(request, {
+  const seller = await createSimSeller();
+  const foreign = await createSimSeller({
     siteId: "MLA",
     active: 3,
     paused: 0,
@@ -310,20 +311,19 @@ test("SPEC-0025:E2E-04 — cancelar no ML e vendedor de outro país mostram a me
 
 test("SPEC-0025:E2E-05 — anúncio alterado no ML aparece após a notificação; 2º 'Sincronizar agora' pede para esperar", async ({
   page,
-  request,
 }) => {
   // Dado uma conta conectada e importada
-  const seller = await createSimSeller(request);
+  const seller = await createSimSeller();
   await signUpThroughApi(page, newUser());
   await connectFromAccounts(page, seller);
   await waitForImport(page, seller);
 
   // Quando o simulador muda o título de um anúncio ativo e envia a notificação
-  const active = await page.request.get("/api/v1/listings?status=active&limit=1");
-  const [item] = ((await active.json()) as { items: { itemId: string }[] }).items;
+  const active = await pageRequest(page, "GET", "/api/v1/listings?status=active&limit=1");
+  const [item] = (JSON.parse(active.text) as { items: { itemId: string }[] }).items;
   expect(item).toBeDefined();
   const newTitle = `Título alterado no ML ${randomUUID().slice(0, 8)}`;
-  await changeTitleAndNotify(request, seller.id, item?.itemId ?? "", newTitle);
+  await changeTitleAndNotify(seller.id, item?.itemId ?? "", newTitle);
 
   // Então o novo título aparece em Anúncios depois de recarregar (até 15 s)
   await openListings(page);
@@ -340,8 +340,8 @@ test("SPEC-0025:E2E-05 — anúncio alterado no ML aparece após a notificação
   await expect
     .poll(
       async () => {
-        const response = await page.request.get("/api/v1/listings/summary");
-        const summary = (await response.json()) as {
+        const response = await pageRequest(page, "GET", "/api/v1/listings/summary");
+        const summary = JSON.parse(response.text) as {
           accounts: { syncStatus: string; lastSyncedAt: string | null }[];
         };
         const [account] = summary.accounts;

@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { type APIResponse, expect, type Page, type Response } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
+import { pageRequest } from "./local-http.ts";
 
 // SPEC-0025: usuário do Vitrine por teste (e-mail único) e cadastro que respeita o rate limit de 10/min por IP de
 // /api/v1/auth/* (SPEC-0008): num 429, espera o Retry-After e tenta de novo. A jornada inteira roda em dois projetos
@@ -23,8 +24,8 @@ export function newUser(): VitrineUser {
   };
 }
 
-function retryAfterMs(response: Response | APIResponse): number {
-  const seconds = Number(response.headers()["retry-after"] ?? "60");
+function retryAfterMs(retryAfter: string | undefined): number {
+  const seconds = Number(retryAfter ?? "60");
   return (Number.isFinite(seconds) && seconds > 0 ? seconds : 60) * 1_000 + 500;
 }
 
@@ -47,26 +48,30 @@ export async function signUpThroughUi(page: Page, user: VitrineUser): Promise<vo
       await expect(page).toHaveURL(/\/painel(?:[?#].*)?$/);
       return;
     }
-    await page.waitForTimeout(retryAfterMs(response));
+    await page.waitForTimeout(retryAfterMs(response.headers()["retry-after"]));
   }
   throw new Error("Cadastro recusado pelo rate limit em todas as tentativas.");
 }
 
-/** Cadastro direto na Api, na sessão do navegador (cookie compartilhado com a página), com espera no 429. */
+/**
+ * Cadastro direto na Api, pelo fetch da própria página (cookie de sessão no navegador e sem depender do resolvedor do
+ * Node para `*.localhost`), com espera no 429. Abre /entrar antes, para a página estar na origem da aplicação.
+ */
 export async function signUpThroughApi(page: Page, user: VitrineUser): Promise<void> {
+  await page.goto("/entrar");
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-    const antiforgery = await page.request.get("/api/v1/auth/antiforgery");
-    const token = antiforgery.headers()["x-xsrf-token"];
+    const antiforgery = await pageRequest(page, "GET", "/api/v1/auth/antiforgery");
+    const token = antiforgery.headers["x-xsrf-token"];
     expect(token, "token antiforgery").toBeTruthy();
-    const response = await page.request.post(REGISTER_PATH, {
+    const response = await pageRequest(page, "POST", REGISTER_PATH, {
       headers: { "X-XSRF-TOKEN": token ?? "" },
-      data: { name: user.name, email: user.email, password: user.password },
+      body: { name: user.name, email: user.email, password: user.password },
     });
-    if (response.status() !== 429) {
-      expect(response.status(), await response.text()).toBe(201);
+    if (response.status !== 429) {
+      expect(response.status, response.text).toBe(201);
       return;
     }
-    await page.waitForTimeout(retryAfterMs(response));
+    await page.waitForTimeout(retryAfterMs(response.headers["retry-after"]));
   }
   throw new Error("Cadastro recusado pelo rate limit em todas as tentativas.");
 }
