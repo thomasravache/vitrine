@@ -8,6 +8,8 @@ using Vitrine.Api.Observability;
 using Vitrine.Api.Security;
 using Vitrine.Identity.Infrastructure;
 using Vitrine.Identity.Presentation;
+using Vitrine.Listings.Infrastructure;
+using Vitrine.Listings.Presentation;
 using Vitrine.MercadoLivre.Infrastructure;
 using Vitrine.MercadoLivre.Presentation;
 using Wolverine;
@@ -57,6 +59,7 @@ OpenApiGeneration.Configure(builder, generatingOpenApi);
 // Módulos (ADR-0001).
 builder.Services.AddIdentityModule(builder.Configuration);
 builder.Services.AddMercadoLivreModule(builder.Configuration);
+builder.Services.AddListingsModule(builder.Configuration);
 
 // Mensageria interna e jobs com filas duráveis e outbox/inbox no PostgreSQL (ADR-0014).
 if (!generatingOpenApi)
@@ -122,6 +125,7 @@ app.UseAuthorization();
 app.MapDefaultEndpoints();
 app.MapIdentityEndpoints();
 app.MapMercadoLivreEndpoints();
+app.MapListingsEndpoints();
 
 // /api e /health desconhecidas: 404 (problem+json) com ou sem sessão — nem 401 da política de fallback, nem a SPA.
 app.MapFallback("/api/{**path}", () => Results.NotFound()).AllowAnonymous();

@@ -26,6 +26,12 @@
     <ProjectReference Include="..\..\src\Modules\MercadoLivre\Vitrine.MercadoLivre.Infrastructure\Vitrine.MercadoLivre.Infrastructure.csproj" />
   </ItemGroup>
 
+  <!-- Módulo Listings (SPEC-0022): algoritmo de sincronização, parâmetros/cursor da listagem e frescor do anúncio. -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Modules\Listings\Vitrine.Listings.Application\Vitrine.Listings.Application.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Listings\Vitrine.Listings.Domain\Vitrine.Listings.Domain.csproj" />
+  </ItemGroup>
+
   <!-- Segurança (SPEC-0008): cifra de campos (IFieldProtector e conversor EF Core). -->
   <ItemGroup>
     <ProjectReference Include="..\..\src\Common\Vitrine.Common.Security\Vitrine.Common.Security.csproj" />
