@@ -1,7 +1,26 @@
 import { useEffect, useState } from "react";
 import { startMercadoLivreConnection } from "../../api/generated/vitrine.ts";
 import type { Problem } from "../../api/session.ts";
-import { connectionError, type ErrorView, NETWORK_ERROR } from "./errorMessages.ts";
+import {
+  connectionError,
+  type ErrorView,
+  NETWORK_ERROR,
+  UNSAFE_AUTHORIZATION_URL_ERROR,
+} from "./errorMessages.ts";
+
+/**
+ * Só leva o navegador a uma URL de autorização https: (http: apenas em desenvolvimento, para o simulador local sem
+ * TLS). O ambiente é lido na hora da chamada.
+ */
+export function isSafeAuthorizationUrl(raw: string): boolean {
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    return false;
+  }
+  return url.protocol === "https:" || (url.protocol === "http:" && import.meta.env.DEV === true);
+}
 
 /**
  * Conectar ou reconectar uma conta: pede a URL de autorização (POST /mercadolivre/connections) e leva o navegador ao
@@ -28,10 +47,14 @@ export function useStartConnection() {
     try {
       const response = await startMercadoLivreConnection();
       if (response.status === 200) {
-        window.location.assign(response.data.authorizationUrl);
-        return;
+        if (isSafeAuthorizationUrl(response.data.authorizationUrl)) {
+          window.location.assign(response.data.authorizationUrl);
+          return;
+        }
+        setError(UNSAFE_AUTHORIZATION_URL_ERROR);
+      } else {
+        setError(connectionError(response.data as Problem));
       }
-      setError(connectionError(response.data as Problem));
     } catch {
       setError(NETWORK_ERROR);
     }

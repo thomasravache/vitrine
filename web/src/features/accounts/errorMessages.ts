@@ -37,6 +37,12 @@ export const UNKNOWN_CONNECTION_ERROR: ErrorView = {
   canRetry: false,
 };
 
+/** A Api devolveu uma URL de autorização que a SPA não segue (não é https:). */
+export const UNSAFE_AUTHORIZATION_URL_ERROR: ErrorView = {
+  message: "Não foi possível abrir a autorização do Mercado Livre agora. Tente de novo mais tarde.",
+  canRetry: false,
+};
+
 /** Falha de rede (a Api não respondeu). */
 export const NETWORK_ERROR: ErrorView = {
   message: "Não foi possível falar com o Vitrine. Verifique sua conexão e tente de novo.",

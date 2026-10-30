@@ -1,7 +1,10 @@
-/** "Importando seus anúncios…" com barra de progresso indeterminada (sem aria-valuenow). */
+/**
+ * "Importando seus anúncios…" com barra de progresso indeterminada (sem aria-valuenow), numa região viva
+ * (role="status") para leitores de tela anunciarem a importação.
+ */
 export function ImportingNotice({ className = "" }: { className?: string }) {
   return (
-    <div className={`flex flex-col gap-3 ${className}`}>
+    <div role="status" className={`flex flex-col gap-3 ${className}`}>
       <p className="font-semibold text-ink">Importando seus anúncios…</p>
       <div
         role="progressbar"

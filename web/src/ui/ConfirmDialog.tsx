@@ -102,7 +102,7 @@ export function ConfirmDialog({
           </p>
         )}
         <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-          <Button ref={cancelRef} variant="outline" onClick={onCancel}>
+          <Button ref={cancelRef} variant="outline" onClick={onCancel} disabled={busy}>
             {cancelLabel}
           </Button>
           <Button onClick={onConfirm} disabled={busy}>

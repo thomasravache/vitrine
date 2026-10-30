@@ -1,6 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { useRouterState } from "@tanstack/react-router";
-import { useState } from "react";
+import { useNavigate, useRouter } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import {
   disconnectMercadoLivreAccount,
   type ListingsAccountSummaryResponse,
@@ -21,7 +21,15 @@ import { useStartConnection } from "./useStartConnection.ts";
 export function AccountsPage() {
   useDocumentTitle("Contas do Mercado Livre");
   const isOwner = useIsOwner();
-  const connected = useRouterState({ select: (state) => state.location.state.connectedNickname });
+  const router = useRouter();
+  const navigate = useNavigate();
+  // O aviso vem do retorno do OAuth no history.state: é lido uma vez e tirado do histórico, para não voltar num F5.
+  const [connected] = useState(() => router.state.location.state.connectedNickname);
+  useEffect(() => {
+    if (connected) {
+      void navigate({ to: "/contas", replace: true, state: {} });
+    }
+  }, [connected, navigate]);
   const { accounts, summaryByAccount } = useAccountsOverview();
   const { start, starting, error } = useStartConnection();
   const [toDisconnect, setToDisconnect] = useState<{
