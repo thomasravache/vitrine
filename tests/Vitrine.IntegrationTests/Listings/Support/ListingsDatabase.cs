@@ -127,6 +127,25 @@ internal static class ListingsDatabase
         return (reader.GetInt64(0), reader.GetInt64(1));
     }
 
+    /// <summary>
+    /// Reescreve <c>status</c>, <c>started_at</c> e <c>completed_at</c> da conta direto no banco (ex.: sincronização
+    /// antiga, ou presa em <c>running</c>).
+    /// </summary>
+    public static async Task SetSyncStateAsync(
+        string connectionString, Guid accountId, string status, DateTimeOffset? startedAt, DateTimeOffset? completedAt, CancellationToken cancellationToken)
+    {
+        await AssertSchemaAsync(connectionString, cancellationToken);
+        await using var connection = await OpenAsync(connectionString, cancellationToken);
+        await using var command = new NpgsqlCommand(
+            "update listings.sync_states set status = @status, started_at = @started, completed_at = @completed where account_id = @account",
+            connection);
+        command.Parameters.AddWithValue("status", status);
+        command.Parameters.Add(new NpgsqlParameter("started", NpgsqlTypes.NpgsqlDbType.TimestampTz) { Value = (object?)startedAt?.ToUniversalTime() ?? DBNull.Value });
+        command.Parameters.Add(new NpgsqlParameter("completed", NpgsqlTypes.NpgsqlDbType.TimestampTz) { Value = (object?)completedAt?.ToUniversalTime() ?? DBNull.Value });
+        command.Parameters.AddWithValue("account", accountId);
+        Assert.Equal(1, await command.ExecuteNonQueryAsync(cancellationToken));
+    }
+
     /// <summary>Espera o estado de sincronização da conta satisfazer <paramref name="condition"/>; devolve a linha.</summary>
     public static async Task<SyncStateRow> WaitForSyncStateAsync(
         string connectionString, Guid accountId, Func<SyncStateRow, bool> condition, string because, CancellationToken cancellationToken,

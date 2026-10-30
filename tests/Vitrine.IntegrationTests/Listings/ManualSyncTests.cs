@@ -147,4 +147,33 @@ public sealed class ManualSyncTests(PostgresFixture postgres)
         Assert.Equal(runsBefore, gateway.RunsStarted(account.AccountId));
         Assert.Equal("paused", (await ListingsDatabase.ReadSyncStateAsync(connectionString, account.AccountId, cancellationToken))!.Status);
     }
+
+    [Fact]
+    [Trait("spec", "SPEC-0022:IT-08")]
+    public async Task Sync_de_conta_presa_em_running_ha_mais_de_1_hora_enfileira_de_fato_e_a_sincronizacao_roda()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var connectionString = await postgres.CreateDatabaseAsync(cancellationToken);
+        var gateway = new MercadoLivreItemsDouble();
+        await using var factory = ListingsHost.Create(connectionString, gateway);
+        using var api = new ListingsApi(factory);
+        var owner = await api.SignUpAsync(cancellationToken);
+        var item = ListingItem.New("active", price: 20m);
+        var account = await ListingsHost.ConnectAsync(factory, gateway, owner.WorkspaceId, cancellationToken, item);
+        var imported = await ListingsDatabase.ReadSyncStateAsync(connectionString, account.AccountId, cancellationToken);
+        var runsBefore = gateway.RunsStarted(account.AccountId);
+        gateway.Put(account.AccountId, item with { Price = 21m, LastUpdated = item.LastUpdated.AddHours(1) });
+
+        // Dado a conta presa em running (processo derrubado no meio) desde 2 h atrás, além do limite de travamento de 1 h
+        await ListingsDatabase.SetSyncStateAsync(
+            connectionString, account.AccountId, "running", DateTimeOffset.UtcNow.AddHours(-2), imported!.CompletedAt, cancellationToken);
+
+        // Quando POST /listings/sync é pedido
+        Assert.Equal([account.AccountId], await api.SyncAcceptedAsync(account.AccountId, cancellationToken));
+
+        // Então a sincronização é enfileirada de fato e roda: idle com completed_at novo e o anúncio atualizado
+        await ListingsDatabase.WaitForIdleAsync(connectionString, account.AccountId, imported.CompletedAt, cancellationToken);
+        Assert.Equal(runsBefore + 1, gateway.RunsStarted(account.AccountId));
+        Assert.Equal(21m, Assert.Single(await ListingsDatabase.ReadListingsAsync(connectionString, account.AccountId, cancellationToken)).Price);
+    }
 }

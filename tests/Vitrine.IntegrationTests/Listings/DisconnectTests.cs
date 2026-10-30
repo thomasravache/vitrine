@@ -40,4 +40,45 @@ public sealed class DisconnectTests(PostgresFixture postgres)
         Assert.All(listed, item => Assert.Equal(other.AccountId, item.GetProperty("accountId").GetGuid()));
         Assert.Single(listed);
     }
+
+    [Fact]
+    [Trait("spec", "SPEC-0022:IT-06")]
+    public async Task Notificacao_em_curso_quando_a_conta_e_desconectada_nao_deixa_linha_orfa()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var connectionString = await postgres.CreateDatabaseAsync(cancellationToken);
+        var gateway = new MercadoLivreItemsDouble();
+        await using var factory = ListingsHost.Create(connectionString, gateway);
+        using var api = new ListingsApi(factory);
+        var owner = await api.SignUpAsync(cancellationToken);
+        var item = ListingItem.New("active", price: 10m);
+        var account = await ListingsHost.ConnectAsync(factory, gateway, owner.WorkspaceId, cancellationToken, item);
+        gateway.Put(account.AccountId, item with { Price = 11m, LastUpdated = item.LastUpdated.AddHours(1) });
+
+        // Dado uma notificação do anúncio segurada na leitura do ML (já passou pela checagem da conta)
+        using (var read = gateway.HoldNextRead())
+        {
+            await ListingsHost.PublishAsync(factory, ListingsHost.ItemChanged(account, item.Id));
+            Assert.Contains(item.Id, await read.Reached.WaitAsync(TimeSpan.FromSeconds(30), cancellationToken));
+
+            // Quando a conta é desconectada antes de a notificação gravar
+            await ListingsHost.PublishAsync(factory, ListingsHost.Disconnected(account));
+            await Eventually.TrueAsync(
+                async () => await ListingsDatabase.CountRowsAsync(connectionString, account.AccountId, cancellationToken) == (0L, 0L),
+                TimeSpan.FromSeconds(30),
+                "a desconexão não apagou anúncios e estado da conta",
+                cancellationToken);
+        }
+
+        // Então, solta a notificação, não sobra linha da conta, nem na listagem
+        await Eventually.TrueAsync(
+            () => gateway.Reads(account.AccountId, item.Id) > 1,
+            TimeSpan.FromSeconds(30),
+            "a notificação não chegou a reler o anúncio",
+            cancellationToken);
+        await Task.Delay(TimeSpan.FromSeconds(2), cancellationToken);
+        Assert.Equal((0L, 0L), await ListingsDatabase.CountRowsAsync(connectionString, account.AccountId, cancellationToken));
+        var listed = await api.ListSuccessfullyAsync("status=all", cancellationToken);
+        Assert.Empty(listed.Items);
+    }
 }

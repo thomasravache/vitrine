@@ -18,7 +18,10 @@ internal sealed class MercadoLivreItemsDouble : IMercadoLivreItems
     private readonly ConcurrentDictionary<(Guid AccountId, string Status), Exception> _searchFailures = new();
     private readonly ConcurrentDictionary<Guid, int> _runs = new();
     private readonly ConcurrentDictionary<(Guid AccountId, string ItemId), int> _reads = new();
+    private readonly ConcurrentDictionary<(Guid AccountId, string Status), int> _searches = new();
+    private readonly ConcurrentDictionary<string, TaskCompletionSource> _statusGates = new(StringComparer.Ordinal);
     private TaskCompletionSource _gate = Released();
+    private ReadHold? _nextRead;
 
     /// <summary>IDs por página da busca (o contrato fala em "até 100").</summary>
     public int PageSize { get; init; } = 2;
@@ -64,6 +67,29 @@ internal sealed class MercadoLivreItemsDouble : IMercadoLivreItems
     /// <summary>Quantas leituras (<see cref="GetItemsAsync"/>) a conta recebeu, de qualquer anúncio.</summary>
     public int ReadsOf(Guid accountId) => _reads.Where(pair => pair.Key.AccountId == accountId).Sum(pair => pair.Value);
 
+    /// <summary>Quantas buscas de <paramref name="status"/> a conta recebeu (contadas na chegada, antes de qualquer espera).</summary>
+    public int SearchesStarted(Guid accountId, string status) =>
+        _searches.TryGetValue((accountId, status), out var searches) ? searches : 0;
+
+    /// <summary>Segura só as buscas de <paramref name="status"/> até o retorno ser descartado.</summary>
+    public IDisposable HoldSearch(string status)
+    {
+        var gate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _statusGates[status] = gate;
+        return new StatusRelease(this, status, gate);
+    }
+
+    /// <summary>
+    /// Segura a próxima chamada a <see cref="GetItemsAsync"/> (de qualquer conta): o resultado é lido do catálogo na
+    /// chegada e só é devolvido quando o retorno é descartado. <see cref="ReadHold.Reached"/> completa quando a chamada chega.
+    /// </summary>
+    public ReadHold HoldNextRead()
+    {
+        var hold = new ReadHold();
+        Volatile.Write(ref _nextRead, hold);
+        return hold;
+    }
+
     /// <summary>Segura toda busca até o retorno ser descartado.</summary>
     public IDisposable Hold()
     {
@@ -80,7 +106,13 @@ internal sealed class MercadoLivreItemsDouble : IMercadoLivreItems
             _runs.AddOrUpdate(accountId, 1, (_, runs) => runs + 1);
         }
 
+        _searches.AddOrUpdate((accountId, status), 1, (_, searches) => searches + 1);
         await Volatile.Read(ref _gate).Task.WaitAsync(cancellationToken);
+        if (_statusGates.TryGetValue(status, out var statusGate))
+        {
+            await statusGate.Task.WaitAsync(cancellationToken);
+        }
+
         if (_searchFailures.TryGetValue((accountId, status), out var failure))
         {
             throw failure;
@@ -104,7 +136,7 @@ internal sealed class MercadoLivreItemsDouble : IMercadoLivreItems
         }
     }
 
-    public Task<IReadOnlyList<MercadoLivreItemResult>> GetItemsAsync(
+    public async Task<IReadOnlyList<MercadoLivreItemResult>> GetItemsAsync(
         Guid accountId, IReadOnlyList<string> itemIds, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(itemIds);
@@ -121,7 +153,13 @@ internal sealed class MercadoLivreItemsDouble : IMercadoLivreItems
         IReadOnlyList<MercadoLivreItemResult> results = [.. itemIds.Select(id => catalog.TryGetValue(id, out var item)
             ? (MercadoLivreItemResult)new MercadoLivreItemResult.Found(item)
             : new MercadoLivreItemResult.NotFound(id))];
-        return Task.FromResult(results);
+        if (Interlocked.Exchange(ref _nextRead, null) is { } hold)
+        {
+            hold.Arrive(itemIds);
+            await hold.Released.WaitAsync(cancellationToken);
+        }
+
+        return results;
     }
 
     private static TaskCompletionSource Released()
@@ -129,6 +167,15 @@ internal sealed class MercadoLivreItemsDouble : IMercadoLivreItems
         var gate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         gate.SetResult();
         return gate;
+    }
+
+    private sealed class StatusRelease(MercadoLivreItemsDouble owner, string status, TaskCompletionSource gate) : IDisposable
+    {
+        public void Dispose()
+        {
+            owner._statusGates.TryRemove(status, out _);
+            gate.TrySetResult();
+        }
     }
 
     private sealed class Release(MercadoLivreItemsDouble owner, TaskCompletionSource gate) : IDisposable
@@ -139,6 +186,23 @@ internal sealed class MercadoLivreItemsDouble : IMercadoLivreItems
             gate.TrySetResult();
         }
     }
+}
+
+/// <summary>Leitura segurada por <see cref="MercadoLivreItemsDouble.HoldNextRead"/>.</summary>
+internal sealed class ReadHold : IDisposable
+{
+    private readonly TaskCompletionSource<IReadOnlyList<string>> _reached = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private readonly TaskCompletionSource _released = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+    /// <summary>Completa com os IDs pedidos quando a leitura chega (o resultado já foi lido do catálogo).</summary>
+    public Task<IReadOnlyList<string>> Reached => _reached.Task;
+
+    internal Task Released => _released.Task;
+
+    internal void Arrive(IReadOnlyList<string> itemIds) => _reached.TrySetResult([.. itemIds]);
+
+    /// <summary>Devolve o resultado lido na chegada.</summary>
+    public void Dispose() => _released.TrySetResult();
 }
 
 /// <summary>Builder de anúncios do ML (IDs <c>MLB</c> com 10 dígitos, todos do mesmo tamanho).</summary>

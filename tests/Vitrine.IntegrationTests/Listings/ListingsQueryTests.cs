@@ -85,6 +85,8 @@ public sealed class ListingsQueryTests(PostgresFixture postgres)
     [InlineData("cursor=nao-e-um-cursor", "cursor")]
     [InlineData("cursor=TRUNCATE", "cursor")]
     [InlineData("q=LONG", "q")]
+    [InlineData("limit=abc", "limit")]
+    [InlineData("accountId=xyz", "accountId")]
     public async Task Parametro_invalido_responde_400_VALIDATION_FAILED_com_o_campo_em_errors(string query, string field)
     {
         var cancellationToken = TestContext.Current.CancellationToken;
