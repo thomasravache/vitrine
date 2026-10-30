@@ -4,7 +4,7 @@ title: Telas de contas e anúncios (jornada conectar-conta)
 tier: full
 type: feature
 user_facing: true
-status: approved
+status: in-progress
 created: 2026-10-30
 parent: SPEC-0019
 depends_on: [SPEC-0024]

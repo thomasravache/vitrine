@@ -4,7 +4,7 @@ title: Simulador do Mercado Livre para desenvolvimento e E2E
 tier: full
 type: feature
 user_facing: false
-status: in-progress
+status: implemented
 created: 2026-10-30
 parent: SPEC-0019
 depends_on: []
@@ -281,7 +281,7 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 | G5 Integração & CI | PASS | build exit 0 (npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts a); test exit 0 (Duration  415ms (environment 61%, import 18%, transform 17%, tests 4%, worker 1%)); test_integration exit 0 (duration: 3m 47s 180ms); test_e2e exit 0 (30 passed (30.9s)); arch_test exit 0 (duration: 2s 069ms); security_scan exit 0 ([90m6:09PM[0m [32mINF[0m [1mno leaks found[0m); nota: PR #53 CI 8/8 verde + CodeQL (runs/41127127131) — 0986fb1 | 2026-10-30 |
 | H2 Integração aprovada | PASS | política auto-on-green (aprovada por thomas em 2026-10-13); G5 PASS | 2026-10-30 |
 | G6 Deploy | PASS | MANUAL: Deploy local prod-like (deploy/deploy.sh ff46f26 --env-file deploy/local/.env, perfil ml-simulator): health 200 em 4 s; vitrine-ml-simulator-1 no ar; https://ml-simulador.vitrine.localhost/health → 200 pelo Caddy; smoke @smoke 2/2; webhook com ML configurado → 400 para corpo vazio; 0 logs Error/Critical; IT-06 (deploy com o simulador) PASS no worktree; simulador nunca vai a staging/produção (ADR-0016) | 2026-10-30 |
-| G7 Pronto & Docs | PENDING | | |
+| G7 Pronto & Docs | PASS | Relatório de Entrega e Definição de Pronto: ok — 54dfb9d | 2026-10-30 |
 
 ## 13. Registro de Impedimentos
 <!-- Toda parada é registrada pelo Architect com `spec_graph.py impede` e fechada com `resolve` — não edite à mão. Tipos: spec (spec errada/incompleta → resolve com Emenda) | decisão (só o humano decide → resposta ou ADR) | trabalho (falta algo que exige código → SPEC-NNNN nova) | externo (acesso, ambiente, terceiro → ação tomada) | falha (3 FAILs seguidos no mesmo gate → diagnóstico e decisão). Com impedimento aberto a spec aparece como parada no INDEX e não pode ser fechada. -->
