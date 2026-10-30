@@ -5,7 +5,7 @@ namespace Vitrine.MercadoLivre.Infrastructure.Api;
 /// (<c>SELECT … FOR UPDATE</c>), grava os tokens novos cifrados e nunca retenta o refresh. Lança as exceções do
 /// <c>PublicApi</c> (conta inexistente, reconexão necessária, ML indisponível).
 /// </summary>
-public interface IMercadoLivreAccessTokenProvider
+internal interface IMercadoLivreAccessTokenProvider
 {
     /// <summary>Access token válido da conta, renovado antes se faltar menos de <c>RefreshSkew</c>.</summary>
     Task<string> GetAccessTokenAsync(Guid accountId, CancellationToken cancellationToken);

@@ -19,4 +19,9 @@
     <ProjectReference Include="..\..\..\Common\Vitrine.Common.Security\Vitrine.Common.Security.csproj" />
   </ItemGroup>
 
+  <!-- Peças internas do gateway (SPEC-0021: política de renovação, paginação, handler do token) testadas por unidade. -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="Vitrine.UnitTests" />
+  </ItemGroup>
+
 </Project>

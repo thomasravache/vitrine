@@ -7,7 +7,7 @@ namespace Vitrine.MercadoLivre.Infrastructure.Api;
 /// <summary>
 /// Resposta do <c>/items/bulk</c> (<c>[{ id, status_code, body }]</c>) para <see cref="MercadoLivreItemResult"/>
 /// (SPEC-0021): 200 → <see cref="MercadoLivreItemResult.Found"/>, 404 → <see cref="MercadoLivreItemResult.NotFound"/>,
-/// outro → <see cref="MercadoLivreItemResult.Unavailable"/>.
+/// outro (ou item malformado) → <see cref="MercadoLivreItemResult.Unavailable"/>. Só uma resposta que não é array lança.
 /// </summary>
 internal static class BulkItemMapper
 {
@@ -23,24 +23,38 @@ internal static class BulkItemMapper
         var results = new List<MercadoLivreItemResult>();
         foreach (var entry in response.EnumerateArray())
         {
-            try
+            // Entrada sem id legível: fica de fora (o ID pedido sem resultado vira Unavailable em quem chama).
+            if (entry.ValueKind != JsonValueKind.Object
+                || !entry.TryGetProperty("id", out var idElement)
+                || idElement.ValueKind != JsonValueKind.String
+                || string.IsNullOrEmpty(idElement.GetString()))
             {
-                var id = entry.GetProperty("id").GetString() ?? string.Empty;
-                var statusCode = entry.GetProperty("status_code").GetInt32();
-                results.Add(statusCode switch
-                {
-                    200 => new MercadoLivreItemResult.Found(Item(entry.GetProperty("body"))),
-                    404 => new MercadoLivreItemResult.NotFound(id),
-                    _ => new MercadoLivreItemResult.Unavailable(id),
-                });
+                continue;
             }
-            catch (Exception exception) when (exception is KeyNotFoundException or InvalidOperationException or FormatException)
-            {
-                throw new MercadoLivreUnavailableException(accountId, "resposta inválida do /items/bulk", exception);
-            }
+
+            var id = idElement.GetString()!;
+            results.Add(MapEntry(id, entry));
         }
 
         return results;
+    }
+
+    // Um item malformado (status_code ou body fora do contrato) vira Unavailable só para ele.
+    private static MercadoLivreItemResult MapEntry(string id, JsonElement entry)
+    {
+        try
+        {
+            return entry.GetProperty("status_code").GetInt32() switch
+            {
+                200 => new MercadoLivreItemResult.Found(Item(entry.GetProperty("body"))),
+                404 => new MercadoLivreItemResult.NotFound(id),
+                _ => new MercadoLivreItemResult.Unavailable(id),
+            };
+        }
+        catch (Exception exception) when (exception is KeyNotFoundException or InvalidOperationException or FormatException or ArgumentException)
+        {
+            return new MercadoLivreItemResult.Unavailable(id);
+        }
     }
 
     private static MercadoLivreItem Item(JsonElement body) =>

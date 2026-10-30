@@ -6,7 +6,7 @@ namespace Vitrine.MercadoLivre.Infrastructure.Api;
 /// Decide se o access token precisa ser renovado antes da chamada (SPEC-0021): só com menos de
 /// <see cref="MercadoLivreOptions.RefreshSkew"/> restante, ou quando forçado depois de um 401.
 /// </summary>
-public sealed class TokenRefreshPolicy
+internal sealed class TokenRefreshPolicy
 {
     private readonly TimeProvider _clock;
     private readonly IOptions<MercadoLivreOptions> _options;

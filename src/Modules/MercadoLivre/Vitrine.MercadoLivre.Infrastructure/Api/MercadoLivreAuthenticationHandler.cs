@@ -10,7 +10,7 @@ namespace Vitrine.MercadoLivre.Infrastructure.Api;
 /// <see cref="AccountId"/> nas opções da requisição. Um 401 do ML força uma renovação e repete a requisição uma vez; um
 /// novo 401 volta para quem chamou.
 /// </summary>
-public sealed class MercadoLivreAuthenticationHandler : DelegatingHandler
+internal sealed class MercadoLivreAuthenticationHandler : DelegatingHandler
 {
     /// <summary>Conta em nome da qual a requisição é feita.</summary>
     public static readonly HttpRequestOptionsKey<Guid> AccountId = new("Vitrine.MercadoLivre.AccountId");

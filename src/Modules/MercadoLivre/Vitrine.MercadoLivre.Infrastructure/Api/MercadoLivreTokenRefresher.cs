@@ -12,7 +12,8 @@ namespace Vitrine.MercadoLivre.Infrastructure.Api;
 
 /// <summary>
 /// <c>POST /oauth/token</c> com <c>grant_type=refresh_token</c> pelo cliente <see cref="MercadoLivreModule.OAuthHttpClientName"/>
-/// (SPEC-0021): uma única tentativa, nunca retentada (o refresh token é de uso único). Logs só com o status e o
+/// (SPEC-0021): uma única tentativa, nunca retentada (o refresh token é de uso único), limitada pelo timeout de 10 s
+/// do cliente. Quem chama passa um token desacoplado da tentativa HTTP em curso. Logs só com o status e o
 /// <c>error</c> do ML; nunca tokens nem o client secret (ADR-0006).
 /// </summary>
 internal sealed partial class MercadoLivreTokenRefresher(
@@ -63,8 +64,9 @@ internal sealed partial class MercadoLivreTokenRefresher(
             return new TokenRefresh.Renewed(
                 new MercadoLivreTokens(body.AccessToken, body.RefreshToken, TimeSpan.FromSeconds(body.ExpiresIn)));
         }
-        catch (Exception exception) when (exception is HttpRequestException or ExecutionRejectedException or JsonException or NotSupportedException
-            || (exception is OperationCanceledException && !cancellationToken.IsCancellationRequested))
+        // Qualquer falha (inclusive timeout do cliente ou cancelamento) é Failed: quem chama nunca retenta o refresh.
+        catch (Exception exception) when (exception is HttpRequestException or ExecutionRejectedException or JsonException
+            or NotSupportedException or OperationCanceledException)
         {
             Log.Unreachable(logger, exception.GetType().Name);
             return new TokenRefresh.Failed();

@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Polly.CircuitBreaker;
 using Polly.Timeout;
+using Vitrine.MercadoLivre.Infrastructure.Diagnostics;
 using Vitrine.MercadoLivre.Infrastructure.Persistence;
 using Vitrine.MercadoLivre.PublicApi;
 
@@ -16,8 +17,14 @@ namespace Vitrine.MercadoLivre.Infrastructure.Api;
 /// <see cref="IMercadoLivreItems"/> pelo cliente <see cref="MercadoLivreModule.ApiHttpClientName"/> (SPEC-0021): o token
 /// é anexado pelo <see cref="MercadoLivreAuthenticationHandler"/> e a resiliência é a do pipeline do cliente. Falhas do
 /// ML viram <see cref="MercadoLivreUnavailableException"/> sem mudar a conta; um 401 que persiste depois da renovação
-/// forçada leva a conta a <c>reauthorization_required</c>.
+/// forçada leva a conta a <c>reauthorization_required</c>. Cada chamada gera um span (<c>ml.endpoint</c>,
+/// <c>ml.account_id</c>).
 /// </summary>
+/// <remarks>
+/// Não pode ser chamado dentro de uma transação que já trave linhas de <c>mercadolivre.accounts</c>: a renovação do token
+/// trava a linha da conta em outra conexão e esperaria por esse lock até desistir com
+/// <see cref="MercadoLivreUnavailableException"/>.
+/// </remarks>
 internal sealed class MercadoLivreItemsGateway(
     MercadoLivreModuleDbContext db,
     IHttpClientFactory httpClients,
@@ -29,6 +36,9 @@ internal sealed class MercadoLivreItemsGateway(
         "body.id,body.seller_id,body.title,body.price,body.currency_id,body.available_quantity,body.sold_quantity,"
         + "body.status,body.permalink,body.thumbnail,body.secure_thumbnail,body.listing_type_id,body.last_updated";
 
+    // Modelo do caminho da busca no span (sem o id do vendedor).
+    private const string SearchEndpoint = "/users/{id}/items/search";
+
     private MercadoLivreOptions Options => options.Value;
 
     public async IAsyncEnumerable<IReadOnlyList<string>> SearchItemIdsAsync(
@@ -38,10 +48,25 @@ internal sealed class MercadoLivreItemsGateway(
         var mlUserId = await MlUserIdAsync(accountId, cancellationToken);
         var path = string.Create(CultureInfo.InvariantCulture, $"users/{mlUserId}/items/search");
 
-        await foreach (var page in ItemSearchPaginator.PaginateAsync(
-            (request, token) => FetchSearchPageAsync(accountId, path, status, request, token), cancellationToken))
+        var pages = ItemSearchPaginator.PaginateAsync(
+            (request, token) => FetchSearchPageAsync(accountId, path, status, request, token), cancellationToken);
+        await using var enumerator = pages.GetAsyncEnumerator(cancellationToken);
+        while (true)
         {
-            yield return page;
+            try
+            {
+                if (!await enumerator.MoveNextAsync())
+                {
+                    yield break;
+                }
+            }
+            catch (MercadoLivreUnavailableException exception) when (exception.AccountId == Guid.Empty)
+            {
+                // Falha do paginador (scan que não avança): completa com a conta.
+                throw new MercadoLivreUnavailableException(accountId, exception.Message, exception);
+            }
+
+            yield return enumerator.Current;
         }
     }
 
@@ -63,7 +88,7 @@ internal sealed class MercadoLivreItemsGateway(
                 ["ids"] = string.Join(',', batch),
                 ["attributes"] = BulkAttributes,
             };
-            using var document = await GetJsonAsync(accountId, QueryHelpers.AddQueryString("items/bulk", query), cancellationToken);
+            using var document = await GetJsonAsync(accountId, "/items/bulk", QueryHelpers.AddQueryString("items/bulk", query), cancellationToken);
             foreach (var result in BulkItemMapper.Map(accountId, document.RootElement))
             {
                 found[result.ItemId] = result;
@@ -95,7 +120,7 @@ internal sealed class MercadoLivreItemsGateway(
             query["offset"] = request.Offset.ToString(CultureInfo.InvariantCulture);
         }
 
-        using var document = await GetJsonAsync(accountId, QueryHelpers.AddQueryString(path, query), cancellationToken);
+        using var document = await GetJsonAsync(accountId, SearchEndpoint, QueryHelpers.AddQueryString(path, query), cancellationToken);
         try
         {
             var root = document.RootElement;
@@ -116,8 +141,9 @@ internal sealed class MercadoLivreItemsGateway(
     }
 
     /// <summary>GET autenticado à API do ML; devolve o JSON ou lança a exceção do contrato.</summary>
-    private async Task<JsonDocument> GetJsonAsync(Guid accountId, string relativeUrl, CancellationToken cancellationToken)
+    private async Task<JsonDocument> GetJsonAsync(Guid accountId, string endpoint, string relativeUrl, CancellationToken cancellationToken)
     {
+        using var activity = MercadoLivreTracing.StartApiCall(endpoint, accountId);
         using var request = new HttpRequestMessage(HttpMethod.Get, new Uri($"{Options.ApiBaseUrl.TrimEnd('/')}/{relativeUrl}"));
         request.Options.Set(MercadoLivreAuthenticationHandler.AccountId, accountId);
         request.Headers.Accept.Add(new("application/json"));

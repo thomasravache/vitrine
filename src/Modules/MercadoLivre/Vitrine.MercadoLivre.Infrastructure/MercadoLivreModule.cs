@@ -44,6 +44,9 @@ public static class MercadoLivreModule
     /// <summary>Meter das métricas do módulo (<c>vitrine.mercadolivre.*</c>).</summary>
     public const string MeterName = "Vitrine.MercadoLivre";
 
+    /// <summary><c>ActivitySource</c> dos spans do gateway da API do ML (SPEC-0021); o host o assina no OpenTelemetry.</summary>
+    public const string ActivitySourceName = "Vitrine.MercadoLivre";
+
     /// <summary>Propósito do <c>IFieldProtector</c> para tokens e verifier (SPEC-0008).</summary>
     public const string TokensProtectionPurpose = "mercadolivre.tokens";
 
