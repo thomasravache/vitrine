@@ -29,7 +29,10 @@ internal static class MercadoLivreHost
     /// <summary>Api com o ML configurado; <paramref name="omit"/> deixa uma das <see cref="RequiredKeys"/> vazia.</summary>
     public static ApiFactory Create(string connectionString, string? omit = null)
     {
-        var factory = IdentityHost.Create(connectionString).RedirectToWireMock(MercadoLivreModule.HttpClientName);
+        var factory = IdentityHost.Create(connectionString)
+            .RedirectToWireMock(MercadoLivreModule.HttpClientName)
+            .RedirectToWireMock(MercadoLivreModule.ApiHttpClientName)
+            .RedirectToWireMock(MercadoLivreModule.OAuthHttpClientName);
         var settings = new Dictionary<string, string>(StringComparer.Ordinal)
         {
             ["ClientId"] = ClientId,

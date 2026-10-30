@@ -87,7 +87,7 @@ public sealed class MercadoLivreEventsContractTests(PostgresFixture postgres)
         Assert.InRange(OccurredAt(disconnected), OccurredAt(connected), after.AddSeconds(1));
     }
 
-    private static void AssertPublishedSchema(Type contract, Dictionary<string, Type> schema)
+    internal static void AssertPublishedSchema(Type contract, Dictionary<string, Type> schema)
     {
         Assert.Equal("Vitrine.MercadoLivre.IntegrationEvents", contract.Namespace);
         var properties = contract.GetProperties(BindingFlags.Public | BindingFlags.Instance)
@@ -95,7 +95,7 @@ public sealed class MercadoLivreEventsContractTests(PostgresFixture postgres)
         Assert.Equal(schema.OrderBy(field => field.Key, StringComparer.Ordinal), properties.OrderBy(field => field.Key, StringComparer.Ordinal));
     }
 
-    private static JsonElement AssertPayload(object message, Dictionary<string, Type> schema)
+    internal static JsonElement AssertPayload(object message, Dictionary<string, Type> schema)
     {
         var payload = JsonSerializer.SerializeToElement(message, message.GetType(), WebJson);
         Assert.Equal(JsonValueKind.Object, payload.ValueKind);
@@ -118,7 +118,7 @@ public sealed class MercadoLivreEventsContractTests(PostgresFixture postgres)
         return payload;
     }
 
-    private static DateTimeOffset OccurredAt(JsonElement payload)
+    internal static DateTimeOffset OccurredAt(JsonElement payload)
     {
         Assert.True(TryParseUtc(payload.GetProperty("occurredAt").GetString(), out var occurredAt), "occurredAt inválido.");
         return occurredAt;

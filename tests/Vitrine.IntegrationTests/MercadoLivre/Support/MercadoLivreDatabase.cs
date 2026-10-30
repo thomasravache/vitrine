@@ -150,6 +150,16 @@ internal static class MercadoLivreDatabase
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
+    /// <summary>Muda <c>accounts.status</c> da conta direto no banco (ex.: <c>reauthorization_required</c>).</summary>
+    public static async Task SetStatusAsync(string connectionString, Guid accountId, string status, CancellationToken cancellationToken)
+    {
+        await using var connection = await OpenAsync(connectionString, cancellationToken);
+        await using var command = new NpgsqlCommand("update mercadolivre.accounts set status = @status where id = @id", connection);
+        command.Parameters.AddWithValue("status", status);
+        command.Parameters.AddWithValue("id", accountId);
+        Assert.Equal(1, await command.ExecuteNonQueryAsync(cancellationToken));
+    }
+
     private static async Task<string> TextOfAsync(string connectionString, string sql, CancellationToken cancellationToken)
     {
         await using var connection = await OpenAsync(connectionString, cancellationToken);

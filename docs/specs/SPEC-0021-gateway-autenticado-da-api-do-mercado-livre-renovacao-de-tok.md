@@ -4,14 +4,14 @@ title: Gateway autenticado da API do Mercado Livre (renovação de token e resil
 tier: full
 type: feature
 user_facing: false
-status: approved
+status: in-progress
 created: 2026-10-30
 parent: SPEC-0019
 depends_on: [SPEC-0026]
 consumes_contract: [SPEC-0020@1]
 contract_version: 1
 # breaking: "o que quebra para consumidores e como migrar"   # só se houver quebra; vai para o PR e pede `!` no título
-touches: [src/Modules/MercadoLivre/**, tests/Vitrine.UnitTests/**, tests/Vitrine.IntegrationTests/**, tests/Vitrine.ArchitectureTests/**]
+touches: [src/Modules/MercadoLivre/**, tests/Vitrine.UnitTests/**, tests/Vitrine.IntegrationTests/**, tests/Vitrine.ArchitectureTests/**, src/Api/Observability/ObservabilityExtensions.cs]
 adrs: [ADR-0001, ADR-0006, ADR-0010, ADR-0014]
 external: []
 size: M
@@ -44,7 +44,7 @@ O gateway:
   - evento `MercadoLivreAccountReauthorizationRequired` v1 no outbox.
 - Em 401 numa chamada da API: uma renovação forçada e uma nova tentativa. Novo 401 leva a "reconectar necessário".
 - Cliente HTTP nomeado `mercadolivre-api` com resiliência:
-  - retry de até 3 tentativas para 408/429/5xx/erro de rede, respeitando `Retry-After` (máx. 30 s);
+  - retry com até 3 tentativas **no total** por chamada (1 + 2 retries, `MaxRetryAttempts = 2`) para 408/429/5xx/erro de rede, respeitando `Retry-After` (máx. 30 s);
   - timeout de 10 s por tentativa e de 60 s no total;
   - circuit breaker padrão do Http.Resilience.
 - Busca de IDs:
@@ -198,22 +198,24 @@ Configuração nova: MercadoLivre:BulkBatchSize (padrão 20, 1..100), MercadoLiv
   - com `total` > 1000, descarta a 1ª página e passa a `scan`, seguindo o `scroll_id` até `results` vazio ou `scroll_id` null;
   - nunca entra em laço quando o `scroll_id` se repete com `results` vazio.
 - **UT-03** — Dado o handler de autenticação, quando a requisição vai para um host diferente de `ApiBaseUrl`, então não anexa `Authorization`.
+  Inclui: `MercadoLivre:BulkBatchSize` fora de 1..100 reprova a validação das opções.
 - **UT-04** — Dado os assemblies, quando as regras de arquitetura rodam, então:
   - `MercadoLivre.PublicApi` só referencia BCL;
   - nenhum tipo público tem membro com "token"/"secret";
   - `Infrastructure` não é referenciado por outros módulos.
 
 ### 7.3 Testes de Integração
-<!-- Postgres real + WireMock no lugar de api.mercadolibre.com (SPEC-0003 (IT 03)). Conta criada direto no banco pelo builder da SPEC-0020 (tokens cifrados). -->
+<!-- Postgres real + WireMock no lugar de api.mercadolibre.com (SPEC-0003 (IT 03)). Conta criada direto no banco pelo DbContext do módulo, com tokens cifrados (suporte `MercadoLivreGateway` dos testes). -->
 - **IT-01** — Dado uma conta com token válido, quando `GetItemsAsync` é chamado, então o WireMock recebe `Authorization: Bearer <token>` e nenhum `/oauth/token`. Para conta inexistente, lança `AccountNotFound`. Para conta em `reauthorization_required`, lança `ReauthorizationRequired`. Nos dois últimos casos, sem chamada ao ML.
 - **IT-02** — Dado uma conta com token expirando, quando há uma chamada:
   - com o refresh 200, os tokens novos ficam gravados cifrados (o refresh token novo substitui o antigo) e a chamada segue com o token novo;
   - com `invalid_grant`, a conta fica `reauthorization_required` com os tokens apagados, `MercadoLivreAccountReauthorizationRequired` vai para o outbox e a exceção é lançada;
   - com 500 no refresh, a conta não muda, `Unavailable` é lançada e o WireMock registrou exatamente 1 `POST /oauth/token`.
 - **IT-03** — Dado uma conta com token expirado, quando 5 chamadas `GetItemsAsync` rodam em paralelo (escopos de DI distintos), então o WireMock registra exatamente 1 `POST /oauth/token`, e todas as 5 chamadas ao bulk usam o token novo.
+  Inclui: cada renovação incrementa `vitrine.mercadolivre.token_refreshes{result}` com `renewed`, `reauthorization_required` ou `unavailable`.
 - **IT-04** — Dado o WireMock:
   - respondendo 429 com `Retry-After: 1` e depois 200, a chamada conclui após ≥ 1 s;
-  - respondendo 503 sempre, lança `Unavailable` depois de 3 tentativas, e as chamadas seguintes falham sem chegar ao WireMock enquanto o circuito estiver aberto.
+  - respondendo 503 sempre, lança `Unavailable` depois de exatamente 3 requisições, e as chamadas seguintes falham sem chegar ao WireMock enquanto o circuito estiver aberto. Para tornar o circuito observável, só o host deste teste reduz `MinimumThroughput` e o atraso base do retry; contagem de tentativas e timeouts são os do módulo. Também prova o teto de 30 s do `Retry-After` (valor maior é limitado) e o timeout por tentativa.
 - **IT-05** — Dado o bulk respondendo 401 uma vez, quando chamado, então há 1 renovação forçada e a chamada repetida conclui. Se o 401 se repete depois da renovação, então lança `ReauthorizationRequired` e a conta fica nesse status.
 - **IT-06** — Dado a busca com `total=250`, quando `SearchItemIdsAsync` é chamado, então há 3 páginas por offset. Com `total=2300`, há páginas `scan` com `scroll_id` encadeado até `results` vazio, e todos os IDs são devolvidos.
 - **IT-07** — Dado 45 IDs, com uma resposta de `/items/bulk` no formato documentado (`id`, `status_code`, `body`) e um ID com `status_code` 404, quando `GetItemsAsync` é chamado, então:
@@ -223,7 +225,7 @@ Configuração nova: MercadoLivre:BulkBatchSize (padrão 20, 1..100), MercadoLiv
 
 ### 7.4 Testes de Contrato
 - **CT-01** — Dado uma renovação recusada, quando um assinante de teste recebe `MercadoLivreAccountReauthorizationRequired`, então o payload valida contra o schema v1 (seção 6). A SPEC-0022 consome esse contrato.
-- **CT-02** — Dado a fixture de resposta do `/items/bulk` copiada da documentação do ML (versionada em `tests/.../Fixtures`, com URL e data), quando mapeada pelo gateway, então produz `MercadoLivreItem` com todos os campos do contrato. É o contrato do `PublicApi` consumido pela SPEC-0022, que testa contra um dublê dessa interface.
+- **CT-02** — Dado a fixture de resposta do `/items/bulk` no formato do §6 (versionada em `tests/Vitrine.IntegrationTests/MercadoLivre/Fixtures`, com a origem anotada; a SPEC-0024 a substitui pela cópia da documentação na pasta compartilhada `tests/Fixtures/MercadoLivre/`), quando mapeada pelo gateway, então produz `MercadoLivreItem` com todos os campos do contrato. É o contrato do `PublicApi` consumido pela SPEC-0022, que testa contra um dublê dessa interface.
 
 ### 7.5 Testes E2E
 - N/A — sem jornada de usuário própria. A jornada com renovação e reconexão é a SPEC-0025 (E2E 02), contra o simulador.
@@ -260,18 +262,18 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 ## 11. Checklist de Implementação
 <!-- Preenchido na fase PLAN, após a aprovação. Cada fase começa pelos testes. -->
 **Fase 1: Política de token e mapeamento**
-- [ ] Red: escrever UT-01..UT-04 com a tag `SPEC-0021:<ID>` e confirmar que falham pelo motivo certo
-- [ ] Green: decisão de renovação antecipada, mapeamento de erros do ML para exceções públicas e filtro de miniatura `*.mlstatic.com`
-- [ ] Refactor mantendo tudo verde
+- [x] Red: escrever UT-01..UT-04 com a tag `SPEC-0021:<ID>` e confirmar que falham pelo motivo certo
+- [x] Green: decisão de renovação antecipada, mapeamento de erros do ML para exceções públicas e filtro de miniatura `*.mlstatic.com`
+- [x] Refactor mantendo tudo verde
 
 **Fase 2: Gateway com WireMock**
-- [ ] Red: escrever IT-01..IT-08, CT-01 e CT-02 com a tag `SPEC-0021:<ID>` e confirmar que falham pelo motivo certo
-- [ ] Green: `IMercadoLivreItems` com refresh sob lock `FOR UPDATE` sem retry, `reauthorization_required` + evento, cliente `mercadolivre-api` resiliente, busca com `scan` e `/items/bulk` em lotes de 20
-- [ ] Refactor mantendo tudo verde
-- [ ] Validar: build + suíte completa + arquitetura (G2/G3)
+- [x] Red: escrever IT-01..IT-08, CT-01 e CT-02 com a tag `SPEC-0021:<ID>` e confirmar que falham pelo motivo certo
+- [x] Green: `IMercadoLivreItems` com refresh sob lock `FOR UPDATE` sem retry, `reauthorization_required` + evento, cliente `mercadolivre-api` resiliente, busca com `scan` e `/items/bulk` em lotes de 20
+- [x] Refactor mantendo tudo verde
+- [x] Validar: build + suíte completa + arquitetura (G2/G3)
 
 **Fase final: Integração, entrega e documentação**
-- [ ] Review independente (G4)
+- [x] Review independente (G4)
 - [ ] Integração + CI verde (G5) e aprovação (H2)
 - [ ] Deploy no ambiente local prod-like com smoke (G6)
 - [ ] Relatório de Entrega, docs raiz e CHANGELOG (G7)
@@ -281,10 +283,10 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 | Gate | Status | Evidência | Data |
 |---|---|---|---|
 | G0 Spec | PASS | validate: 0 erro(s) — ddc6ebd (árvore suja) | 2026-10-30 |
-| G1 Red | PENDING | | |
-| G2 Green | PENDING | | |
-| G3 Arquitetura | PENDING | | |
-| G4 Review | PENDING | | |
+| G1 Red | PASS | verify G1: PASS; `dotnet test tests/Vitrine.UnitTests && npm --prefix web run test` exit 2 (red: Test run completed with non-success exit code: 2 (see: https://aka.ms/testingplatform/exit) — 2d83d7e | 2026-10-30 |
+| G2 Green | PASS | build exit 0 (npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts a); test exit 0 (Duration  536ms (environment 63%, transform 16%, import 12%, tests 5%, worker 4%)); lint exit 0 ([0m[34mChecked 40 files in 22[0m[0m[2m[34mms[0m[0m[34m.[0m[0m[34m No fixes app); coverage exit 0 (Coverage: 86%) — f280c04 | 2026-10-30 |
+| G3 Arquitetura | PASS | arch_test exit 0 (duration: 1s 303ms) — f280c04 | 2026-10-30 |
+| G4 Review | PASS | verify G1+G4: PASS; revisão: Reviewer independente: APPROVED_WITH_NOTES (3ª rodada; 0 blocker/major; risco aceito: refresh 200 + commit falho → log Critical e reconexão na próxima renovação; nit de log duplicado) — f280c04 | 2026-10-30 |
 | G5 Integração & CI | PENDING | | |
 | H2 Integração aprovada | PENDING | | |
 | G6 Deploy | PENDING | | |
@@ -294,6 +296,7 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 <!-- Toda parada é registrada pelo Architect com `spec_graph.py impede` e fechada com `resolve` — não edite à mão. Tipos: spec (spec errada/incompleta → resolve com Emenda) | decisão (só o humano decide → resposta ou ADR) | trabalho (falta algo que exige código → SPEC-NNNN nova) | externo (acesso, ambiente, terceiro → ação tomada) | falha (3 FAILs seguidos no mesmo gate → diagnóstico e decisão). Com impedimento aberto a spec aparece como parada no INDEX e não pode ser fechada. -->
 | ID | Aberto em | Fase/Gate | Tipo | Descrição | Tentativas | Responsável | Resolução | Fechado em |
 |---|---|---|---|---|---|---|---|---|
+| IMP-01 | 2026-10-30 | G1 | spec | Contagem de tentativas ambígua (até 3 tentativas vs MaxRetryAttempts=3 = 4 requisições); circuit breaker padrão inobservável em IT (MinimumThroughput 100); procedência da fixture do CT-02 (doc do ML 403 ao WebFetch; pasta compartilhada fora de touches); 'builder da SPEC-0020' inexistente; métrica, timeouts, teto do Retry-After e validação de BulkBatchSize sem teste no plano | Test-writer assumiu 3 requisições no total, ajustou o circuito só no host do IT-04 e versionou a fixture em tests/Vitrine.IntegrationTests/MercadoLivre/Fixtures | Architect | Emenda v1.1 — tentativas, circuito no IT-04, cobertura de métrica/BulkBatchSize/Retry-After e fixture do CT-02 | 2026-10-30 |
 
 ## 14. Relatório de Entrega
 <!-- Preenchido no CLOSE (G7). Diz o que foi feito, como, e prova que foi resolvido. Para status implemented o validate exige todas as subseções preenchidas, todo teste do plano com PASS + evidência e a Definição de Pronto toda marcada. -->
@@ -335,3 +338,5 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 <!-- Mudança em spec aprovada: uma linha por emenda. Mudou o contrato? Incremente `contract_version` e rode `spec_graph.py impacted SPEC-0021`. -->
 | Versão do contrato | Data | Mudança | Motivo | Specs impactadas | Aprovado por |
 |---|---|---|---|---|---|
+| v1.1 (contrato inalterado) | 2026-10-30 | 3 tentativas no total (2 retries); IT-04 pode reduzir `MinimumThroughput`/atraso base só no seu host e cobre o teto do `Retry-After` e o timeout por tentativa; IT-03 cobre a métrica e UT-03 a validação de `BulkBatchSize`; fixture do CT-02 no formato do §6 até a SPEC-0024 trazer a cópia da documentação | Ambiguidades apontadas pelo Test-writer no G1 (IMP-01) | SPEC-0024 (substitui a fixture) | thomas (piloto automático do épico SPEC-0019) |
+| v1.2 (contrato inalterado) | 2026-10-30 | `touches` inclui `src/Api/Observability/ObservabilityExtensions.cs` (registro do `ActivitySource` `Vitrine.MercadoLivre` no OpenTelemetry, onde o meter do módulo já é registrado) | Spans do Plano de Rollout §8 pedidos no G4 | nenhuma | thomas (piloto automático do épico SPEC-0019) |

@@ -71,6 +71,29 @@ public sealed class MercadoLivreAccount
         Apply(seller, tokens, now, reconnected: true);
     }
 
+    /// <summary>Grava os tokens de uma renovação (o refresh token novo substitui o antigo, que é de uso único).</summary>
+    public void RenewTokens(MercadoLivreTokens tokens, DateTimeOffset now)
+    {
+        ArgumentNullException.ThrowIfNull(tokens);
+        ArgumentException.ThrowIfNullOrWhiteSpace(tokens.AccessToken);
+        ArgumentException.ThrowIfNullOrWhiteSpace(tokens.RefreshToken);
+
+        AccessToken = tokens.AccessToken;
+        RefreshToken = tokens.RefreshToken;
+        AccessTokenExpiresAt = now + tokens.ExpiresIn;
+        UpdatedAt = now;
+    }
+
+    /// <summary>O ML recusou os tokens: a conta precisa ser reconectada pelo Owner e os tokens são apagados.</summary>
+    public void RequireReauthorization(DateTimeOffset now)
+    {
+        Status = MercadoLivreAccountStatus.ReauthorizationRequired;
+        AccessToken = string.Empty;
+        RefreshToken = string.Empty;
+        AccessTokenExpiresAt = now;
+        UpdatedAt = now;
+    }
+
     private void Apply(MercadoLivreSeller seller, MercadoLivreTokens tokens, DateTimeOffset now, bool reconnected)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tokens.AccessToken);

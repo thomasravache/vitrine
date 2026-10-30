@@ -4,7 +4,7 @@ title: UseFieldProtection cria um provedor interno do EF por protetor
 tier: lite
 type: fix
 user_facing: false
-status: in-progress
+status: implemented
 created: 2026-10-30
 parent: SPEC-0019
 depends_on: [SPEC-0020]
@@ -62,9 +62,9 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 
 **Fase final: Integração, entrega e documentação**
 - [x] Review independente (G4)
-- [ ] Integração + CI verde (G5) e aprovação (H2)
-- [ ] Deploy no ambiente local prod-like com smoke (G6)
-- [ ] Relatório de Entrega e CHANGELOG (G7)
+- [x] Integração + CI verde (G5) e aprovação (H2)
+- [x] Deploy no ambiente local prod-like com smoke (G6)
+- [x] Relatório de Entrega e CHANGELOG (G7)
 
 ## 8. Registro de Gates
 <!-- Status: PENDING | PASS | FAIL | N/A. PASS e N/A exigem evidência. -->
@@ -75,10 +75,10 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 | G2 Green | PASS | build exit 0 (npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts a); test exit 0 (Duration  366ms (environment 63%, transform 17%, import 14%, tests 5%, worker 2%)); lint exit 0 ([0m[34mChecked 40 files in 19[0m[0m[2m[34mms[0m[0m[34m.[0m[0m[34m No fixes app); coverage exit 0 (Coverage: 96%) — 7d3ebc4 | 2026-10-30 |
 | G3 Arquitetura | PASS | arch_test exit 0 (duration: 1s 532ms) — 7d3ebc4 | 2026-10-30 |
 | G4 Review | PASS | verify G1+G4: PASS; revisão: Reviewer independente: APPROVED_WITH_NOTES (0 blocker/major; guarda contra ReplaceService<IModelSource> aceita como risco residual) — 7d3ebc4 | 2026-10-30 |
-| G5 Integração & CI | PENDING | | |
-| H2 Integração aprovada | PENDING | | |
-| G6 Deploy | PENDING | | |
-| G7 Pronto & Docs | PENDING | | |
+| G5 Integração & CI | PASS | build exit 0 (npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts a); test exit 0 (Duration  359ms (environment 61%, import 17%, transform 16%, tests 5%, worker 2%)); test_integration exit 0 (duration: 2m 18s 059ms); test_e2e exit 0 (30 passed (30.4s)); arch_test exit 0 (duration: 1s 384ms); security_scan exit 0 ([90m10:46AM[0m [32mINF[0m [1mno leaks found[0m); nota: PR #48 CI 8/8 verde + CodeQL (runs/41064867437) — 88cf8e5 | 2026-10-30 |
+| H2 Integração aprovada | PASS | política auto-on-green (aprovada por thomas em 2026-10-13); G5 PASS | 2026-10-30 |
+| G6 Deploy | PASS | MANUAL: Deploy local prod-like (deploy/deploy.sh 5261c97 --env-file deploy/local/.env): health 200 em 3 s; smoke @smoke 2/2; /api/v1/mercadolivre/accounts sem sessão → 401; 0 logs Error/Critical; staging/produção na SPEC-0009 | 2026-10-30 |
+| G7 Pronto & Docs | PASS | Relatório de Entrega e Definição de Pronto: ok — 87b36b8 | 2026-10-30 |
 
 ## 9. Registro de Impedimentos
 <!-- Toda parada é registrada pelo Architect com `spec_graph.py impede` e fechada com `resolve` — não edite à mão. Tipos: spec (spec errada/incompleta → resolve com Emenda) | decisão (só o humano decide → resposta ou ADR) | trabalho (falta algo que exige código → SPEC-NNNN nova) | externo (acesso, ambiente, terceiro → ação tomada) | falha (3 FAILs seguidos no mesmo gate → diagnóstico e decisão). Com impedimento aberto a spec aparece como parada no INDEX e não pode ser fechada. -->
@@ -89,28 +89,39 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 <!-- Preenchido no CLOSE (G7). Para status implemented o validate exige tudo preenchido, todo teste do plano com PASS + evidência e a Definição de Pronto marcada. -->
 
 ### O que foi entregue
+`UseFieldProtection` (SPEC-0008) passa a usar um único provedor interno do EF Core para todos os protetores, sem estourar o limite de 20 provedores quando vários hosts sobem no mesmo processo. Cada contexto continua cifrando e decifrando com o próprio protetor. O módulo MercadoLivre voltou ao caminho padrão (`UseFieldProtection` + `IsProtected("mercadolivre.tokens")`), sem o contorno local da SPEC-0020.
 
 ### Como foi feito
+- `src/Common/Vitrine.Common.Security/FieldProtectionOptionsExtension.cs`: hash e igualdade da extensão constantes; `FieldProtectionModelSource` (herda `ModelSource`, registrado com `Replace(IModelSource)`) decora a `IModelCacheKeyFactory` já resolvida (a do EF ou a do Wolverine) com a identidade do protetor na chave do modelo — sem referenciar tipos internos do Wolverine.
+- MercadoLivre: removidos o `ValueConverter` local, `ProtectorModelCacheKeyFactory` e a dependência de `Wolverine.EntityFrameworkCore.Internals`. Sem migração; o snapshot do EF não mudou; formato cifrado, purposes, chaves e colunas iguais.
+- Guardas herdadas do G4 da SPEC-0020: corrida no mesmo workspace exige 201 + 200; agendamento `CleanupPendingAuthorizations` (`0 3 * * *`, UTC) conferido nas `WolverineOptions` (tags `SPEC-0020:IT-04`/`IT-03`).
+- Emenda v1.1: texto do padrão/IT-01 (o Identity não tem campo protegido).
+- Risco residual aceito no G4: se alguém chamar `ReplaceService<IModelSource>()`, a separação por protetor some sem aviso (sem efeito em produção, com um protetor por host); nada no repositório ou nas dependências faz isso hoje.
 
 ### Prova de Correção
-<!-- type fix: teste de regressão falhou antes (commit red + saída) e passa depois (commit green + execução). Outros tipos: "N/A". -->
+- Red (`0b35a4b`, antes do fix): UT-01 falhou com "5 protetores criaram 5 provedores de serviços internos do EF Core (esperado: 1)"; IT-01 falhou no host 18 de 25 com `ManyServiceProvidersCreatedWarning`. G1 registrado em 193c8a9.
+- Green (`7d3ebc4`): UT-01 e IT-01 passam (3/3 e 2/2 execuções no G4); suíte completa 278/278; CI do PR #48 (runs/41064867437) verde.
 
 ### Verificação
 | Teste | Comportamento | Resultado | Evidência |
 |---|---|---|---|
+| UT-01 | Dois ou mais protetores compartilham um provedor interno e cada um cifra/decifra só com o próprio | PASS | CI PR #48 runs/41064867437 (88cf8e5); main 5261c97 |
+| IT-01 | 25 hosts no mesmo processo sem `ManyServiceProvidersCreatedWarning`, valores decifrados com o protetor do próprio host | PASS | CI PR #48 runs/41064867437 (88cf8e5); main 5261c97 |
 
 ### Definição de Pronto
-- [ ] Teste de regressão falhou antes e passa depois da correção
-- [ ] Suíte completa, arquitetura e CI verdes (G2, G3, G5)
-- [ ] Review independente sem achados blocker/major (G4)
-- [ ] Padrão existente mantido
-- [ ] Disponível no ambiente-alvo via pipeline (G6)
-- [ ] Documentação/CHANGELOG atualizados quando aplicável (G7)
-- [ ] Outras ocorrências registradas como novas specs (ou nenhuma)
+- [x] Teste de regressão falhou antes e passa depois da correção
+- [x] Suíte completa, arquitetura e CI verdes (G2, G3, G5)
+- [x] Review independente sem achados blocker/major (G4)
+- [x] Padrão existente mantido
+- [x] Disponível no ambiente-alvo via pipeline (G6)
+- [x] Documentação/CHANGELOG atualizados quando aplicável (G7)
+- [x] Outras ocorrências registradas como novas specs (ou nenhuma)
 
 ### Deploy
+Ambiente local prod-like, imagem `ghcr.io/thomasravache/vitrine-api:5261c97`, 2026-10-30, `deploy/deploy.sh` (health 200 em 3 s, smoke 2/2). Staging/produção na SPEC-0009.
 
 ### Pendências
+Nenhuma.
 
 ## 11. Emendas
 <!-- Mudança em spec aprovada: uma linha por emenda, aprovada pelo humano. -->

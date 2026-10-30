@@ -5,11 +5,13 @@ namespace Vitrine.MercadoLivre.Infrastructure.Diagnostics;
 
 /// <summary>
 /// Métricas do módulo no meter <see cref="MercadoLivreModule.MeterName"/>: <c>vitrine.mercadolivre.connections</c> por
-/// <c>result</c>. Sem dados pessoais nem ids nas tags (ADR-0006).
+/// <c>result</c> e <c>vitrine.mercadolivre.token_refreshes</c> por <c>result</c>. Sem dados pessoais nem ids nas tags
+/// (ADR-0006).
 /// </summary>
 internal sealed class MercadoLivreMetrics : IConnectionMetrics
 {
     private readonly Counter<long> _connections;
+    private readonly Counter<long> _tokenRefreshes;
 
     public MercadoLivreMetrics(IMeterFactory meterFactory)
     {
@@ -18,7 +20,18 @@ internal sealed class MercadoLivreMetrics : IConnectionMetrics
         var meter = meterFactory.Create(MercadoLivreModule.MeterName);
         _connections = meter.CreateCounter<long>(
             "vitrine.mercadolivre.connections", "{connection}", "Conclusões de conexão de conta do Mercado Livre por resultado.");
+        _tokenRefreshes = meter.CreateCounter<long>(
+            "vitrine.mercadolivre.token_refreshes", "{refresh}", "Renovações do access token do Mercado Livre por resultado.");
     }
+
+    /// <summary>Uma renovação terminou com <paramref name="outcome"/>.</summary>
+    public void TokenRefreshed(TokenRefreshOutcome outcome) =>
+        _tokenRefreshes.Add(1, new KeyValuePair<string, object?>("result", outcome switch
+        {
+            TokenRefreshOutcome.Renewed => "renewed",
+            TokenRefreshOutcome.ReauthorizationRequired => "reauthorization_required",
+            _ => "unavailable",
+        }));
 
     public void Record(ConnectionOutcome outcome) =>
         _connections.Add(1, new KeyValuePair<string, object?>("result", outcome switch
@@ -31,4 +44,12 @@ internal sealed class MercadoLivreMetrics : IConnectionMetrics
             ConnectionOutcome.InUse => "in_use",
             _ => "ml_unavailable",
         }));
+}
+
+/// <summary>Resultado de uma renovação do access token (tag <c>result</c> de <c>vitrine.mercadolivre.token_refreshes</c>).</summary>
+internal enum TokenRefreshOutcome
+{
+    Renewed,
+    ReauthorizationRequired,
+    Unavailable,
 }

@@ -25,6 +25,17 @@ public sealed class MercadoLivreModuleArchitectureTests
 
     private static readonly string[] SensitiveNameParts = ["token", "secret", "verifier"];
 
+    // Contrato v1 do gateway (SPEC-0021): interface, resultados, item e exceções públicas.
+    private static readonly string[] GatewayContract =
+    [
+        "IMercadoLivreItems", "MercadoLivreItemResult", "MercadoLivreItem", "MercadoLivreAccountNotFoundException",
+        "MercadoLivreReauthorizationRequiredException", "MercadoLivreUnavailableException",
+    ];
+
+    private static readonly string[] GatewaySensitiveNameParts = ["token", "secret"];
+
+    private static readonly string[] MercadoLivreInternalLayers = ["Domain", "Application", "Infrastructure", "Presentation"];
+
     [Fact]
     [Trait("spec", "SPEC-0020:UT-06")]
     public void Assemblies_do_modulo_MercadoLivre_respeitam_camadas_isolamento_e_ausencia_de_ciclos()
@@ -165,6 +176,85 @@ public sealed class MercadoLivreModuleArchitectureTests
             Assert.Contains("pending_authorizations", tables);
         }
     }
+
+    [Fact]
+    [Trait("spec", "SPEC-0021:UT-04")]
+    public void MercadoLivre_PublicApi_tem_o_contrato_do_gateway_e_so_referencia_a_BCL()
+    {
+        // Dado o assembly Vitrine.MercadoLivre.PublicApi com o contrato v1 da SPEC-0021
+        var publicApi = SolutionAssembly($"{Module}.PublicApi");
+        var exported = publicApi.GetExportedTypes().Select(type => type.Name).ToHashSet(StringComparer.Ordinal);
+        foreach (var name in GatewayContract)
+        {
+            Assert.True(exported.Contains(name), $"{Module}.PublicApi não exporta {name} (contrato v1 da SPEC-0021).");
+        }
+
+        // Quando as referências dele são lidas
+        var nonBcl = publicApi.GetReferencedAssemblies()
+            .Select(reference => reference.Name ?? string.Empty)
+            .Where(name => !IsBcl(name))
+            .ToList();
+
+        // Então só há assemblies da BCL (nada do módulo, de Common, de pacotes nem de outros módulos)
+        Assert.True(nonBcl.Count == 0, $"{Module}.PublicApi referencia assemblies fora da BCL: " + string.Join(", ", nonBcl));
+    }
+
+    [Fact]
+    [Trait("spec", "SPEC-0021:UT-04")]
+    public void Nenhum_tipo_publico_do_contrato_do_MercadoLivre_tem_membro_com_token_ou_secret()
+    {
+        // Dado os tipos públicos de MercadoLivre.PublicApi e MercadoLivre.IntegrationEvents (gateway e eventos v1)
+        var contractTypes = ContractLayers
+            .Select(layer => SolutionAssembly($"{Module}.{layer}"))
+            .SelectMany(assembly => assembly.GetExportedTypes())
+            .ToList();
+        Assert.Contains(contractTypes, type => type.Name == "IMercadoLivreItems");
+        Assert.Contains(contractTypes, type => type.Name == "MercadoLivreAccountReauthorizationRequired");
+
+        // Quando os membros públicos (propriedades, campos, métodos e eventos) são lidos
+        var sensitive = contractTypes
+            .SelectMany(type => type.GetMembers(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly)
+                .Where(member => member.MemberType is MemberTypes.Property or MemberTypes.Field or MemberTypes.Method or MemberTypes.Event)
+                .Select(member => $"{type.FullName}.{member.Name}"))
+            .Where(name => GatewaySensitiveNameParts.Any(part => name[(name.LastIndexOf('.') + 1)..].Contains(part, StringComparison.OrdinalIgnoreCase)))
+            .ToList();
+
+        // Então nenhum tem "token" ou "secret" no nome (tokens nunca saem do módulo — ADR-0006)
+        Assert.True(sensitive.Count == 0, "Membros sensíveis no contrato público do MercadoLivre:\n" + string.Join('\n', sensitive));
+    }
+
+    [Fact]
+    [Trait("spec", "SPEC-0021:UT-04")]
+    public void Camadas_internas_do_MercadoLivre_nao_sao_referenciadas_por_outros_modulos()
+    {
+        // Dado os assemblies de src/ fora do módulo MercadoLivre, exceto o host (raiz de composição) e o AppHost
+        var architecture = SolutionArchitecture.Load();
+        var others = architecture.Assemblies
+            .Select(assembly => assembly.Name.Split(',')[0])
+            .Where(name => name.StartsWith("Vitrine.", StringComparison.Ordinal)
+                && !name.StartsWith($"{Module}.", StringComparison.Ordinal)
+                && name is not "Vitrine.Api" and not "Vitrine.AppHost")
+            .ToList();
+        Assert.NotEmpty(others);
+
+        // Quando as referências deles são lidas
+        var violations = others
+            .SelectMany(name => SolutionAssembly(name).GetReferencedAssemblies()
+                .Select(reference => reference.Name ?? string.Empty)
+                .Where(reference => MercadoLivreInternalLayers.Any(layer => reference == $"{Module}.{layer}"))
+                .Select(reference => $"{name} -> {reference}"))
+            .ToList();
+
+        // Então nenhum referencia Infrastructure (nem Domain, Application ou Presentation): consumidores (ex.: Listings)
+        // usam só MercadoLivre.PublicApi e MercadoLivre.IntegrationEvents
+        Assert.True(violations.Count == 0, "Módulos referenciando camadas internas do MercadoLivre:\n" + string.Join('\n', violations));
+    }
+
+    private static bool IsBcl(string assemblyName) =>
+        assemblyName is "netstandard" or "mscorlib"
+        || assemblyName == "System"
+        || assemblyName.StartsWith("System.", StringComparison.Ordinal)
+        || assemblyName.StartsWith("Microsoft.Win32.", StringComparison.Ordinal);
 
     /// <summary>
     /// Assembly de um projeto de <c>src/</c> pelo nome, carregado por <see cref="SolutionArchitecture"/> (inclusive os que

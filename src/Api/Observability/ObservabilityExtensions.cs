@@ -30,9 +30,9 @@ internal static class ObservabilityExtensions
         builder.Services.AddHealthChecks()
             .AddCheck<PostgresReadinessCheck>("postgres", HealthStatus.Unhealthy, [Extensions.ReadyTag], ReadinessTimeout);
 
-        // Spans do Npgsql (filhos do span HTTP) e métricas dos módulos (vitrine.auth.*, vitrine.mercadolivre.*).
+        // Spans do Npgsql (filhos do span HTTP) e do gateway do ML, e métricas dos módulos (vitrine.auth.*, vitrine.mercadolivre.*).
         builder.Services.AddOpenTelemetry()
-            .WithTracing(tracing => tracing.AddNpgsql())
+            .WithTracing(tracing => tracing.AddNpgsql().AddSource(MercadoLivreModule.ActivitySourceName))
             .WithMetrics(metrics => metrics.AddMeter(IdentityModule.MeterName, MercadoLivreModule.MeterName));
 
         // Sentry só com DSN configurado (secret do Environment); sem ele, nada é inicializado (exportação opcional).

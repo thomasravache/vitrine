@@ -39,6 +39,13 @@ public static class MercadoLivreEventsTestHandler
         Received.GetOrAdd(message.AccountId, _ => new ConcurrentQueue<object>()).Enqueue(message);
     }
 
+    public static async Task Handle(MercadoLivreAccountReauthorizationRequired message, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(message);
+        await Volatile.Read(ref _gate).Task.WaitAsync(cancellationToken);
+        Received.GetOrAdd(message.AccountId, _ => new ConcurrentQueue<object>()).Enqueue(message);
+    }
+
     private static TaskCompletionSource Released()
     {
         var gate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
