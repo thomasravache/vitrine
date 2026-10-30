@@ -19,6 +19,7 @@ Cada entrada cita a spec de origem (`SPEC-NNNN`); gere-as com `spec_graph.py rep
 - Conectar e desconectar contas do Mercado Livre pelo OAuth oficial com PKCE, com tokens cifrados e eventos de conta conectada/desconectada (SPEC-0020)
 
 ### Fixed
+- Cifra de campos (`UseFieldProtection`) não cria mais um provedor interno do EF Core por protetor; o módulo do Mercado Livre volta ao caminho padrão (SPEC-0026)
 - O Sentry não recebe segredos de `Exception.Data` guardados em objetos, contexts, extras, JSON, coleções ou URLs com credenciais, e o log de erro nunca falha por causa do mascaramento (SPEC-0018)
 - `tests/infra/run.sh` derruba só a stack local que ele mesmo subiu (`--keep` preserva) (SPEC-0012)
 - Valores de `Exception.Data` enviados ao Sentry passam pelo mascaramento de dados sensíveis (SPEC-0015)
