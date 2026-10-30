@@ -651,8 +651,10 @@
       "vitrine.listings.infrastructure": {
         "type": "Project",
         "dependencies": {
+          "Npgsql.EntityFrameworkCore.PostgreSQL": "[10.0.3, )",
           "Vitrine.Listings.Application": "[1.0.0, )",
-          "Vitrine.Listings.Domain": "[1.0.0, )"
+          "Vitrine.Listings.Domain": "[1.0.0, )",
+          "WolverineFx.EntityFrameworkCore": "[6.59.0, )"
         }
       },
       "vitrine.listings.presentation": {
