@@ -54,12 +54,12 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 ## 7. Checklist de Implementação
 <!-- Preenchido na fase PLAN, após a aprovação. -->
 **Fase 1: Regressão e correção**
-- [ ] Red: escrever IT-01 com a tag `SPEC-0028:IT-01` e confirmar que falha pelo motivo certo
-- [ ] Green: `AlwaysUseServiceLocationFor<IMercadoLivreItems>()` na configuração do Wolverine do módulo MercadoLivre
-- [ ] Validar: build + suíte completa + arquitetura (G2/G3)
+- [x] Red: escrever IT-01 com a tag `SPEC-0028:IT-01` e confirmar que falha pelo motivo certo
+- [x] Green: `AlwaysUseServiceLocationFor<IMercadoLivreItems>()` na configuração do Wolverine do módulo MercadoLivre
+- [x] Validar: build + suíte completa + arquitetura (G2/G3)
 
 **Fase final: Integração, entrega e documentação**
-- [ ] Review independente (G4)
+- [x] Review independente (G4)
 - [ ] Integração + CI verde (G5) e aprovação (H2)
 - [ ] Deploy no ambiente local prod-like com smoke (G6)
 - [ ] Relatório de Entrega e CHANGELOG (G7)
@@ -72,7 +72,7 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 | G1 Red | PASS | MANUAL: verify G1: PASS (test 02b4272 antes do fix 33f1cbd; IT-01 com tag no código); red do IT-01 num clone novo do HEAD 02b4272 sem o fix: timeout 'a sincronização da conta não concluiu', com InvalidServiceLocationException (MercadoLivreItemsGateway não é público, ServiceLocationPolicy.NotAllowed) no log; o comando de red do gate (testes unitários) não cobre IT | 2026-10-30 |
 | G2 Green | PASS | build exit 0 (npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts a); test exit 0 (Duration  354ms (environment 59%, transform 19%, import 16%, tests 4%, worker 2%)); lint exit 0 ([0m[34mChecked 40 files in 23[0m[0m[2m[34mms[0m[0m[34m.[0m[0m[34m No fixes app); coverage exit 0 (Coverage: 97%) — 7ab87f0 | 2026-10-30 |
 | G3 Arquitetura | PASS | arch_test exit 0 (duration: 1s 731ms) — 7ab87f0 | 2026-10-30 |
-| G4 Review | PENDING | | |
+| G4 Review | PASS | verify G1+G4: PASS; revisão: Reviewer independente: APPROVED (2ª rodada; notificação forjada → SPEC-0029; retenção v1.2 pelo accepted_at; nit: comparar seller com o ml_user_id lido da conta) — 374860e | 2026-10-30 |
 | G5 Integração & CI | PENDING | | |
 | H2 Integração aprovada | PENDING | | |
 | G6 Deploy | PENDING | | |

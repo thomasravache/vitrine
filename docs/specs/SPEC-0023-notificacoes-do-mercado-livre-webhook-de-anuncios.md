@@ -153,7 +153,7 @@ Evento (Vitrine.MercadoLivre.IntegrationEvents), v1:
 | Anônimo e fora do OpenAPI | sem cookie nem antiforgery | aceito; endpoint na lista `AnonymousEndpoints`; ausente do documento OpenAPI | IT-07 |
 | ML não configurado | sem `ClientId` | 503 ML_NOT_CONFIGURED | IT-04 |
 | `_id` longo | `_id` com mais de 64 caracteres | 400 VALIDATION_FAILED (`errors._id`), nada gravado | UT-02 |
-| Retenção do inbox | processadas há mais de 7 dias; `unknown_user`/`invalid` há mais de 1 dia; não processadas (retentativas esgotadas) recebidas há mais de 7 dias | apagadas pelo job diário; as demais ficam | IT-08 |
+| Retenção do inbox | processadas há mais de 7 dias; `unknown_user`/`invalid` há mais de 1 dia; não processadas (retentativas esgotadas) aceitas (`accepted_at`) há mais de 7 dias | apagadas pelo job diário; as demais ficam | IT-08 |
 | Chave duplicada | JSON com a mesma chave duas vezes | 400 VALIDATION_FAILED | UT-02 |
 
 ## 7. Artefato B — Plano de Testes (TDD)
@@ -215,21 +215,21 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 ## 11. Checklist de Implementação
 <!-- Preenchido na fase PLAN, após a aprovação. Cada fase começa pelos testes. -->
 **Fase 0: Caracterização**
-- [ ] CH-01 escrito, passando no código atual (lista `AnonymousEndpoints` e rate limit por IP atuais), commitado antes de qualquer mudança
+- [x] CH-01 escrito, passando no código atual (lista `AnonymousEndpoints` e rate limit por IP atuais), commitado antes de qualquer mudança
 
 **Fase 1: Validação do payload**
-- [ ] Red: escrever UT-01..UT-02 com a tag `SPEC-0023:<ID>` e confirmar que falham pelo motivo certo
-- [ ] Green: validação do payload e mapeamento de tópicos
-- [ ] Refactor mantendo tudo verde
+- [x] Red: escrever UT-01..UT-02 com a tag `SPEC-0023:<ID>` e confirmar que falham pelo motivo certo
+- [x] Green: validação do payload e mapeamento de tópicos
+- [x] Refactor mantendo tudo verde
 
 **Fase 2: Webhook e inbox**
-- [ ] Red: escrever IT-01..IT-07 e CT-01 com a tag `SPEC-0023:<ID>` e confirmar que falham pelo motivo certo
-- [ ] Green: `POST /api/v1/mercadolivre/notifications` anônimo fora do OpenAPI, 16 KB, 600/min por IP, dedupe por `_id`, inbox e evento `MercadoLivreItemChanged` v1
-- [ ] Refactor mantendo tudo verde
-- [ ] Validar: build + suíte completa + arquitetura (G2/G3)
+- [x] Red: escrever IT-01..IT-07 e CT-01 com a tag `SPEC-0023:<ID>` e confirmar que falham pelo motivo certo
+- [x] Green: `POST /api/v1/mercadolivre/notifications` anônimo fora do OpenAPI, 16 KB, 600/min por IP, dedupe por `_id`, inbox e evento `MercadoLivreItemChanged` v1
+- [x] Refactor mantendo tudo verde
+- [x] Validar: build + suíte completa + arquitetura (G2/G3)
 
 **Fase final: Integração, entrega e documentação**
-- [ ] Review independente (G4)
+- [x] Review independente (G4)
 - [ ] Integração + CI verde (G5) e aprovação (H2)
 - [ ] Deploy no ambiente local prod-like com smoke (G6)
 - [ ] Relatório de Entrega, docs raiz e CHANGELOG (G7)
@@ -240,9 +240,9 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 |---|---|---|---|
 | G0 Spec | PASS | validate: 0 erro(s) — ddc6ebd (árvore suja) | 2026-10-30 |
 | G1 Red | PASS | verify G1: PASS; `dotnet test tests/Vitrine.UnitTests && npm --prefix web run test` exit 2 (red: Test run completed with non-success exit code: 2 (see: https://aka.ms/testingplatform/exit) — 189a02e | 2026-10-30 |
-| G2 Green | PASS | build exit 0 (npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts a); test exit 0 (Duration  363ms (environment 59%, import 20%, transform 16%, tests 4%, worker 1%)); lint exit 0 ([0m[34mChecked 40 files in 17[0m[0m[2m[34mms[0m[0m[34m.[0m[0m[34m No fixes app); coverage exit 0 (Coverage: 97%) — 7ab87f0 | 2026-10-30 |
-| G3 Arquitetura | PASS | arch_test exit 0 (duration: 1s 561ms) — 7ab87f0 | 2026-10-30 |
-| G4 Review | PENDING | | |
+| G2 Green | PASS | build exit 0 (npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts a); test exit 0 (Duration  349ms (environment 55%, transform 22%, import 18%, tests 5%, worker 1%)); lint exit 0 ([0m[34mChecked 40 files in 23[0m[0m[2m[34mms[0m[0m[34m.[0m[0m[34m No fixes app); coverage exit 0 (Coverage: 97%) — 374860e | 2026-10-30 |
+| G3 Arquitetura | PASS | arch_test exit 0 (duration: 1s 587ms) — 374860e | 2026-10-30 |
+| G4 Review | PASS | verify G1+G4: PASS; revisão: Reviewer independente: APPROVED (2ª rodada; notificação forjada → SPEC-0029; retenção v1.2 pelo accepted_at; nit: comparar seller com o ml_user_id lido da conta) — 374860e | 2026-10-30 |
 | G5 Integração & CI | PENDING | | |
 | H2 Integração aprovada | PENDING | | |
 | G6 Deploy | PENDING | | |
@@ -294,4 +294,4 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 | Versão do contrato | Data | Mudança | Motivo | Specs impactadas | Aprovado por |
 |---|---|---|---|---|---|
 | v1.1 (contrato esclarecido) | 2026-10-30 | (1) IT-08 cobre a retenção de 7 dias do inbox; (2) `outcome` de sucesso = `item_changed`; (3) métrica: `accepted`/`duplicate`/`ignored_app`/`ignored_topic` contados no recebimento, `invalid` no 400 e no processamento de resource inválido, `unknown_user` no processamento — uma notificação aceita pode contar `accepted` e depois `unknown_user`/`invalid`; (4) `_id` com mais de 64 caracteres → 400 VALIDATION_FAILED; (5) chave `RateLimiting:MercadoLivreNotificationsPerIp:PermitLimit`; (6) fixture no formato documentado com valores fictícios até a SPEC-0024 trazer a cópia oficial | Lacunas apontadas pelo Test-writer no G1 | SPEC-0024 (fixture) | thomas (piloto automático do épico SPEC-0019) |
-| v1.2 | 2026-10-30 | Retenção: `unknown_user`/`invalid` por 1 dia e não processadas (retentativas esgotadas) por 7 dias pelo `received_at`, para limitar o volume do inbox sob abuso; UT-02 cobre JSON com chave duplicada | Achados 2–4 do G4 | nenhuma | thomas (piloto automático do épico SPEC-0019) |
+| v1.2 | 2026-10-30 | Retenção: `unknown_user`/`invalid` por 1 dia e não processadas (retentativas esgotadas) por 7 dias pelo `accepted_at` (hora do servidor; o `received` vem do payload e pode ser forjado), para limitar o volume do inbox sob abuso; UT-02 cobre JSON com chave duplicada | Achados 2–4 do G4 | nenhuma | thomas (piloto automático do épico SPEC-0019) |

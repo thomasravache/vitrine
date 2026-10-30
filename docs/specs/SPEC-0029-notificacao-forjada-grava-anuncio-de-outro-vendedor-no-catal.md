@@ -40,8 +40,8 @@ O ML não assina as notificações. Um atacante que conheça o `application_id` 
 
 ## 4. Plano de Testes (TDD)
 <!-- Mínimo: um teste de regressão que reproduz o problema e FALHA antes da correção, no nível em que o defeito aparece (IT para fronteiras de I/O, E2E para jornadas de usuário). Código sem cobertura: primeiro CH-xx fixando o comportamento atual. Tag no código: `SPEC-0029:<ID>`. Modo privado: sem tag no código; aponte o teste no fim da linha com `→ caminho::nome` (ex.: `→ tests/test_soma.py::test_soma`). Categoria sem teste: "N/A — motivo" SEM ID. -->
-- Caracterização: N/A — os testes do IT-09 da SPEC-0022 seguem como guarda do caminho legítimo.
-- **UT-01** — Unidade: N/A — o defeito está no handler com banco; o IT-01 o reproduz.
+- Caracterização: N/A — os testes de notificação da SPEC-0022 seguem como guarda do caminho legítimo.
+- Unidade: N/A — o defeito está no handler com banco; o IT-01 o reproduz.
 - **IT-01** — Dado uma conta conectada com seus anúncios e o gateway devolvendo `Found` para um item cujo `SellerId` é de outro vendedor, quando chega `MercadoLivreItemChanged` desse item para a conta, então nenhuma linha é gravada para ele, a métrica `foreign_item` é incrementada e os anúncios da conta não mudam; e uma notificação de item do próprio vendedor continua atualizando normalmente.
 
 ## 5. Questões em Aberto
@@ -54,12 +54,12 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 ## 7. Checklist de Implementação
 <!-- Preenchido na fase PLAN, após a aprovação. -->
 **Fase 1: Regressão e correção**
-- [ ] Red: escrever IT-01 com a tag `SPEC-0029:IT-01` e confirmar que falha pelo motivo certo
-- [ ] Green: `ItemChangedHandler` ignora item de outro vendedor e conta `foreign_item`
-- [ ] Validar: build + suíte completa + arquitetura (G2/G3)
+- [x] Red: escrever IT-01 com a tag `SPEC-0029:IT-01` e confirmar que falha pelo motivo certo
+- [x] Green: `ItemChangedHandler` ignora item de outro vendedor e conta `foreign_item`
+- [x] Validar: build + suíte completa + arquitetura (G2/G3)
 
 **Fase final: Integração, entrega e documentação**
-- [ ] Review independente (G4)
+- [x] Review independente (G4)
 - [ ] Integração + CI verde (G5) e aprovação (H2)
 - [ ] Deploy no ambiente local prod-like com smoke (G6)
 - [ ] Relatório de Entrega e CHANGELOG (G7)
@@ -69,10 +69,10 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 | Gate | Status | Evidência | Data |
 |---|---|---|---|
 | G0 Spec | PASS | validate: 0 erro(s) — 570f56b (árvore suja) | 2026-10-30 |
-| G1 Red | PENDING | | |
-| G2 Green | PENDING | | |
-| G3 Arquitetura | PENDING | | |
-| G4 Review | PENDING | | |
+| G1 Red | PASS | MANUAL: verify G1: PASS (IT-01 com tag no código, commit test 26f0ab2 antes de qualquer fix); red do IT-01 no HEAD 86c6509: Assert.DoesNotContain falhou — o anúncio de outro vendedor foi gravado no catálogo da conta; o comando de red do gate (testes unitários) não cobre IT | 2026-10-30 |
+| G2 Green | PASS | build exit 0 (npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts a); test exit 0 (Duration  407ms (environment 62%, transform 16%, import 16%, tests 5%, worker 3%)); lint exit 0 ([0m[34mChecked 40 files in 17[0m[0m[2m[34mms[0m[0m[34m.[0m[0m[34m No fixes app); coverage exit 0 (Coverage: 97%) — 374860e | 2026-10-30 |
+| G3 Arquitetura | PASS | arch_test exit 0 (duration: 1s 785ms) — 374860e | 2026-10-30 |
+| G4 Review | PASS | verify G1+G4: PASS; revisão: Reviewer independente: APPROVED (2ª rodada; notificação forjada → SPEC-0029; retenção v1.2 pelo accepted_at; nit: comparar seller com o ml_user_id lido da conta) — 374860e | 2026-10-30 |
 | G5 Integração & CI | PENDING | | |
 | H2 Integração aprovada | PENDING | | |
 | G6 Deploy | PENDING | | |
