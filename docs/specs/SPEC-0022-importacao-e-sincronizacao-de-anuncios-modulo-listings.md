@@ -77,7 +77,7 @@ O workspace e o papel do usuário vêm de `Identity.PublicApi` (SPEC-0020).
 **Decisão:**
 - O módulo `Listings` consome apenas `MercadoLivre.PublicApi`/`IntegrationEvents` e `Identity.PublicApi`.
 - A importação é um comando durável `SyncListings(accountId, trigger)`, com a exclusividade por conta garantida pela linha `sync_states` (status `running` com `UPDATE … WHERE status <> 'running'`).
-- A reconciliação é agendada por um `BackgroundService` leve que publica `ReconcileListings` no intervalo configurado. O trabalho em si fica no handler durável.
+- A reconciliação é agendada por um `BackgroundService` leve que publica `ReconcileListings` em intervalo curto (`min(ReconciliationInterval, 1 h)`), a partir do início do processo. O handler durável só enfileira as contas não `paused` cuja última sincronização (`greatest(completed_at, started_at)`) é mais antiga que `ReconciliationInterval` — a cadência depende do estado persistido, não do tempo no ar, e várias instâncias não duplicam trabalho (Emenda v1.3).
 - A paginação da listagem usa cursor (keyset por `ml_last_updated desc, item_id`).
 
 **Justificativa:**
@@ -152,7 +152,7 @@ Handlers (filas locais duráveis):
                                        SearchItemIdsAsync -> GetItemsAsync em lotes -> upsert com sync_run_id;
                                        sucesso: apaga da conta os anúncios com sync_run_id antigo, status idle, item_count,
                                        completed_at; ReauthorizationRequired -> paused; Unavailable -> failed + retry
-  ReconcileListings                 -> enfileira SyncListings(accountId, "reconciliation") para cada conta conhecida não paused
+  ReconcileListings                 -> enfileira SyncListings(accountId, "reconciliation") para cada conta não paused com greatest(completed_at, started_at) < now - ReconciliationInterval
 
 Persistência (schema "listings"):
   listings(account_id uuid, item_id varchar(32), workspace_id uuid, title, price numeric(14,2), currency_id, available_quantity,
@@ -269,18 +269,18 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 ## 11. Checklist de Implementação
 <!-- Preenchido na fase PLAN, após a aprovação. Cada fase começa pelos testes. -->
 **Fase 1: Regras de sincronização**
-- [ ] Red: escrever UT-01..UT-04 com a tag `SPEC-0022:<ID>` e confirmar que falham pelo motivo certo
-- [ ] Green: marcar e varrer, cursor keyset, intervalo mínimo entre syncs e mapeamento de status
-- [ ] Refactor mantendo tudo verde
+- [x] Red: escrever UT-01..UT-04 com a tag `SPEC-0022:<ID>` e confirmar que falham pelo motivo certo
+- [x] Green: marcar e varrer, cursor keyset, intervalo mínimo entre syncs e mapeamento de status
+- [x] Refactor mantendo tudo verde
 
 **Fase 2: Módulo Listings**
-- [ ] Red: escrever IT-01..IT-11, CT-01 e CT-02 com a tag `SPEC-0022:<ID>` e confirmar que falham pelo motivo certo
-- [ ] Green: handlers de `Connected`/`Disconnected`/`ItemChanged`, `SyncListings`, `ReconcileListings` (24 h), `GET /listings`, `/summary`, `POST /sync` e cliente OpenAPI regenerado
-- [ ] Refactor mantendo tudo verde
-- [ ] Validar: build + suíte completa + arquitetura (G2/G3)
+- [x] Red: escrever IT-01..IT-11, CT-01 e CT-02 com a tag `SPEC-0022:<ID>` e confirmar que falham pelo motivo certo
+- [x] Green: handlers de `Connected`/`Disconnected`/`ItemChanged`, `SyncListings`, `ReconcileListings` (24 h), `GET /listings`, `/summary`, `POST /sync` e cliente OpenAPI regenerado
+- [x] Refactor mantendo tudo verde
+- [x] Validar: build + suíte completa + arquitetura (G2/G3)
 
 **Fase final: Integração, entrega e documentação**
-- [ ] Review independente (G4)
+- [x] Review independente (G4)
 - [ ] Integração + CI verde (G5) e aprovação (H2)
 - [ ] Deploy no ambiente local prod-like com smoke (G6)
 - [ ] Relatório de Entrega, docs raiz e CHANGELOG (G7)
@@ -290,10 +290,10 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 | Gate | Status | Evidência | Data |
 |---|---|---|---|
 | G0 Spec | PASS | validate: 0 erro(s) — ddc6ebd (árvore suja) | 2026-10-30 |
-| G1 Red | PENDING | | |
-| G2 Green | PENDING | | |
-| G3 Arquitetura | PENDING | | |
-| G4 Review | PENDING | | |
+| G1 Red | PASS | verify G1: PASS; `dotnet test tests/Vitrine.UnitTests && npm --prefix web run test` exit 2 (red: Test run completed with non-success exit code: 2 (see: https://aka.ms/testingplatform/exit) — 7733cd8 | 2026-10-30 |
+| G2 Green | PASS | build exit 0 (npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts a); test exit 0 (Duration  689ms (environment 58%, import 17%, transform 16%, tests 6%, worker 3%)); lint exit 0 ([0m[34mChecked 40 files in 20[0m[0m[2m[34mms[0m[0m[34m.[0m[0m[34m No fixes app); coverage exit 0 (Coverage: 92%) — d366045 | 2026-10-30 |
+| G3 Arquitetura | PASS | arch_test exit 0 (duration: 1s 576ms) — d366045 | 2026-10-30 |
+| G4 Review | PASS | verify G1+G4: PASS; revisão: Reviewer independente: APPROVED (3ª rodada; achados major/minor do G4 corrigidos com regressões; 0 pendências) — d366045 | 2026-10-30 |
 | G5 Integração & CI | PENDING | | |
 | H2 Integração aprovada | PENDING | | |
 | G6 Deploy | PENDING | | |
@@ -345,3 +345,5 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 | Versão do contrato | Data | Mudança | Motivo | Specs impactadas | Aprovado por |
 |---|---|---|---|---|---|
 | v1.1 (contrato inalterado) | 2026-10-30 | `touches` inclui `src/Modules/MercadoLivre/Vitrine.MercadoLivre.IntegrationEvents/MercadoLivreItemChanged.cs`: esta spec cria o record do evento exatamente como o contrato SPEC-0023@1 (§6), ao lado dos eventos v1 da SPEC-0020; a SPEC-0023 só o publica | O consumidor roda antes do produtor (onda 3 antes da 4) e o tipo precisa existir para o handler compilar | SPEC-0023 (não recria o tipo) | thomas (piloto automático do épico SPEC-0019) |
+| v1.2 (esclarecimento, contrato inalterado) | 2026-10-30 | Desempate do keyset por `itemId` ascendente (ordinal); `lastSyncedAt` = conclusão da última sincronização bem-sucedida (null se nunca concluiu); IT-11 mede a requisição HTTP inteira no host em memória (mais estrito que só a consulta) | Pontos não fixados no §6, decididos pelo Test-writer no G1 e aceitos pelo Architect | nenhuma | thomas (piloto automático do épico SPEC-0019) |
+| v1.3 (contrato público inalterado) | 2026-10-30 | Reconciliação por estado persistido (timer curto + filtro pela última tentativa, `greatest(completed_at, started_at)`, para que conta com falha persistente não seja reimportada a cada hora); varredura só apaga o que a execução não tocou e que é anterior ao início dela; upsert da sincronização e do `ItemChanged` respeita `lastUpdated >=` e não grava conta desconectada; `running` travado há mais de 1 h não bloqueia o `POST /sync`; `limit`/`accountId` inválidos no GET → 400 VALIDATION_FAILED | Achados major/minor do G4 (corrida entre `ItemChanged` e sincronização; reconciliação que nunca rodaria com deploys frequentes) | nenhuma | thomas (piloto automático do épico SPEC-0019) |
