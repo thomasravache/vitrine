@@ -6,22 +6,26 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Http.Resilience;
 using Microsoft.Extensions.Options;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Infrastructure;
+using Polly;
 using Vitrine.Common.Security;
 using Vitrine.MercadoLivre.Application.Abstractions;
 using Vitrine.MercadoLivre.Application.Accounts;
 using Vitrine.MercadoLivre.Application.Connections;
+using Vitrine.MercadoLivre.Infrastructure.Api;
 using Vitrine.MercadoLivre.Infrastructure.Diagnostics;
 using Vitrine.MercadoLivre.Infrastructure.OAuth;
 using Vitrine.MercadoLivre.Infrastructure.Persistence;
 using Vitrine.MercadoLivre.IntegrationEvents;
+using Vitrine.MercadoLivre.PublicApi;
 using Wolverine;
 using Wolverine.EntityFrameworkCore;
 
 namespace Vitrine.MercadoLivre.Infrastructure;
 
 /// <summary>
-/// Registro do módulo MercadoLivre no host (SPEC-0020): configuração <c>MercadoLivre:*</c>, DbContext do schema
-/// <c>mercadolivre</c> com outbox, cliente HTTP do ML e casos de uso de conexão de contas.
+/// Registro do módulo MercadoLivre no host (SPEC-0020, SPEC-0021): configuração <c>MercadoLivre:*</c>, DbContext do
+/// schema <c>mercadolivre</c> com outbox, clientes HTTP do ML, casos de uso de conexão de contas e o gateway autenticado
+/// (<see cref="IMercadoLivreItems"/>).
 /// </summary>
 public static class MercadoLivreModule
 {
@@ -73,6 +77,7 @@ public static class MercadoLivreModule
         {
             options.LocalQueueFor<MercadoLivreAccountConnected>().UseDurableInbox();
             options.LocalQueueFor<MercadoLivreAccountDisconnected>().UseDurableInbox();
+            options.LocalQueueFor<MercadoLivreAccountReauthorizationRequired>().UseDurableInbox();
             options.Discovery.IncludeType(typeof(CleanupPendingAuthorizationsHandler));
         });
 
@@ -91,10 +96,34 @@ public static class MercadoLivreModule
                 resilience.Retry.DisableForUnsafeHttpMethods();
             });
 
+        // Gateway autenticado da API do ML (SPEC-0021, ADR-0010): mercadolivre-api com 3 tentativas no total (Retry-After
+        // limitado a 30 s), 10 s por tentativa, 60 s no total e circuit breaker padrão; o token é anexado depois do
+        // pipeline, então cada tentativa usa o token vigente. O refresh (mercadolivre-oauth) nunca é retentado.
+#pragma warning disable EXTEXP0001
+        var api = services.AddHttpClient(ApiHttpClientName).RemoveAllResilienceHandlers();
+        api.AddStandardResilienceHandler(ConfigureApiResilience);
+        api.AddHttpMessageHandler<MercadoLivreAuthenticationHandler>();
+        services.AddHttpClient(OAuthHttpClientName)
+            .RemoveAllResilienceHandlers()
+#pragma warning restore EXTEXP0001
+            .AddStandardResilienceHandler(resilience =>
+            {
+                resilience.TotalRequestTimeout.Timeout = RequestTimeout;
+                resilience.AttemptTimeout.Timeout = RequestTimeout;
+                resilience.Retry.ShouldHandle = _ => PredicateResult.False();
+            });
+        services.AddTransient<MercadoLivreAuthenticationHandler>();
+        services.AddSingleton<TokenRefreshPolicy>();
+        services.AddSingleton<MercadoLivreTokenRefresher>();
+        services.AddSingleton<MercadoLivreAccessTokenProvider>();
+        services.AddSingleton<IMercadoLivreAccessTokenProvider>(provider => provider.GetRequiredService<MercadoLivreAccessTokenProvider>());
+        services.AddScoped<IMercadoLivreItems, MercadoLivreItemsGateway>();
+
         // Casos de uso e portas da Application.
         services.TryAddSingleton(TimeProvider.System);
         services.AddMetrics();
-        services.AddSingleton<IConnectionMetrics, MercadoLivreMetrics>();
+        services.AddSingleton<MercadoLivreMetrics>();
+        services.AddSingleton<IConnectionMetrics>(provider => provider.GetRequiredService<MercadoLivreMetrics>());
         services.AddScoped<IMercadoLivreOAuth, MercadoLivreOAuthClient>();
         services.AddScoped<MercadoLivreUnitOfWork>();
         services.AddScoped<IMercadoLivreUnitOfWork>(provider => provider.GetRequiredService<MercadoLivreUnitOfWork>());
@@ -118,6 +147,26 @@ public static class MercadoLivreModule
         ArgumentNullException.ThrowIfNull(options);
         options.Schedules.ScheduleRecurring<CleanupPendingAuthorizations>(CleanupSchedule);
         return options;
+    }
+
+    /// <summary>Maior espera aceita de um <c>Retry-After</c> do ML (SPEC-0021).</summary>
+    public static readonly TimeSpan MaxRetryAfter = TimeSpan.FromSeconds(30);
+
+    // 3 tentativas no total (emenda v1.1), 10 s por tentativa e 60 s no total. MaxDelay não limita o Retry-After: o
+    // gerador de espera padrão (que lê o cabeçalho) é envolvido por um teto de 30 s.
+    private static void ConfigureApiResilience(HttpStandardResilienceOptions resilience)
+    {
+        resilience.Retry.MaxRetryAttempts = 2;
+        resilience.Retry.ShouldRetryAfterHeader = true;
+        resilience.AttemptTimeout.Timeout = TimeSpan.FromSeconds(10);
+        resilience.TotalRequestTimeout.Timeout = TimeSpan.FromSeconds(60);
+
+        var retryAfter = resilience.Retry.DelayGenerator;
+        resilience.Retry.DelayGenerator = async arguments =>
+        {
+            var delay = retryAfter is null ? null : await retryAfter(arguments);
+            return delay > MaxRetryAfter ? MaxRetryAfter : delay;
+        };
     }
 
     internal static void ConfigureNpgsql(NpgsqlDbContextOptionsBuilder npgsql) =>

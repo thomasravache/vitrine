@@ -11,6 +11,12 @@ namespace Vitrine.MercadoLivre.Infrastructure;
 /// </summary>
 public sealed class MercadoLivreOptionsValidator(IHostEnvironment environment) : IValidateOptions<MercadoLivreOptions>
 {
+    /// <summary>Menor <c>BulkBatchSize</c> aceito.</summary>
+    public const int MinBulkBatchSize = 1;
+
+    /// <summary>Maior <c>BulkBatchSize</c> aceito (limite do <c>/items/bulk</c>).</summary>
+    public const int MaxBulkBatchSize = 100;
+
     public ValidateOptionsResult Validate(string? name, MercadoLivreOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
@@ -18,6 +24,16 @@ public sealed class MercadoLivreOptionsValidator(IHostEnvironment environment) :
         var failures = new List<string>();
         CheckEndpoint(failures, nameof(options.AuthorizationBaseUrl), options.AuthorizationBaseUrl, MercadoLivreOptions.OfficialAuthorizationBaseUrl, options);
         CheckEndpoint(failures, nameof(options.ApiBaseUrl), options.ApiBaseUrl, MercadoLivreOptions.OfficialApiBaseUrl, options);
+
+        if (options.BulkBatchSize is < MinBulkBatchSize or > MaxBulkBatchSize)
+        {
+            failures.Add($"{MercadoLivreOptions.SectionName}:BulkBatchSize precisa estar entre {MinBulkBatchSize} e {MaxBulkBatchSize}.");
+        }
+
+        if (options.RefreshSkew < TimeSpan.Zero)
+        {
+            failures.Add($"{MercadoLivreOptions.SectionName}:RefreshSkew não pode ser negativo.");
+        }
 
         if (!string.IsNullOrWhiteSpace(options.RedirectUri))
         {
