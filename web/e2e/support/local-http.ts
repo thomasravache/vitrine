@@ -2,14 +2,17 @@ import http from "node:http";
 import https from "node:https";
 import type { LookupFunction } from "node:net";
 import type { Page } from "@playwright/test";
-import { acceptsLocalCa } from "./base-url.ts";
+import { acceptsLocalCa as isLoopbackHost } from "./base-url.ts";
 
 // SPEC-0025: chamadas HTTP feitas pelo Node no E2E (controle /__sim do simulador). O navegador resolve `*.localhost`
 // para loopback (RFC 6761), mas o resolvedor do sistema nem sempre: no ambiente local prod-like
 // (https://ml-simulador.vitrine.localhost) o APIRequestContext do Playwright falhava com ENOTFOUND. Aqui, hosts
-// `localhost`/`*.localhost` conectam em 127.0.0.1 mantendo SNI e Host originais, e só eles aceitam a CA interna do
-// Caddy — mesmo critério do `ignoreHTTPSErrors` do navegador (acceptsLocalCa). Os demais hosts seguem o DNS e a
-// validação de certificado normais.
+// `localhost`/`*.localhost` conectam em 127.0.0.1 mantendo SNI e Host originais; os demais seguem o DNS normal.
+// O certificado é sempre validado. No ambiente local prod-like, confie na CA interna do Caddy pelo mecanismo
+// padrão do Node, apontando NODE_EXTRA_CA_CERTS para a raiz exportada do container:
+//   docker compose -p vitrine cp caddy:/data/caddy/pki/authorities/local/root.crt caddy-root.crt
+//   NODE_EXTRA_CA_CERTS=caddy-root.crt BASE_URL=https://vitrine.localhost ... npm run e2e
+// No modo AppHost o simulador é http://localhost:<porta> (sem TLS).
 
 export interface LocalResponse {
   status: number;
@@ -35,7 +38,7 @@ export function nodeRequest(
   timeoutMs = 15_000,
 ): Promise<LocalResponse> {
   const target = new URL(url);
-  const local = acceptsLocalCa(url);
+  const local = isLoopbackHost(url);
   const payload = body === undefined ? undefined : JSON.stringify(body);
   const client = target.protocol === "https:" ? https : http;
 
@@ -51,7 +54,7 @@ export function nodeRequest(
             : { "Content-Type": "application/json", "Content-Length": Buffer.byteLength(payload) }),
         },
         timeout: timeoutMs,
-        ...(local ? { lookup: loopbackLookup, rejectUnauthorized: false } : {}),
+        ...(local ? { lookup: loopbackLookup } : {}),
       },
       (response) => {
         const chunks: Buffer[] = [];
