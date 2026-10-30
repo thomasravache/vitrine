@@ -5,6 +5,8 @@
 #   postgres : banco em container (perfil `db-container`): ambiente local e staging; produção usa o PostgreSQL gerenciado.
 #   alloy    : Grafana Alloy (perfil `observability`, SPEC-0007): métricas do host para o Grafana Cloud. Não sobe
 #              sem o perfil — o ambiente local não tem credenciais (COMPOSE_PROFILES=db-container,observability liga).
+#   ml-simulator : simulador do Mercado Livre (perfil `ml-simulator`, SPEC-0024, ADR-0016). Só o ambiente local
+#              prod-like liga o perfil (deploy/local/.env.example); nunca em staging/produção.
 services:
   api:
     depends_on:
@@ -46,6 +48,9 @@ services:
       - proxy
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # Sites extras (*.caddy) importados pelo Caddyfile: deploy/caddy-sites (vazio) por padrão; só o ambiente local
+      # aponta CADDY_EXTRA_SITES_DIR para deploy/local/caddy-sites (SPEC-0024).
+      - ${CADDY_EXTRA_SITES_DIR:-./caddy-sites}:/etc/caddy/sites:ro
       - caddy_data:/data
       - caddy_config:/config
 
@@ -91,6 +96,28 @@ services:
       # Propriedades udev dos discos (rótulos do coletor diskstats).
       - /run/udev/data:/run/udev/data:ro
       - alloy_data:/var/lib/alloy/data
+
+  # Simulador do Mercado Livre (SPEC-0024): imagem construída localmente (docs/runbooks/deploy.md), HTTP interno 8080.
+  # O navegador chega por https://ml-simulador.vitrine.localhost (Caddy, rede proxy); a Api fala com ele pela rede
+  # interna (http://ml-simulator:8080) e recebe as notificações em http://api:8080. Credenciais iguais às da Api:
+  # sintéticas e públicas (ML_CLIENT_ID/ML_CLIENT_SECRET do deploy/local/.env.example).
+  ml-simulator:
+    image: ${ML_SIMULATOR_IMAGE:-vitrine-ml-simulator:local}
+    # Imagem só local: nunca baixada de registry (sem ela, o `up` falha pedindo o build do runbook).
+    pull_policy: never
+    restart: unless-stopped
+    profiles: ["ml-simulator"]
+    environment:
+      Simulator__ClientId: ${ML_CLIENT_ID:-}
+      Simulator__ClientSecret: ${ML_CLIENT_SECRET:-}
+      Simulator__AllowedRedirectUris__0: ${ML_REDIRECT_URI:-}
+      # Webhook da Api pela rede interna (URL, não segredo: o gitleaks confunde `api:8080/...` com chave).
+      Simulator__NotificationUrl: http://api:8080/api/v1/mercadolivre/notifications # gitleaks:allow
+    expose:
+      - "8080"
+    networks:
+      - default
+      - proxy
 
 networks:
   proxy:

@@ -3,8 +3,9 @@
 #:property PublishAot=false
 
 // AppHostFixture (SPEC-0003): sobe a aplicação inteira pelo AppHost com Aspire.Hosting.Testing — o mesmo
-// AppHost do desenvolvimento —, espera a SPA responder, escreve "BASE_URL=<url>" na saída padrão e mantém
-// tudo no ar até a entrada padrão fechar. Iniciado por app-host-fixture.ts (global-setup do Playwright).
+// AppHost do desenvolvimento —, espera a SPA responder, escreve "ML_SIMULATOR_URL=<url>" (simulador do Mercado
+// Livre, SPEC-0024) e depois "BASE_URL=<url>" na saída padrão e mantém tudo no ar até a entrada padrão fechar.
+// Iniciado por app-host-fixture.ts (global-setup do Playwright).
 using Aspire.Hosting;
 using Aspire.Hosting.ApplicationModel;
 using Aspire.Hosting.Testing;
@@ -21,6 +22,7 @@ await using var app = await builder.BuildAsync(cancellationToken);
 await app.StartAsync(cancellationToken);
 
 await app.ResourceNotifications.WaitForResourceHealthyAsync("api", cancellationToken);
+await app.ResourceNotifications.WaitForResourceHealthyAsync("ml-simulator", cancellationToken);
 await app.ResourceNotifications.WaitForResourceAsync("web", KnownResourceStates.Running, cancellationToken);
 
 var baseUrl = app.GetEndpoint("web", "http");
@@ -45,6 +47,8 @@ using (var http = new HttpClient { BaseAddress = baseUrl })
     }
 }
 
+// ML_SIMULATOR_URL vem antes: BASE_URL é o sinal de pronto que o Playwright espera.
+Console.WriteLine($"ML_SIMULATOR_URL={app.GetEndpoint("ml-simulator", "http").ToString().TrimEnd('/')}");
 Console.WriteLine($"BASE_URL={baseUrl.ToString().TrimEnd('/')}");
 
 // Entrada padrão fechada (fim do E2E ou processo pai encerrado) → derruba a aplicação.
