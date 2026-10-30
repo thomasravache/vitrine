@@ -1,0 +1,16 @@
+{
+  "_source": {
+    "endpoint": "GET /users/{id}/items/search?search_type=scan&limit=100[&scroll_id=...]",
+    "format": "{ seller_id, results: [ids], scroll_id, paging: { total, limit } }; segue-se o scroll_id até results vazio ou scroll_id nulo.",
+    "documentation": "https://developers.mercadolivre.com.br/pt_br/itens-e-buscas",
+    "consulted_at": "2026-10-30",
+    "note": "A documentação respondeu HTTP 403 nas consultas automatizadas de 2026-10-30 (WebFetch); exemplo no formato documentado e já consumido pela SPEC-0021, com valores fictícios. Substituir pela cópia da documentação oficial quando acessível."
+  },
+  "response": {
+    "seller_id": "3000000001",
+    "query": null,
+    "paging": { "limit": 100, "total": 1125 },
+    "results": ["MLB9000000001", "MLB9000000002", "MLB9000000003"],
+    "scroll_id": "DXF1ZXJ5QW5kRmV0Y2gBAAAAAAAAAAEWb3Zfc2Nyb2xsX2ZpeG8"
+  }
+}

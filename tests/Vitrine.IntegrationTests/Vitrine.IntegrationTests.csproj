@@ -28,9 +28,15 @@
     <None Include="..\Vitrine.UnitTests\testconfig.json" Link="$(AssemblyName).testconfig.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
-  <!-- SPEC-0021:CT-02: resposta do /items/bulk no formato documentado, lida pelo teste de contrato. -->
+  <!-- Fixtures de resposta do ML no formato documentado, compartilhadas (SPEC-0024) pelos CT do gateway (SPEC-0021:CT-02),
+       das notificações (SPEC-0023) e do simulador (SPEC-0024:CT-01); copiadas para MercadoLivre/Fixtures na saída. -->
   <ItemGroup>
-    <None Include="MercadoLivre\Fixtures\**" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\Fixtures\MercadoLivre\**" LinkBase="MercadoLivre\Fixtures" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <!-- Simulador do Mercado Livre (SPEC-0024) em WebApplicationFactory (IT-01, IT-02, IT-05, CT-01). -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\tools\MercadoLivreSimulator\Vitrine.MercadoLivreSimulator.csproj" />
   </ItemGroup>
 
   <ItemGroup>
