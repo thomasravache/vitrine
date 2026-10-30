@@ -60,9 +60,9 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 
 **Fase final: Integração, entrega e documentação**
 - [x] Review independente (G4)
-- [ ] Integração + CI verde (G5) e aprovação (H2)
-- [ ] Deploy no ambiente local prod-like com smoke (G6)
-- [ ] Relatório de Entrega e CHANGELOG (G7)
+- [x] Integração + CI verde (G5) e aprovação (H2)
+- [x] Deploy no ambiente local prod-like com smoke (G6)
+- [x] Relatório de Entrega e CHANGELOG (G7)
 
 ## 8. Registro de Gates
 <!-- Status: PENDING | PASS | FAIL | N/A. PASS e N/A exigem evidência. -->
@@ -73,9 +73,9 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 | G2 Green | PASS | build exit 0 (npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts a); test exit 0 (Duration  366ms (environment 63%, transform 16%, import 15%, tests 5%, worker 1%)); lint exit 0 ([0m[34mChecked 40 files in 20[0m[0m[2m[34mms[0m[0m[34m.[0m[0m[34m No fixes app); coverage exit 0 (No lines with coverage information in this diff.) — 61a295b | 2026-10-30 |
 | G3 Arquitetura | PASS | arch_test exit 0 (duration: 1s 890ms) — 61a295b | 2026-10-30 |
 | G4 Review | PASS | verify G1+G4: PASS; revisão: Reviewer independente: APPROVED_WITH_NOTES (0 blocker/major; fallback LoadFile vale para qualquer DLL fora do deps.json — improvável, aceito; parâmetros sem uso mantidos) — 61a295b | 2026-10-30 |
-| G5 Integração & CI | PENDING | | |
-| H2 Integração aprovada | PENDING | | |
-| G6 Deploy | PENDING | | |
+| G5 Integração & CI | PASS | build exit 0 (npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts a); test exit 0 (Duration  388ms (environment 62%, import 17%, transform 16%, tests 4%, worker 1%)); test_integration exit 0 (duration: 3m 51s 294ms); test_e2e exit 0 (30 passed (31.9s)); arch_test exit 0 (duration: 2s 036ms); security_scan exit 0 ([90m4:55PM[0m [32mINF[0m [1mno leaks found[0m); nota: PR #52 CI 8/8 verde + CodeQL (runs/41117402220) — 1436187 | 2026-10-30 |
+| H2 Integração aprovada | PASS | política auto-on-green (aprovada por thomas em 2026-10-13); G5 PASS | 2026-10-30 |
+| G6 Deploy | PASS | MANUAL: Sem artefato implantável: a mudança é só no harness dos testes de arquitetura (não entra na imagem da Api). Main 00c8411 com CI verde (runs/41117402220); ambiente local segue na imagem 963c0fc, inalterada por esta spec | 2026-10-30 |
 | G7 Pronto & Docs | PENDING | | |
 
 ## 9. Registro de Impedimentos
@@ -87,28 +87,36 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 <!-- Preenchido no CLOSE (G7). Para status implemented o validate exige tudo preenchido, todo teste do plano com PASS + evidência e a Definição de Pronto marcada. -->
 
 ### O que foi entregue
+Os testes de arquitetura dão o mesmo resultado localmente e no CI: um projeto de `src/` que nenhum outro referencia agora falha também na máquina do desenvolvedor, com uma mensagem que aponta o projeto e como corrigir.
 
 ### Como foi feito
+- `tests/Vitrine.ArchitectureTests/Support/SolutionArchitecture.cs`: `LoadProjectAssemblies(...)` só aceita assemblies da saída do projeto de testes (sem o fallback para `src/**/bin`); mensagem "O projeto 'X' … não é referenciado … a camada Application do módulo deve referenciar seu IntegrationEvents/PublicApi".
+- O AppHost (referenciado com `ReferenceOutputAssembly="false"`) passa a ser copiado para a saída (`OutputItemType="Content"`) e carregado por caminho, como antes.
+- Notas aceitas no G4: o fallback por `LoadFile` vale para qualquer DLL presente na saída fora do `deps.json` (cenário improvável); `configuration`/`targetFramework` ficaram sem uso.
 
 ### Prova de Correção
-<!-- type fix: teste de regressão falhou antes (commit red + saída) e passa depois (commit green + execução). Outros tipos: "N/A". -->
+- Red: UT-01 (`b6920d9`) — "o carregador retornou sem erro (usou src/**/bin)".
+- Green: fix `61a295b`; `arch_test` num clone novo sem build da solução 19/19; experimento do Reviewer com projeto não referenciado falhou com a mensagem nova; CI do PR #52 verde.
 
 ### Verificação
 | Teste | Comportamento | Resultado | Evidência |
 |---|---|---|---|
+| UT-01 | Projeto cujo assembly só existe em `src/<proj>/bin` falha apontando o projeto não referenciado | PASS | CI PR #52 runs/41117402220 (61a295b); main 00c8411 |
 
 ### Definição de Pronto
-- [ ] Teste de regressão falhou antes e passa depois da correção
-- [ ] Suíte completa, arquitetura e CI verdes (G2, G3, G5)
-- [ ] Review independente sem achados blocker/major (G4)
-- [ ] Padrão existente mantido
-- [ ] Disponível no ambiente-alvo via pipeline (G6)
-- [ ] Documentação/CHANGELOG atualizados quando aplicável (G7)
-- [ ] Outras ocorrências registradas como novas specs (ou nenhuma)
+- [x] Teste de regressão falhou antes e passa depois da correção
+- [x] Suíte completa, arquitetura e CI verdes (G2, G3, G5)
+- [x] Review independente sem achados blocker/major (G4)
+- [x] Padrão existente mantido
+- [x] Disponível no ambiente-alvo via pipeline (G6) — harness de testes, sem artefato implantável; vale na main
+- [x] Documentação/CHANGELOG atualizados quando aplicável (G7)
+- [x] Outras ocorrências registradas como novas specs (ou nenhuma)
 
 ### Deploy
+Sem artefato implantável (harness de testes). Main `00c8411`, 2026-10-30.
 
 ### Pendências
+Nenhuma.
 
 ## 11. Emendas
 <!-- Mudança em spec aprovada: uma linha por emenda, aprovada pelo humano. -->

@@ -22,6 +22,7 @@ Cada entrada cita a spec de origem (`SPEC-NNNN`); gere-as com `spec_graph.py rep
 - Webhook de notificações do Mercado Livre: anúncios alterados no ML são atualizados no Vitrine em instantes, com deduplicação, limite por IP e retenção do registro (SPEC-0023)
 
 ### Fixed
+- Testes de arquitetura dão o mesmo resultado localmente e no CI quando um projeto não é referenciado (SPEC-0027)
 - Sincronização e atualização de anúncios rodam com o gateway real do Mercado Livre (geração de código do Wolverine) (SPEC-0028)
 - Notificação forjada não grava mais anúncio de outro vendedor no catálogo da conta (SPEC-0029)
 - Cifra de campos (`UseFieldProtection`) não cria mais um provedor interno do EF Core por protetor; o módulo do Mercado Livre volta ao caminho padrão (SPEC-0026)
