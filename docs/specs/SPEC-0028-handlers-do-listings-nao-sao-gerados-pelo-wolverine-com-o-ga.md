@@ -4,7 +4,7 @@ title: Handlers do Listings não são gerados pelo Wolverine com o gateway real 
 tier: lite
 type: fix
 user_facing: false
-status: approved
+status: implemented
 created: 2026-10-30
 parent: SPEC-0019
 depends_on: [SPEC-0022]
@@ -60,9 +60,9 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 
 **Fase final: Integração, entrega e documentação**
 - [x] Review independente (G4)
-- [ ] Integração + CI verde (G5) e aprovação (H2)
-- [ ] Deploy no ambiente local prod-like com smoke (G6)
-- [ ] Relatório de Entrega e CHANGELOG (G7)
+- [x] Integração + CI verde (G5) e aprovação (H2)
+- [x] Deploy no ambiente local prod-like com smoke (G6)
+- [x] Relatório de Entrega e CHANGELOG (G7)
 
 ## 8. Registro de Gates
 <!-- Status: PENDING | PASS | FAIL | N/A. PASS e N/A exigem evidência. -->
@@ -73,10 +73,10 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 | G2 Green | PASS | build exit 0 (npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts a); test exit 0 (Duration  354ms (environment 59%, transform 19%, import 16%, tests 4%, worker 2%)); lint exit 0 ([0m[34mChecked 40 files in 23[0m[0m[2m[34mms[0m[0m[34m.[0m[0m[34m No fixes app); coverage exit 0 (Coverage: 97%) — 7ab87f0 | 2026-10-30 |
 | G3 Arquitetura | PASS | arch_test exit 0 (duration: 1s 731ms) — 7ab87f0 | 2026-10-30 |
 | G4 Review | PASS | verify G1+G4: PASS; revisão: Reviewer independente: APPROVED (2ª rodada; notificação forjada → SPEC-0029; retenção v1.2 pelo accepted_at; nit: comparar seller com o ml_user_id lido da conta) — 374860e | 2026-10-30 |
-| G5 Integração & CI | PENDING | | |
-| H2 Integração aprovada | PENDING | | |
-| G6 Deploy | PENDING | | |
-| G7 Pronto & Docs | PENDING | | |
+| G5 Integração & CI | PASS | MANUAL: Mesmo resultado integrado da SPEC-0023 (PR #51): build exit 0 (npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts a); test exit 0 (Duration  461ms (environment 61%, transform 20%, import 14%, tests 3%, worker 2%)); test_integration exit 0 (duration: 3m 44s 772ms); test_e2e exit 0 (30 passed (31.3s)); arch_test exit 0 (duration: 1s 788ms); security_scan exit 0 ([90m4:20PM[0m [32mINF[0m [1mno leaks found[0m); nota: PR #51 CI 8/8 verde + CodeQL (runs/41112611794) — 0051d64 | 2026-10-30 |
+| H2 Integração aprovada | PASS | política auto-on-green (aprovada por thomas em 2026-10-13); G5 PASS | 2026-10-30 |
+| G6 Deploy | PASS | MANUAL: Deploy local prod-like (deploy/deploy.sh 963c0fc --env-file deploy/local/.env): health 200 em 5 s; migração do inbox aplicada; smoke @smoke 2/2; POST /api/v1/mercadolivre/notifications sem credenciais do ML → 503 ML_NOT_CONFIGURED (esperado no local), GET → 404; 0 logs Error/Critical; staging/produção na SPEC-0009 | 2026-10-30 |
+| G7 Pronto & Docs | PASS | Relatório de Entrega e Definição de Pronto: ok — 882c6c2 (árvore suja) | 2026-10-30 |
 
 ## 9. Registro de Impedimentos
 <!-- Toda parada é registrada pelo Architect com `spec_graph.py impede` e fechada com `resolve` — não edite à mão. Tipos: spec (spec errada/incompleta → resolve com Emenda) | decisão (só o humano decide → resposta ou ADR) | trabalho (falta algo que exige código → SPEC-NNNN nova) | externo (acesso, ambiente, terceiro → ação tomada) | falha (3 FAILs seguidos no mesmo gate → diagnóstico e decisão). Com impedimento aberto a spec aparece como parada no INDEX e não pode ser fechada. -->
@@ -87,28 +87,35 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 <!-- Preenchido no CLOSE (G7). Para status implemented o validate exige tudo preenchido, todo teste do plano com PASS + evidência e a Definição de Pronto marcada. -->
 
 ### O que foi entregue
+Os handlers do Listings que recebem `IMercadoLivreItems` (sincronização e notificação) passam a ser gerados pelo Wolverine com o gateway real — antes só funcionavam nos testes, com um dublê público.
 
 ### Como foi feito
+- `MercadoLivreModule`: `options.CodeGeneration.AlwaysUseServiceLocationFor<IMercadoLivreItems>()`; o gateway continua `internal` e scoped, resolvido no escopo da mensagem.
+- Com a importação rodando de verdade depois da conexão, 5 asserções "nenhuma chamada ao ML" dos testes da SPEC-0020 passaram a ignorar só as chamadas da importação (`CallsExceptListingsImport`), removendo um teste instável (Emenda v1.1, `touches`).
 
 ### Prova de Correção
-<!-- type fix: teste de regressão falhou antes (commit red + saída) e passa depois (commit green + execução). Outros tipos: "N/A". -->
+- Red: IT-01 (`02b4272`) num clone sem o fix — a importação não conclui; log com `InvalidServiceLocationException` (`MercadoLivreItemsGateway` não é público, `ServiceLocationPolicy.NotAllowed`).
+- Green: fix `33f1cbd`; IT-01 passa; suíte 486/486; CI do PR #51 verde.
 
 ### Verificação
 | Teste | Comportamento | Resultado | Evidência |
 |---|---|---|---|
+| IT-01 | Sincronização e notificação com o gateway real (WireMock) gravam e atualizam os anúncios | PASS | CI PR #51 runs/41112611794 (374860e); main 963c0fc |
 
 ### Definição de Pronto
-- [ ] Teste de regressão falhou antes e passa depois da correção
-- [ ] Suíte completa, arquitetura e CI verdes (G2, G3, G5)
-- [ ] Review independente sem achados blocker/major (G4)
-- [ ] Padrão existente mantido
-- [ ] Disponível no ambiente-alvo via pipeline (G6)
-- [ ] Documentação/CHANGELOG atualizados quando aplicável (G7)
-- [ ] Outras ocorrências registradas como novas specs (ou nenhuma)
+- [x] Teste de regressão falhou antes e passa depois da correção
+- [x] Suíte completa, arquitetura e CI verdes (G2, G3, G5)
+- [x] Review independente sem achados blocker/major (G4)
+- [x] Padrão existente mantido
+- [x] Disponível no ambiente-alvo via pipeline (G6)
+- [x] Documentação/CHANGELOG atualizados quando aplicável (G7)
+- [x] Outras ocorrências registradas como novas specs (ou nenhuma)
 
 ### Deploy
+Ambiente local prod-like, imagem `ghcr.io/thomasravache/vitrine-api:963c0fc`, 2026-10-30, `deploy/deploy.sh` (health 200 em 5 s, smoke 2/2, 0 logs Error/Critical). Staging/produção na SPEC-0009.
 
 ### Pendências
+Nenhuma.
 
 ## 11. Emendas
 <!-- Mudança em spec aprovada: uma linha por emenda, aprovada pelo humano. -->

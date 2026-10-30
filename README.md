@@ -64,6 +64,8 @@ logs, traces, métricas e o endereço de cada recurso. A API responde `GET /heal
 - **Anúncios (SPEC-0022):** os anúncios das contas conectadas ficam numa cópia local (`src/Modules/Listings/`),
   importada ao conectar, atualizada por notificação e reconciliada a cada 24 h; API `GET /api/v1/listings`
   (busca, filtros, cursor), `GET /api/v1/listings/summary` e `POST /api/v1/listings/sync` (no máximo a cada 5 min).
+- **Notificações do ML (SPEC-0023):** webhook anônimo `POST /api/v1/mercadolivre/notifications` (fora do OpenAPI,
+  ≤ 16 KB, 600/min por IP) grava no inbox e atualiza o anúncio em segundo plano.
 
 ## Comandos
 
