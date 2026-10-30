@@ -69,6 +69,9 @@ logs, traces, métricas e o endereço de cada recurso. A API responde `GET /heal
 - **Simulador do ML (SPEC-0024):** `tools/MercadoLivreSimulator` imita o OAuth, os anúncios e as notificações do ML
   para testar sem conta real: sobe no `aspire run` e, no ambiente local, em `https://ml-simulador.vitrine.localhost`
   (perfil `ml-simulator`; ver `docs/runbooks/deploy.md`). Nunca vai a staging/produção.
+- **Telas da jornada conectar-conta (SPEC-0025):** `/painel`, `/contas`, `/contas/mercado-livre/retorno` e
+  `/anuncios` (busca, filtros, sincronizar), no celular e no desktop. Para testar localmente: entre em
+  `https://vitrine.localhost`, clique em "Conectar conta" e autorize `VENDEDOR_TESTE` no simulador.
 
 ## Comandos
 
