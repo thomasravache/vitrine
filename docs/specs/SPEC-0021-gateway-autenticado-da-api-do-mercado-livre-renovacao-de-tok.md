@@ -4,7 +4,7 @@ title: Gateway autenticado da API do Mercado Livre (renovação de token e resil
 tier: full
 type: feature
 user_facing: false
-status: in-progress
+status: implemented
 created: 2026-10-30
 parent: SPEC-0019
 depends_on: [SPEC-0026]
@@ -290,7 +290,7 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 | G5 Integração & CI | PASS | build exit 0 (npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts a); test exit 0 (Duration  374ms (environment 58%, import 19%, transform 17%, tests 4%, worker 2%)); test_integration exit 0 (duration: 2m 37s 788ms); test_e2e exit 0 (30 passed (31.0s)); arch_test exit 0 (duration: 1s 331ms); security_scan exit 0 ([90m12:04PM[0m [32mINF[0m [1mno leaks found[0m); nota: PR #49 CI 8/8 verde + CodeQL (runs/41075612230) — 9506633 | 2026-10-30 |
 | H2 Integração aprovada | PASS | política auto-on-green (aprovada por thomas em 2026-10-13); G5 PASS | 2026-10-30 |
 | G6 Deploy | PASS | MANUAL: Deploy local prod-like (deploy/deploy.sh 0b17e24 --env-file deploy/local/.env): health 200 em 9 s; smoke @smoke 2/2; 0 logs Error/Critical; gateway sem endpoint público (exercitado pela SPEC-0022 e pelo simulador da SPEC-0024); staging/produção na SPEC-0009 | 2026-10-30 |
-| G7 Pronto & Docs | PENDING | | |
+| G7 Pronto & Docs | PASS | Relatório de Entrega e Definição de Pronto: ok — de00072 | 2026-10-30 |
 
 ## 13. Registro de Impedimentos
 <!-- Toda parada é registrada pelo Architect com `spec_graph.py impede` e fechada com `resolve` — não edite à mão. Tipos: spec (spec errada/incompleta → resolve com Emenda) | decisão (só o humano decide → resposta ou ADR) | trabalho (falta algo que exige código → SPEC-NNNN nova) | externo (acesso, ambiente, terceiro → ação tomada) | falha (3 FAILs seguidos no mesmo gate → diagnóstico e decisão). Com impedimento aberto a spec aparece como parada no INDEX e não pode ser fechada. -->
