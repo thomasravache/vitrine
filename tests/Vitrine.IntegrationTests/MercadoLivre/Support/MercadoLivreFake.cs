@@ -58,6 +58,14 @@ internal sealed class MercadoLivreFake(WireMockServer server)
     /// <summary>Requisições recebidas pelo ML simulado.</summary>
     public IReadOnlyList<ILogEntry> Calls => [.. server.LogEntries];
 
+    /// <summary>
+    /// Requisições recebidas, menos as da importação do Listings (<c>GET /users/{id}/items/search</c> e
+    /// <c>GET /items/bulk</c>): o <c>MercadoLivreAccountConnected</c> de cada conexão dispara a importação em segundo plano
+    /// (SPEC-0022, com o gateway real desde a SPEC-0028), em qualquer momento depois da conexão. Os testes que afirmam
+    /// "o ML não foi chamado" pelo fluxo de conexão usam esta lista, para a importação não entrar na conta.
+    /// </summary>
+    public IReadOnlyList<ILogEntry> CallsExceptListingsImport => [.. Calls.Where(entry => !IsListingsImport(entry.RequestMessage?.Path))];
+
     /// <summary>Requisições recebidas em <c>POST /oauth/token</c>.</summary>
     public IReadOnlyList<ILogEntry> TokenCalls => [.. Calls.Where(entry => entry.RequestMessage?.Path == TokenPath)];
 
@@ -381,6 +389,11 @@ internal sealed class MercadoLivreFake(WireMockServer server)
             return Message(200, ids.Reverse().Select(entry).ToArray(), null);
         }));
     }
+
+    private static bool IsListingsImport(string? path) =>
+        path is not null
+        && (path == BulkPath
+            || (path.StartsWith("/users/", StringComparison.Ordinal) && path.EndsWith("/items/search", StringComparison.Ordinal)));
 
     private static bool Rejects(IRequestMessage request, string? requiredToken) =>
         requiredToken is not null
