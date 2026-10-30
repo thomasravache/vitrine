@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <!-- Simulador do Mercado Livre (SPEC-0024, ADR-0016): só para desenvolvimento, E2E e ambiente local prod-like.
+       Nunca é referenciado pela Api nem entra no Compose de staging/produção. -->
+  <PropertyGroup>
+    <RootNamespace>Vitrine.MercadoLivreSimulator</RootNamespace>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+</Project>

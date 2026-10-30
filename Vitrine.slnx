@@ -37,6 +37,10 @@
   <Folder Name="/src/ServiceDefaults/">
     <Project Path="src/ServiceDefaults/Vitrine.ServiceDefaults.csproj" />
   </Folder>
+  <Folder Name="/tools/" />
+  <Folder Name="/tools/MercadoLivreSimulator/">
+    <Project Path="tools/MercadoLivreSimulator/Vitrine.MercadoLivreSimulator.csproj" />
+  </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Vitrine.ArchitectureTests/Vitrine.ArchitectureTests.csproj" />
     <Project Path="tests/Vitrine.IntegrationTests/Vitrine.IntegrationTests.csproj" />
