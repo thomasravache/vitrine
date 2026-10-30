@@ -1,12 +1,12 @@
 using JasperFx.CommandLine.Descriptions;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Http.Resilience;
 using Microsoft.Extensions.Options;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Infrastructure;
+using Vitrine.Common.Security;
 using Vitrine.MercadoLivre.Application.Abstractions;
 using Vitrine.MercadoLivre.Application.Accounts;
 using Vitrine.MercadoLivre.Application.Connections;
@@ -53,14 +53,12 @@ public static class MercadoLivreModule
 
         // Persistência no schema "mercadolivre", integrada ao outbox do Wolverine (ADR-0011, ADR-0014), com tokens e
         // verifier cifrados pelo IFieldProtector do host. A connection string é lida no primeiro uso.
-        services.AddDbContextWithWolverineIntegration<MercadoLivreModuleDbContext>(options => options
+        services.AddDbContextWithWolverineIntegration<MercadoLivreModuleDbContext>((provider, options) => options
             .UseNpgsql(
                 configuration.GetConnectionString("vitrine")
                     ?? throw new InvalidOperationException("ConnectionStrings:vitrine não configurada (o AppHost a fornece)."),
-                ConfigureNpgsql));
-        // Depois da configuração do Wolverine (que também troca a fábrica de chaves do modelo): modelo por protetor.
-        services.ConfigureDbContext<MercadoLivreModuleDbContext>(options =>
-            options.ReplaceService<IModelCacheKeyFactory, ProtectorModelCacheKeyFactory>());
+                ConfigureNpgsql)
+            .UseFieldProtection(provider.GetRequiredService<IFieldProtector>()));
         services.AddSingleton<ISystemPart, MercadoLivreMigrations>();
         services.ConfigureWolverine(options =>
         {
