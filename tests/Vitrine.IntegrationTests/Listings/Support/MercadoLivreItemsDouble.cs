@@ -15,6 +15,7 @@ namespace Vitrine.IntegrationTests.Listings.Support;
 internal sealed class MercadoLivreItemsDouble : IMercadoLivreItems
 {
     private readonly ConcurrentDictionary<Guid, ConcurrentDictionary<string, MercadoLivreItem>> _catalogs = new();
+    private readonly ConcurrentDictionary<Guid, long> _sellers = new();
     private readonly ConcurrentDictionary<(Guid AccountId, string Status), Exception> _searchFailures = new();
     private readonly ConcurrentDictionary<Guid, int> _runs = new();
     private readonly ConcurrentDictionary<(Guid AccountId, string ItemId), int> _reads = new();
@@ -26,13 +27,24 @@ internal sealed class MercadoLivreItemsDouble : IMercadoLivreItems
     /// <summary>IDs por página da busca (o contrato fala em "até 100").</summary>
     public int PageSize { get; init; } = 2;
 
-    /// <summary>Coloca (ou substitui) anúncios no catálogo da conta, criando-o se preciso.</summary>
+    /// <summary>
+    /// Vendedor (<c>mlUserId</c>) da conta: os anúncios com o vendedor padrão de <see cref="ListingItem.New"/> postos no
+    /// catálogo dela passam a ser desse vendedor, como no ML (SPEC-0029: anúncio de outro vendedor é recusado).
+    /// </summary>
+    public void SetSeller(Guid accountId, long mlUserId) => _sellers[accountId] = mlUserId;
+
+    /// <summary>
+    /// Coloca (ou substitui) anúncios no catálogo da conta, criando-o se preciso. Anúncio com o vendedor padrão vira do
+    /// vendedor da conta (<see cref="SetSeller"/>); com outro <c>SellerId</c> explícito, fica como veio (anúncio alheio).
+    /// </summary>
     public void Put(Guid accountId, params MercadoLivreItem[] items)
     {
         var catalog = _catalogs.GetOrAdd(accountId, _ => new ConcurrentDictionary<string, MercadoLivreItem>(StringComparer.Ordinal));
         foreach (var item in items)
         {
-            catalog[item.Id] = item;
+            catalog[item.Id] = item.SellerId == ListingItem.DefaultSellerId && _sellers.TryGetValue(accountId, out var seller)
+                ? item with { SellerId = seller }
+                : item;
         }
     }
 
@@ -210,6 +222,9 @@ internal static class ListingItem
 {
     public static readonly DateTimeOffset BaseTime = new(2026, 10, 1, 12, 0, 0, TimeSpan.Zero);
 
+    /// <summary>Vendedor dos anúncios criados aqui; <see cref="MercadoLivreItemsDouble.Put"/> o troca pelo da conta.</summary>
+    public const long DefaultSellerId = 3_200_000_001;
+
     private static long _next = 5_000_000_000;
 
     public static string NewId() => string.Create(CultureInfo.InvariantCulture, $"MLB{Interlocked.Increment(ref _next)}");
@@ -220,7 +235,7 @@ internal static class ListingItem
         var itemId = id ?? NewId();
         return new MercadoLivreItem(
             itemId,
-            SellerId: 3_200_000_001,
+            SellerId: DefaultSellerId,
             Title: title ?? $"Anúncio de teste {itemId}",
             Price: price,
             CurrencyId: "BRL",
