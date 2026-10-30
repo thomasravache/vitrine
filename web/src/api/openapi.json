@@ -484,8 +484,7 @@
             "name": "limit",
             "in": "query",
             "schema": {
-              "pattern": "^-?(?:0|[1-9]\\d*)$",
-              "type": ["integer", "string"],
+              "type": "integer",
               "format": "int32"
             }
           },
@@ -590,8 +589,7 @@
                 "$ref": "#/components/schemas/SyncListingsRequest"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "202": {

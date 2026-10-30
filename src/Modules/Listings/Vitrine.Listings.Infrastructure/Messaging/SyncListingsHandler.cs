@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Vitrine.Listings.Application.Sync;
 using Vitrine.Listings.Domain.Listings;
 using Vitrine.Listings.Domain.Sync;
@@ -23,12 +24,6 @@ public static partial class SyncListingsHandler
 {
     /// <summary>Esperas da retentativa durável quando o ML está indisponível.</summary>
     public static readonly TimeSpan[] RetryDelays = [TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(5), TimeSpan.FromMinutes(15)];
-
-    /// <summary>
-    /// Uma sincronização em <c>running</c> há mais que isto é considerada abandonada (ex.: processo derrubado no meio) e
-    /// pode ser retomada por uma nova.
-    /// </summary>
-    public static readonly TimeSpan StaleRunningAfter = TimeSpan.FromHours(1);
 
     public static void Configure(HandlerChain chain)
     {
@@ -53,7 +48,7 @@ public static partial class SyncListingsHandler
 
         var accountId = command.AccountId;
         var startedAt = clock.GetUtcNow();
-        var staleBefore = startedAt - StaleRunningAfter;
+        var staleBefore = startedAt - StaleRunningSync.StaleRunningAfter;
 
         // Uma sincronização por conta por vez: só quem muda a linha para running segue.
         var claimed = await db.SyncStates
@@ -70,7 +65,7 @@ public static partial class SyncListingsHandler
         }
 
         var stopwatch = Stopwatch.StartNew();
-        var target = new ListingsSyncTarget(db, clock);
+        var target = new ListingsSyncTarget(db, clock, startedAt);
         try
         {
             await new ListingsSynchronizer(items, target).SynchronizeAsync(accountId, Guid.NewGuid(), cancellationToken);
@@ -169,18 +164,28 @@ public static partial class SyncListingsHandler
 }
 
 /// <summary>
-/// Reconciliação (ADR-0010): enfileira <see cref="SyncListings"/> com <see cref="SyncTriggers.Reconciliation"/> para cada
-/// conta conhecida que não está em <c>paused</c>.
+/// Reconciliação pelo estado persistido (ADR-0010, emenda v1.3): enfileira <see cref="SyncListings"/> com
+/// <see cref="SyncTriggers.Reconciliation"/> para cada conta que não está em <c>paused</c> e cuja última sincronização
+/// (<c>coalesce(completed_at, started_at)</c>) é mais antiga que <see cref="ListingsOptions.ReconciliationInterval"/>.
+/// Publicações repetidas (timer curto, várias instâncias) não duplicam trabalho.
 /// </summary>
 public static class ReconcileListingsHandler
 {
-    public static async Task<OutgoingMessages> Handle(ReconcileListings message, ListingsModuleDbContext db, CancellationToken cancellationToken)
+    public static async Task<OutgoingMessages> Handle(
+        ReconcileListings message,
+        ListingsModuleDbContext db,
+        TimeProvider clock,
+        IOptions<ListingsOptions> options,
+        CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(message);
         ArgumentNullException.ThrowIfNull(db);
+        ArgumentNullException.ThrowIfNull(clock);
+        ArgumentNullException.ThrowIfNull(options);
 
+        var due = clock.GetUtcNow() - options.Value.ReconciliationInterval;
         var accounts = await db.SyncStates.AsNoTracking()
-            .Where(state => state.Status != SyncStatuses.Paused)
+            .Where(state => state.Status != SyncStatuses.Paused && (state.CompletedAt ?? state.StartedAt) < due)
             .OrderBy(state => state.AccountId)
             .Select(state => state.AccountId)
             .ToListAsync(cancellationToken);

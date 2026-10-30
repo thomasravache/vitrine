@@ -35,13 +35,13 @@ public sealed class RequestSyncHandler(
                 return new RequestSyncResult.ReauthorizationRequired();
             }
 
-            if (account.Status != SyncStatuses.Running
+            if (!IsRunning(account, now)
                 && ManualSyncCooldown.RetryAfterSeconds(account.LastManualAt, now, settings.ManualSyncCooldown) is { } retryAfter)
             {
                 return new RequestSyncResult.TooSoon(retryAfter);
             }
 
-            await EnqueueUnlessRunningAsync(account, cancellationToken);
+            await EnqueueUnlessRunningAsync(account, now, cancellationToken);
             return new RequestSyncResult.Queued([account.AccountId]);
         }
 
@@ -50,14 +50,14 @@ public sealed class RequestSyncHandler(
         int? soonest = null;
         foreach (var account in accounts.Where(state => state.Status != SyncStatuses.Paused))
         {
-            if (account.Status != SyncStatuses.Running
+            if (!IsRunning(account, now)
                 && ManualSyncCooldown.RetryAfterSeconds(account.LastManualAt, now, settings.ManualSyncCooldown) is { } retryAfter)
             {
                 soonest = soonest is null ? retryAfter : Math.Min(soonest.Value, retryAfter);
                 continue;
             }
 
-            await EnqueueUnlessRunningAsync(account, cancellationToken);
+            await EnqueueUnlessRunningAsync(account, now, cancellationToken);
             queued.Add(account.AccountId);
         }
 
@@ -66,8 +66,12 @@ public sealed class RequestSyncHandler(
             : new RequestSyncResult.Queued(queued);
     }
 
-    private Task EnqueueUnlessRunningAsync(SyncStateView account, CancellationToken cancellationToken) =>
-        account.Status == SyncStatuses.Running
+    // Running travado há mais de 1 h não conta: enfileira, e a nova execução assume (emenda v1.3).
+    private static bool IsRunning(SyncStateView account, DateTimeOffset now) =>
+        StaleRunningSync.IsRunning(account.Status, account.StartedAt, now);
+
+    private Task EnqueueUnlessRunningAsync(SyncStateView account, DateTimeOffset now, CancellationToken cancellationToken) =>
+        IsRunning(account, now)
             ? Task.CompletedTask
             : scheduler.EnqueueAsync(new SyncListings(account.AccountId, SyncTriggers.Manual), cancellationToken);
 }

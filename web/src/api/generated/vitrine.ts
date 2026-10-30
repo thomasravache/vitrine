@@ -131,10 +131,7 @@ export type ListListingsParams = {
   status?: string;
   accountId?: string;
   q?: string;
-  /**
-   * @pattern ^-?(?:0|[1-9]\d*)$
-   */
-  limit?: number | string;
+  limit?: number;
   cursor?: string;
 };
 
@@ -773,7 +770,7 @@ export const getSyncListingsUrl = () => {
 };
 
 export const syncListings = async (
-  syncListingsRequest: SyncListingsRequest,
+  syncListingsRequest?: SyncListingsRequest,
   options?: Parameters<typeof http>[1],
 ): Promise<syncListingsResponse> => {
   const getHeaders = (

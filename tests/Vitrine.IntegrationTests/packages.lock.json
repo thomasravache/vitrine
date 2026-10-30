@@ -2325,6 +2325,7 @@
       "vitrine.listings.presentation": {
         "type": "Project",
         "dependencies": {
+          "Microsoft.AspNetCore.OpenApi": "[10.0.14, )",
           "Vitrine.Common.Web": "[1.0.0, )",
           "Vitrine.Listings.Application": "[1.0.0, )"
         }

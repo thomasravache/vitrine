@@ -1,5 +1,4 @@
 using Microsoft.EntityFrameworkCore;
-using Vitrine.Listings.Domain.Listings;
 using Vitrine.Listings.Domain.Sync;
 using Vitrine.Listings.Infrastructure.Persistence;
 using Vitrine.MercadoLivre.IntegrationEvents;
@@ -36,7 +35,7 @@ public static class ItemChangedHandler
 
         var state = await db.SyncStates.AsNoTracking()
             .Where(candidate => candidate.AccountId == message.AccountId)
-            .Select(candidate => new { candidate.WorkspaceId, candidate.Status })
+            .Select(candidate => new { candidate.Status })
             .FirstOrDefaultAsync(cancellationToken);
         if (state is null || state.Status == SyncStatuses.Paused)
         {
@@ -57,20 +56,9 @@ public static class ItemChangedHandler
 
         switch (result)
         {
-            case MercadoLivreItemResult.Found { Item: var item }:
-                var snapshot = SyncListingsHandler.Snapshot(item);
-                var now = clock.GetUtcNow();
-                var listing = await db.Listings.FindAsync([message.AccountId, message.ItemId], cancellationToken);
-                if (listing is null)
-                {
-                    db.Listings.Add(new Listing(message.AccountId, message.ItemId, state.WorkspaceId, snapshot, syncRunId: null, now));
-                }
-                else if (!listing.Refresh(snapshot, now))
-                {
-                    return;
-                }
-
-                await db.SaveChangesAsync(cancellationToken);
+            // Grava só se a conta ainda existe (linha de sync_states travada) e a leitura não é mais antiga que a cópia.
+            case MercadoLivreItemResult.Found { Item: var item } when item.Id == message.ItemId:
+                await ListingsUpsert.ExecuteAsync(db, message.AccountId, syncRunId: null, [item], clock.GetUtcNow(), cancellationToken);
                 break;
 
             case MercadoLivreItemResult.NotFound:

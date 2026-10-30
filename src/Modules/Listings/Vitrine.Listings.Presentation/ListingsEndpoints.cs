@@ -27,6 +27,7 @@ public static class ListingsEndpoints
 
         var group = endpoints.MapGroup("/api/v1/listings").WithTags("Listings");
         group.MapGet(string.Empty, ListListings).WithName("ListListings")
+            .AddOpenApiOperationTransformer(ListingsOpenApi.DocumentQueryTypes)
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status403Forbidden);
@@ -42,6 +43,7 @@ public static class ListingsEndpoints
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status429TooManyRequests)
+            .AddOpenApiOperationTransformer(ListingsOpenApi.OptionalRequestBody)
             .Finally(AcceptRequestsWithoutContentType);
 
         return endpoints;
@@ -49,9 +51,9 @@ public static class ListingsEndpoints
 
     private static async Task<Results<Ok<ListingsPageResponse>, UnauthorizedHttpResult, ProblemHttpResult>> ListListings(
         [FromQuery] string? status,
-        [FromQuery] Guid? accountId,
+        [FromQuery] string? accountId,
         [FromQuery] string? q,
-        [FromQuery] int? limit,
+        [FromQuery] string? limit,
         [FromQuery] string? cursor,
         ClaimsPrincipal principal,
         ListListingsHandler handler,
@@ -62,7 +64,7 @@ public static class ListingsEndpoints
             return TypedResults.Unauthorized();
         }
 
-        var request = new ListListingsRequest(status, accountId, q, limit, cursor);
+        var request = new ListListingsQuery(status, accountId, q, limit, cursor);
         return await handler.HandleAsync(userId, request, cancellationToken) switch
         {
             ListListingsResult.Listed { Page: var page } => TypedResults.Ok(new ListingsPageResponse(

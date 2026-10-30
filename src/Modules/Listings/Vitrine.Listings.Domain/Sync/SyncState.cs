@@ -71,3 +71,18 @@ public static class ManualSyncCooldown
         return remaining > TimeSpan.Zero ? Math.Max(1, (int)Math.Ceiling(remaining.TotalSeconds)) : null;
     }
 }
+
+/// <summary>
+/// Sincronização travada (SPEC-0022, emenda v1.3): uma conta em <c>running</c> há mais que
+/// <see cref="StaleRunningAfter"/> (ex.: processo derrubado no meio) conta como não-running — um novo pedido enfileira e
+/// a nova execução assume.
+/// </summary>
+public static class StaleRunningSync
+{
+    /// <summary>Tempo máximo de uma sincronização em <c>running</c>.</summary>
+    public static readonly TimeSpan StaleRunningAfter = TimeSpan.FromHours(1);
+
+    /// <summary>Verdadeiro quando a conta está em <c>running</c> de fato (não travada).</summary>
+    public static bool IsRunning(string status, DateTimeOffset? startedAt, DateTimeOffset now) =>
+        status == SyncStatuses.Running && startedAt is { } started && started >= now - StaleRunningAfter;
+}

@@ -1,6 +1,7 @@
 using System.Buffers.Binary;
 using System.Buffers.Text;
 using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -15,6 +16,12 @@ namespace Vitrine.Listings.Application.Browsing;
 /// <param name="Cursor">Cursor opaco de <see cref="ListingsCursor.Encode"/> (opcional).</param>
 public sealed record ListListingsRequest(string? Status, Guid? AccountId, string? Q, int? Limit, string? Cursor);
 
+/// <summary>
+/// Parâmetros de <c>GET /api/v1/listings</c> como chegam na query string, antes da conversão de <c>accountId</c> (uuid)
+/// e <c>limit</c> (inteiro): texto que não converte é erro de validação, não de binding (emenda v1.3).
+/// </summary>
+public sealed record ListListingsQuery(string? Status, string? AccountId, string? Q, string? Limit, string? Cursor);
+
 /// <summary>Validação dos parâmetros da listagem (400 <c>VALIDATION_FAILED</c>).</summary>
 public static class ListListingsValidator
 {
@@ -25,6 +32,50 @@ public static class ListListingsValidator
 
     /// <summary>Filtro <c>status</c> aceito.</summary>
     public static IReadOnlyList<string> Statuses { get; } = ["active", "paused", "closed", "all"];
+
+    /// <summary>
+    /// Converte e valida a query crua: erros por campo (<c>status</c>, <c>accountId</c>, <c>limit</c>, <c>q</c>,
+    /// <c>cursor</c>), vazio quando válida; <paramref name="request"/> traz os parâmetros convertidos.
+    /// </summary>
+    public static IReadOnlyDictionary<string, string[]> Validate(ListListingsQuery query, out ListListingsRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+
+        var errors = new Dictionary<string, string[]>(StringComparer.Ordinal);
+        Guid? accountId = null;
+        if (!string.IsNullOrEmpty(query.AccountId))
+        {
+            if (Guid.TryParse(query.AccountId, CultureInfo.InvariantCulture, out var parsed))
+            {
+                accountId = parsed;
+            }
+            else
+            {
+                errors["accountId"] = ["Informe o identificador (uuid) de uma conta."];
+            }
+        }
+
+        int? limit = null;
+        if (!string.IsNullOrEmpty(query.Limit))
+        {
+            if (int.TryParse(query.Limit, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed))
+            {
+                limit = parsed;
+            }
+            else
+            {
+                errors["limit"] = [$"O limite deve ser um número inteiro entre {MinLimit} e {MaxLimit}."];
+            }
+        }
+
+        request = new ListListingsRequest(query.Status, accountId, query.Q, limit, query.Cursor);
+        foreach (var (field, messages) in Validate(request))
+        {
+            errors.TryAdd(field, messages);
+        }
+
+        return errors;
+    }
 
     /// <summary>
     /// Erros por campo (<c>status</c>, <c>limit</c>, <c>q</c>, <c>cursor</c>); vazio quando os parâmetros são válidos.

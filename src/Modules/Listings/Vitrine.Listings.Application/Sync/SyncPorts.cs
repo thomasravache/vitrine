@@ -5,6 +5,7 @@ public sealed record SyncStateView(
     Guid AccountId,
     Guid WorkspaceId,
     string Status,
+    DateTimeOffset? StartedAt,
     DateTimeOffset? CompletedAt,
     DateTimeOffset? LastManualAt,
     int ItemCount,

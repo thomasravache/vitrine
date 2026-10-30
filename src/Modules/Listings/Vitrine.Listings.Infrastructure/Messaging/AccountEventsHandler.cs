@@ -46,9 +46,14 @@ public static class AccountEventsHandler
         ArgumentNullException.ThrowIfNull(message);
         ArgumentNullException.ThrowIfNull(db);
 
-        // Primeiro o estado: uma sincronização em curso deixa de gravar anúncios (o upsert exige a linha de sync_states).
-        await db.SyncStates.Where(state => state.AccountId == message.AccountId).ExecuteDeleteAsync(cancellationToken);
+        // A linha de sync_states é travada (FOR UPDATE) antes de apagar: uma gravação em curso (que a trava em FOR SHARE)
+        // termina antes e é apagada junto; as seguintes não encontram a conta e não gravam nada.
+        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+        await db.Database.ExecuteSqlAsync(
+            $"select 1 from listings.sync_states where account_id = {message.AccountId} for update", cancellationToken);
         await db.Listings.Where(listing => listing.AccountId == message.AccountId).ExecuteDeleteAsync(cancellationToken);
+        await db.SyncStates.Where(state => state.AccountId == message.AccountId).ExecuteDeleteAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
     }
 
     /// <summary>Pausa a sincronização da conta até ela ser reconectada; os anúncios ficam.</summary>

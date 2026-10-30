@@ -97,18 +97,63 @@ internal sealed class SyncStates(ListingsModuleDbContext db) : ISyncStates
             .Where(state => state.WorkspaceId == workspaceId)
             .OrderBy(state => state.AccountId)
             .Select(state => new SyncStateView(
-                state.AccountId, state.WorkspaceId, state.Status, state.CompletedAt, state.LastManualAt, state.ItemCount, state.LastError))
+                state.AccountId, state.WorkspaceId, state.Status, state.StartedAt, state.CompletedAt, state.LastManualAt, state.ItemCount, state.LastError))
             .ToListAsync(cancellationToken);
 }
 
 /// <summary>
-/// Destino da sincronização no PostgreSQL: <c>upsert</c> em lote (<c>unnest</c> + <c>ON CONFLICT</c>) marcando o
-/// <c>sync_run_id</c>, e varredura dos anúncios de outras execuções. O workspace vem de <c>sync_states</c>: conta já
-/// apagada (desconectada no meio da sincronização) não recebe linhas.
+/// Destino da sincronização no PostgreSQL (marcar e varrer — SPEC-0022, emenda v1.3): o <c>upsert</c> em lote marca
+/// todo anúncio lido com o <c>sync_run_id</c> da execução, mas só troca os dados quando a leitura não é mais antiga que
+/// a cópia; a varredura só apaga o que a execução não tocou e que é anterior ao início dela (uma notificação gravada no
+/// meio da execução fica).
 /// </summary>
-internal sealed class ListingsSyncTarget(ListingsModuleDbContext db, TimeProvider clock) : IListingsSyncTarget
+internal sealed class ListingsSyncTarget(ListingsModuleDbContext db, TimeProvider clock, DateTimeOffset startedAt) : IListingsSyncTarget
 {
-    private const string UpsertSql =
+    /// <summary>Anúncios gravados por esta instância (métrica <c>vitrine.listings.items_upserted</c>).</summary>
+    public int Upserted { get; private set; }
+
+    public async Task UpsertAsync(Guid accountId, Guid syncRunId, IReadOnlyList<MercadoLivreItem> items, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(items);
+        if (items.Count > 0)
+        {
+            Upserted += await ListingsUpsert.ExecuteAsync(db, accountId, syncRunId, items, clock.GetUtcNow(), cancellationToken);
+        }
+    }
+
+    public Task SweepAsync(Guid accountId, Guid syncRunId, CancellationToken cancellationToken)
+    {
+        var startedAtUtc = startedAt.ToUniversalTime();
+        return db.Listings
+            .Where(listing => listing.AccountId == accountId
+                && (listing.SyncRunId == null || listing.SyncRunId != syncRunId)
+                && listing.UpdatedAt < startedAtUtc)
+            .ExecuteDeleteAsync(cancellationToken);
+    }
+}
+
+/// <summary>
+/// Gravação de anúncios lidos do ML (sincronização e notificação), num único comando:
+/// <list type="bullet">
+/// <item>o workspace vem da linha de <c>sync_states</c>, travada em <c>FOR SHARE</c> — conta desconhecida ou apagada não
+/// recebe linhas, e a desconexão (que trava a mesma linha em <c>FOR UPDATE</c>) se serializa com a gravação;</item>
+/// <item>os dados só são trocados quando a leitura não é mais antiga que a cópia
+/// (<c>excluded.ml_last_updated &gt;= ml_last_updated</c>, a regra de <c>ListingUpdatePolicy</c>);</item>
+/// <item>com <c>syncRunId</c> (sincronização), toda linha lida fica marcada com a execução; sem ele (notificação), a
+/// marca existente é mantida.</item>
+/// </list>
+/// </summary>
+internal static class ListingsUpsert
+{
+    private static readonly string[] DataColumns =
+    [
+        "title", "price", "currency_id", "available_quantity", "sold_quantity", "status", "permalink", "thumbnail_url",
+        "ml_last_updated", "updated_at",
+    ];
+
+    private const string Fresh = "excluded.ml_last_updated >= l.ml_last_updated";
+
+    private const string Insert =
         """
         insert into listings.listings as l (account_id, item_id, workspace_id, title, price, currency_id, available_quantity,
                                             sold_quantity, status, permalink, thumbnail_url, ml_last_updated, sync_run_id, updated_at)
@@ -117,37 +162,31 @@ internal sealed class ListingsSyncTarget(ListingsModuleDbContext db, TimeProvide
         from unnest(@ids, @titles, @prices, @currencies, @available, @sold, @statuses, @permalinks, @thumbnails, @last_updated)
              as i(item_id, title, price, currency_id, available_quantity, sold_quantity, status, permalink, thumbnail_url, ml_last_updated)
         join listings.sync_states s on s.account_id = @account
+        for share of s
         on conflict (account_id, item_id) do update set
-            workspace_id = excluded.workspace_id,
-            title = excluded.title,
-            price = excluded.price,
-            currency_id = excluded.currency_id,
-            available_quantity = excluded.available_quantity,
-            sold_quantity = excluded.sold_quantity,
-            status = excluded.status,
-            permalink = excluded.permalink,
-            thumbnail_url = excluded.thumbnail_url,
-            ml_last_updated = excluded.ml_last_updated,
-            sync_run_id = excluded.sync_run_id,
-            updated_at = excluded.updated_at
         """;
 
-    /// <summary>Anúncios gravados por esta instância (métrica <c>vitrine.listings.items_upserted</c>).</summary>
-    public int Upserted { get; private set; }
+    // Sincronização: marca a execução sempre; dados só se a leitura não for mais antiga.
+    private static readonly string SyncSql = Insert
+        + "    workspace_id = excluded.workspace_id,\n    sync_run_id = excluded.sync_run_id,\n"
+        + string.Join(",\n", DataColumns.Select(column => $"    {column} = case when {Fresh} then excluded.{column} else l.{column} end"));
 
-    public async Task UpsertAsync(Guid accountId, Guid syncRunId, IReadOnlyList<MercadoLivreItem> items, CancellationToken cancellationToken)
+    // Notificação: só atualiza (dados e workspace) quando a leitura não é mais antiga; a marca da execução fica.
+    private static readonly string NotificationSql = Insert
+        + "    workspace_id = excluded.workspace_id,\n"
+        + string.Join(",\n", DataColumns.Select(column => $"    {column} = excluded.{column}"))
+        + $"\nwhere {Fresh}";
+
+    /// <summary>Grava os anúncios; devolve quantas linhas foram inseridas ou atualizadas.</summary>
+    public static Task<int> ExecuteAsync(
+        ListingsModuleDbContext db, Guid accountId, Guid? syncRunId, IReadOnlyList<MercadoLivreItem> items, DateTimeOffset now,
+        CancellationToken cancellationToken)
     {
-        ArgumentNullException.ThrowIfNull(items);
-        if (items.Count == 0)
-        {
-            return;
-        }
-
         NpgsqlParameter[] parameters =
         [
             new("account", NpgsqlDbType.Uuid) { Value = accountId },
-            new("run", NpgsqlDbType.Uuid) { Value = syncRunId },
-            new("now", NpgsqlDbType.TimestampTz) { Value = clock.GetUtcNow().ToUniversalTime() },
+            new("run", NpgsqlDbType.Uuid) { Value = syncRunId is { } run ? run : DBNull.Value },
+            new("now", NpgsqlDbType.TimestampTz) { Value = now.ToUniversalTime() },
             Array("ids", NpgsqlDbType.Text, items.Select(item => item.Id).ToArray()),
             Array("titles", NpgsqlDbType.Text, items.Select(item => item.Title).ToArray()),
             Array("prices", NpgsqlDbType.Numeric, items.Select(item => item.Price).ToArray()),
@@ -160,13 +199,8 @@ internal sealed class ListingsSyncTarget(ListingsModuleDbContext db, TimeProvide
             Array("last_updated", NpgsqlDbType.TimestampTz, items.Select(item => item.LastUpdated.ToUniversalTime()).ToArray()),
         ];
 
-        Upserted += await db.Database.ExecuteSqlRawAsync(UpsertSql, parameters, cancellationToken);
+        return db.Database.ExecuteSqlRawAsync(syncRunId is null ? NotificationSql : SyncSql, parameters, cancellationToken);
     }
-
-    public Task SweepAsync(Guid accountId, Guid syncRunId, CancellationToken cancellationToken) =>
-        db.Listings
-            .Where(listing => listing.AccountId == accountId && (listing.SyncRunId == null || listing.SyncRunId != syncRunId))
-            .ExecuteDeleteAsync(cancellationToken);
 
     private static NpgsqlParameter Array<T>(string name, NpgsqlDbType elementType, T[] values) =>
         new(name, NpgsqlDbType.Array | elementType) { Value = values };

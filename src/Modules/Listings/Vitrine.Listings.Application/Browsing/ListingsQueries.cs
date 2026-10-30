@@ -36,9 +36,9 @@ public interface IListingsReadModel
 /// <summary><c>GET /api/v1/listings</c>: valida os parâmetros e lista os anúncios do workspace do usuário.</summary>
 public sealed class ListListingsHandler(IWorkspaceMembership membership, IListingsReadModel listings)
 {
-    public async Task<ListListingsResult> HandleAsync(Guid userId, ListListingsRequest request, CancellationToken cancellationToken)
+    public async Task<ListListingsResult> HandleAsync(Guid userId, ListListingsQuery query, CancellationToken cancellationToken)
     {
-        ArgumentNullException.ThrowIfNull(request);
+        ArgumentNullException.ThrowIfNull(query);
 
         var member = await membership.GetAsync(userId, cancellationToken);
         if (member is null)
@@ -46,7 +46,7 @@ public sealed class ListListingsHandler(IWorkspaceMembership membership, IListin
             return new ListListingsResult.Forbidden();
         }
 
-        var errors = ListListingsValidator.Validate(request);
+        var errors = ListListingsValidator.Validate(query, out var request);
         if (errors.Count > 0)
         {
             return new ListListingsResult.Invalid(errors);
