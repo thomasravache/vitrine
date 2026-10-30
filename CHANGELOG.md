@@ -16,6 +16,7 @@ Cada entrada cita a spec de origem (`SPEC-NNNN`); gere-as com `spec_graph.py rep
 - Observabilidade de base: `/health/ready`, logs JSON com `trace_id` e dados pessoais mascarados, métricas de acesso (`vitrine.auth.*`), spans de banco, Sentry no backend e na SPA (só com DSN), Grafana Alloy opcional, alertas como código e runbooks (SPEC-0007)
 - Segurança de base: autorização negada por padrão guardada por teste de arquitetura, cabeçalhos de segurança (CSP, HSTS), limite de tentativas no cadastro e login (429), cifra de campos sensíveis (AES-256-GCM) com chaves no PostgreSQL protegidas pela chave mestra e runbook de rotação (SPEC-0008)
 - O CI reprova o PR quando o cliente da API da SPA (`web/src/api`) está desatualizado em relação ao OpenAPI (SPEC-0011)
+- Conectar e desconectar contas do Mercado Livre pelo OAuth oficial com PKCE, com tokens cifrados e eventos de conta conectada/desconectada (SPEC-0020)
 
 ### Fixed
 - O Sentry não recebe segredos de `Exception.Data` guardados em objetos, contexts, extras, JSON, coleções ou URLs com credenciais, e o log de erro nunca falha por causa do mascaramento (SPEC-0018)

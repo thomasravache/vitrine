@@ -56,6 +56,11 @@ logs, traces, métricas e o endereço de cada recurso. A API responde `GET /heal
   sensíveis com `IFieldProtector` / `IsProtected("<propósito>")` em `src/Common/Vitrine.Common.Security`. As chaves do
   Data Protection ficam no PostgreSQL, cifradas pela chave mestra `DATA_PROTECTION_MASTER_KEY` (obrigatória fora do
   desenvolvimento; rotação em `docs/runbooks/rotacao-chave-mestra.md`).
+- **Contas do Mercado Livre (SPEC-0020):** o dono do workspace conecta e desconecta contas do ML (MLB) pelo OAuth
+  oficial com PKCE (`/api/v1/mercadolivre/connections`, `/connections/complete`, `/accounts`); tokens cifrados que
+  nunca chegam à SPA. Sem `MercadoLivre__ClientId`/`MercadoLivre__ClientSecret` a API responde 503
+  `ML_NOT_CONFIGURED`. Módulo em `src/Modules/MercadoLivre/`; filtros web compartilhados em
+  `src/Common/Vitrine.Common.Web`.
 
 ## Comandos
 
