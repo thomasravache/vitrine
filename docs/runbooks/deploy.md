@@ -16,8 +16,10 @@ Pré-requisitos: Docker com Compose v2, portas 80 e 443 livres, .NET SDK (para c
 
 ```bash
 # 1. Imagem (ou use ghcr.io/thomasravache/vitrine-api:<sha> com IMAGE_REPO no .env)
+#    PublishSpa=true embute web/dist em wwwroot; sem ele a imagem não serve a SPA (rotas como /cadastro dão 401).
 TAG=$(git rev-parse --short HEAD)
-dotnet publish src/Api/Vitrine.Api.csproj -t:PublishContainer -p:ContainerRepository=vitrine-api -p:ContainerImageTag=$TAG
+npm --prefix web ci && npm --prefix web run build
+dotnet publish src/Api/Vitrine.Api.csproj -c Release -t:PublishContainer -p:PublishSpa=true -p:ContainerRepository=vitrine-api -p:ContainerImageTag=$TAG
 
 # 2. Configuração (dados sintéticos)
 cp deploy/local/.env.example deploy/local/.env
