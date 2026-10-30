@@ -93,6 +93,49 @@ public sealed class AccountsTests(PostgresFixture postgres)
         }
     }
 
+    [Fact]
+    [Trait("spec", "SPEC-0020:IT-05")]
+    public async Task DELETEs_simultaneos_da_mesma_conta_respondem_204_e_204_ou_404_nunca_500()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var connectionString = await postgres.CreateDatabaseAsync(cancellationToken);
+        await using var factory = MercadoLivreHost.Create(connectionString);
+        var fake = new MercadoLivreFake(factory.ExternalServices);
+        using var api = new MercadoLivreApi(factory);
+        await api.SignUpAsync(cancellationToken);
+
+        // Algumas rodadas, cada uma com uma conta nova: a corrida aparece sem hooks no código de produção.
+        for (var round = 0; round < 5; round++)
+        {
+            // Dado uma conta conectada
+            var account = await api.ConnectAsync(fake, MlSeller.New(), MlTokens.New(), cancellationToken);
+
+            // Quando dois DELETE da mesma conta chegam ao mesmo tempo
+            var responses = await Task.WhenAll(
+                api.DisconnectAsync(account.AccountId, cancellationToken),
+                api.DisconnectAsync(account.AccountId, cancellationToken));
+            try
+            {
+                // Então um responde 204 e o outro 204 ou 404 — nunca 500
+                var bodies = await Task.WhenAll(responses.Select(response => response.Content.ReadAsStringAsync(cancellationToken)));
+                var detail = $"rodada {round}: {string.Join(" | ", responses.Zip(bodies, (response, body) => $"{(int)response.StatusCode} {body}"))}";
+                var statuses = responses.Select(response => (int)response.StatusCode).Order().ToList();
+                Assert.True(statuses.Contains(204), $"Nenhum DELETE respondeu 204: {detail}");
+                Assert.True(statuses.All(status => status is 204 or 404), $"Status fora do aceitável: {detail}");
+            }
+            finally
+            {
+                foreach (var response in responses)
+                {
+                    response.Dispose();
+                }
+            }
+
+            // E a conta não existe mais
+            Assert.Equal(0, await MercadoLivreDatabase.CountAccountsAsync(connectionString, cancellationToken));
+        }
+    }
+
     /// <summary>Operação de Owner tentada por um Member.</summary>
     public enum OwnerOperation
     {

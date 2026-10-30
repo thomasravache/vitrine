@@ -38,6 +38,17 @@ public sealed class ConnectionFailureTests(PostgresFixture postgres)
 
         /// <summary><c>/users/me</c> com <c>id</c> diferente do <c>user_id</c> do token.</summary>
         UserIdMismatch,
+
+        /// <summary>
+        /// <c>/users/me</c> com <c>id</c> divergente <b>e</b> <c>site_id=MLA</c>: a divergência vem antes do site (502, não 422).
+        /// </summary>
+        UserIdMismatchOnOtherSite,
+
+        /// <summary>
+        /// Cada chamada cabe em 10 s, mas a soma não: <c>/oauth/token</c> em ~6 s e <c>/users/me</c> em ~8 s. O timeout
+        /// de 10 s é total da conclusão (§5), não por chamada.
+        /// </summary>
+        SlowCallsOverTotalTimeout,
     }
 
     public static TheoryData<MlFailure, HttpStatusCode, string> Failures() => new()
@@ -50,11 +61,16 @@ public sealed class ConnectionFailureTests(PostgresFixture postgres)
         { MlFailure.MissingRefreshToken, HttpStatusCode.BadGateway, "ML_UNAVAILABLE" },
         { MlFailure.OtherSite, (HttpStatusCode)422, "ML_SITE_NOT_SUPPORTED" },
         { MlFailure.UserIdMismatch, HttpStatusCode.BadGateway, "ML_UNAVAILABLE" },
+        { MlFailure.UserIdMismatchOnOtherSite, HttpStatusCode.BadGateway, "ML_UNAVAILABLE" },
+        { MlFailure.SlowCallsOverTotalTimeout, HttpStatusCode.BadGateway, "ML_UNAVAILABLE" },
     };
 
     // Timeout total da conclusão: 10 s (Http.Resilience); margem para o host de teste.
     private static readonly TimeSpan TotalTimeout = TimeSpan.FromSeconds(10);
     private static readonly TimeSpan TimeoutMargin = TimeSpan.FromSeconds(5);
+
+    // Margem curta para a soma das chamadas: a conclusão toda não pode passar muito de 10 s.
+    private static readonly TimeSpan TotalTimeoutMargin = TimeSpan.FromSeconds(1.5);
 
     [Theory]
     [Trait("spec", "SPEC-0020:IT-04")]
@@ -68,7 +84,7 @@ public sealed class ConnectionFailureTests(PostgresFixture postgres)
         var fake = new MercadoLivreFake(factory.ExternalServices);
         using var api = new MercadoLivreApi(factory);
         await api.SignUpAsync(cancellationToken);
-        var seller = MlSeller.New(failure == MlFailure.OtherSite ? "MLA" : "MLB");
+        var seller = MlSeller.New(failure is MlFailure.OtherSite or MlFailure.UserIdMismatchOnOtherSite ? "MLA" : "MLB");
         var tokens = MlTokens.New();
 
         // Dado o ML simulado respondendo a falha
@@ -89,6 +105,14 @@ public sealed class ConnectionFailureTests(PostgresFixture postgres)
         {
             // E a espera respeita o timeout total de 10 s
             Assert.True(elapsed.Elapsed < TotalTimeout + TimeoutMargin, $"A conclusão esperou {elapsed.Elapsed} pelo ML (limite: {TotalTimeout}).");
+        }
+
+        if (failure == MlFailure.SlowCallsOverTotalTimeout)
+        {
+            // E o timeout de 10 s vale para a conclusão inteira (troca do code + /users/me), não para cada chamada
+            Assert.True(
+                elapsed.Elapsed < TotalTimeout + TotalTimeoutMargin,
+                $"A conclusão levou {elapsed.Elapsed} somando as chamadas ao ML (limite total: {TotalTimeout}).");
         }
 
         if (failure == MlFailure.InvalidClient)
@@ -135,6 +159,61 @@ public sealed class ConnectionFailureTests(PostgresFixture postgres)
         Assert.Empty(await second.ListSuccessfullyAsync(cancellationToken));
     }
 
+    [Fact]
+    [Trait("spec", "SPEC-0020:IT-04")]
+    public async Task Conclusoes_simultaneas_da_mesma_conta_no_mesmo_workspace_nunca_respondem_409_ML_ACCOUNT_IN_USE()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var connectionString = await postgres.CreateDatabaseAsync(cancellationToken);
+        await using var factory = MercadoLivreHost.Create(connectionString);
+        var fake = new MercadoLivreFake(factory.ExternalServices);
+        using var api = new MercadoLivreApi(factory);
+        var owner = await api.SignUpAsync(cancellationToken);
+
+        // Algumas rodadas, cada uma com um vendedor novo: a corrida aparece sem hooks no código de produção.
+        for (var round = 0; round < 3; round++)
+        {
+            // Dado duas autorizações pendentes do mesmo Owner (states diferentes) e o ML devolvendo o mesmo vendedor,
+            // com /users/me lento o bastante para as duas conclusões chegarem juntas à gravação
+            var seller = MlSeller.New();
+            var tokens = MlTokens.New();
+            fake.Reset();
+            fake.TokenResponds(tokens, seller.Id);
+            fake.UsersMeResponds(tokens.AccessToken, seller, delay: TimeSpan.FromSeconds(1));
+            var first = await api.StartSuccessfullyAsync(cancellationToken);
+            var second = await api.StartSuccessfullyAsync(cancellationToken);
+
+            // Quando as duas conclusões chegam ao mesmo tempo
+            var responses = await Task.WhenAll(
+                api.CompleteAsync(MercadoLivreApi.NewCode(), first.State, cancellationToken),
+                api.CompleteAsync(MercadoLivreApi.NewCode(), second.State, cancellationToken));
+            try
+            {
+                // Então nenhuma responde 409 (a conta é do próprio workspace): uma conecta (201) e a outra reconecta
+                // (200) ou responde 502; nunca 500
+                var bodies = await Task.WhenAll(responses.Select(response => response.Content.ReadAsStringAsync(cancellationToken)));
+                var detail = $"rodada {round}: {string.Join(" | ", responses.Zip(bodies, (response, body) => $"{(int)response.StatusCode} {body}"))}";
+                var statuses = responses.Select(response => (int)response.StatusCode).Order().ToList();
+                Assert.False(statuses.Contains(409), $"Conclusão da conta do próprio workspace respondeu 409 ML_ACCOUNT_IN_USE: {detail}");
+                Assert.False(statuses.Contains(500), $"Conclusão simultânea respondeu 500: {detail}");
+                Assert.True(statuses.Contains(201), $"Nenhuma conclusão conectou a conta: {detail}");
+                Assert.True(statuses.All(status => status is 200 or 201 or 502), $"Status fora do aceitável: {detail}");
+                Assert.True(statuses.Count(status => status == 201) == 1, $"A conta foi criada duas vezes: {detail}");
+            }
+            finally
+            {
+                foreach (var response in responses)
+                {
+                    response.Dispose();
+                }
+            }
+
+            // E fica uma única conta desse vendedor, no workspace do Owner
+            var rows = (await MercadoLivreDatabase.ReadAccountsAsync(connectionString, cancellationToken)).Where(row => row.MlUserId == seller.Id).ToList();
+            Assert.Equal(owner.WorkspaceId, Assert.Single(rows).WorkspaceId);
+        }
+    }
+
     private static void Arrange(MercadoLivreFake fake, MlFailure failure, MlSeller seller, MlTokens tokens)
     {
         switch (failure)
@@ -165,6 +244,14 @@ public sealed class ConnectionFailureTests(PostgresFixture postgres)
             case MlFailure.UserIdMismatch:
                 fake.TokenResponds(tokens, seller.Id + 1);
                 fake.UsersMeResponds(tokens.AccessToken, seller);
+                break;
+            case MlFailure.UserIdMismatchOnOtherSite:
+                fake.TokenResponds(tokens, seller.Id + 1);
+                fake.UsersMeResponds(tokens.AccessToken, seller);
+                break;
+            case MlFailure.SlowCallsOverTotalTimeout:
+                fake.TokenResponds(tokens, seller.Id, delay: TimeSpan.FromSeconds(6));
+                fake.UsersMeResponds(tokens.AccessToken, seller, delay: TimeSpan.FromSeconds(8));
                 break;
             default:
                 throw new ArgumentOutOfRangeException(nameof(failure), failure, null);

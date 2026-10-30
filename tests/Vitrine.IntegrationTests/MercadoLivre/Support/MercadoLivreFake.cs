@@ -59,7 +59,7 @@ internal sealed class MercadoLivreFake(WireMockServer server)
     /// <c>POST /oauth/token</c> (form-urlencoded, <c>grant_type=authorization_code</c>) responde 200 com os tokens; sem
     /// <paramref name="withRefreshToken"/>, como um app sem o escopo <c>offline_access</c>.
     /// </summary>
-    public void TokenResponds(MlTokens tokens, long userId, bool withRefreshToken = true)
+    public void TokenResponds(MlTokens tokens, long userId, bool withRefreshToken = true, TimeSpan? delay = null)
     {
         ArgumentNullException.ThrowIfNull(tokens);
         var body = new Dictionary<string, object>
@@ -75,7 +75,8 @@ internal sealed class MercadoLivreFake(WireMockServer server)
             body["refresh_token"] = tokens.RefreshToken;
         }
 
-        server.Given(TokenRequest()).RespondWith(Response.Create().WithStatusCode(200).WithBodyAsJson(body));
+        var response = Response.Create().WithStatusCode(200).WithBodyAsJson(body);
+        server.Given(TokenRequest()).RespondWith(delay is { } wait ? response.WithDelay(wait) : response);
     }
 
     /// <summary><c>POST /oauth/token</c> responde o erro do ML (<c>{ error, message, status }</c>).</summary>
@@ -109,11 +110,11 @@ internal sealed class MercadoLivreFake(WireMockServer server)
     /// <c>GET /users/me</c> com <c>Authorization: Bearer {accessToken}</c> devolve o vendedor, com os dados pessoais que o
     /// ML também devolve (e-mail, nome, documento) e que o Vitrine não pode guardar.
     /// </summary>
-    public void UsersMeResponds(string accessToken, MlSeller seller)
+    public void UsersMeResponds(string accessToken, MlSeller seller, TimeSpan? delay = null)
     {
         ArgumentNullException.ThrowIfNull(seller);
         server.Given(Request.Create().WithPath(UsersMePath).UsingGet().WithHeader("Authorization", $"Bearer {accessToken}"))
-            .RespondWith(Response.Create().WithStatusCode(200).WithBodyAsJson(new Dictionary<string, object>
+            .RespondWith(Delayed(delay, Response.Create().WithStatusCode(200)).WithBodyAsJson(new Dictionary<string, object>
             {
                 ["id"] = seller.Id,
                 ["nickname"] = seller.Nickname,
@@ -143,6 +144,9 @@ internal sealed class MercadoLivreFake(WireMockServer server)
         var body = entry!.RequestMessage?.Body ?? string.Empty;
         return QueryHelpers.ParseQuery(body).ToDictionary(field => field.Key, field => field.Value.ToString(), StringComparer.Ordinal);
     }
+
+    private static IResponseBuilder Delayed(TimeSpan? delay, IResponseBuilder response) =>
+        delay is { } wait ? response.WithDelay(wait) : response;
 
     private static IRequestBuilder TokenRequest() => Request.Create().WithPath(TokenPath).UsingPost();
 }

@@ -180,6 +180,38 @@ public sealed class ConnectionTests(PostgresFixture postgres)
         Assert.Empty(fake.Calls);
     }
 
+    public static TheoryData<string, string[]> InvalidCompleteBodies() => new()
+    {
+        { "", ["code", "state"] },
+        { "{}", ["code", "state"] },
+        { "{\"code\":\"\",\"state\":\"\"}", ["code", "state"] },
+        { "{\"code\":\"" + new string('c', 513) + "\",\"state\":\"state-valido\"}", ["code"] },
+        { "{\"code\":\"TG-code\",\"state\":\"" + new string('s', 129) + "\"}", ["state"] },
+    };
+
+    [Theory]
+    [Trait("spec", "SPEC-0020:IT-03")]
+    [MemberData(nameof(InvalidCompleteBodies))]
+    public async Task Complete_com_corpo_ausente_ou_campos_fora_do_tamanho_responde_400_VALIDATION_FAILED_com_errors(string rawBody, string[] invalidFields)
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var connectionString = await postgres.CreateDatabaseAsync(cancellationToken);
+        await using var factory = MercadoLivreHost.Create(connectionString);
+        var fake = new MercadoLivreFake(factory.ExternalServices);
+        using var api = new MercadoLivreApi(factory);
+        await api.SignUpAsync(cancellationToken);
+
+        // Dado o Owner com uma autorização pendente; quando POST /complete chega com corpo ausente ou inválido
+        _ = await api.StartSuccessfullyAsync(cancellationToken);
+        using var response = await api.Http.PostRawJsonAsync(MercadoLivreApi.CompletePath, rawBody, cancellationToken);
+
+        // Então 400 VALIDATION_FAILED com errors só nos campos inválidos (code 1..512, state 1..128), sem chamar o ML
+        var problem = await IdentityApi.AssertProblemAsync(HttpStatusCode.BadRequest, "VALIDATION_FAILED", response, cancellationToken);
+        Assert.True(problem.TryGetProperty("errors", out var errors), $"Problem sem errors: {problem}");
+        Assert.Equal(invalidFields.Order(StringComparer.Ordinal), errors.EnumerateObject().Select(field => field.Name).Order(StringComparer.Ordinal));
+        Assert.Empty(fake.Calls);
+    }
+
     /// <summary>Como o state chega inválido em <c>POST /complete</c>.</summary>
     public enum InvalidState
     {

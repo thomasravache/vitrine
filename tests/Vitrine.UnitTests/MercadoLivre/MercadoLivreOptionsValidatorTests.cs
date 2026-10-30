@@ -65,6 +65,32 @@ public sealed class MercadoLivreOptionsValidatorTests
         Assert.True(Validator(environment).Validate(null, options).Failed, "RedirectUri sem HTTPS fora de Development deveria falhar.");
     }
 
+    [Theory]
+    [Trait("spec", "SPEC-0020:UT-04")]
+    [InlineData("Production", "http://ml-simulador.vitrine.test", MercadoLivreOptions.OfficialApiBaseUrl)]
+    [InlineData("Production", MercadoLivreOptions.OfficialAuthorizationBaseUrl, "http://ml-simulador.vitrine.test")]
+    [InlineData("Staging", "http://ml-simulador.vitrine.test", MercadoLivreOptions.OfficialApiBaseUrl)]
+    [InlineData("Staging", MercadoLivreOptions.OfficialAuthorizationBaseUrl, "http://ml-simulador.vitrine.test")]
+    public void URL_do_ML_sem_HTTPS_fora_de_Development_falha_mesmo_com_AllowNonOfficialEndpoints(
+        string environment, string authorizationBaseUrl, string apiBaseUrl)
+    {
+        // Dado AuthorizationBaseUrl ou ApiBaseUrl em http:// fora de Development, com AllowNonOfficialEndpoints=true
+        var options = Configured(authorizationBaseUrl, apiBaseUrl, allowNonOfficial: true);
+
+        // Quando validadas; então falha (tokens e code nunca trafegam sem TLS)
+        Assert.True(Validator(environment).Validate(null, options).Failed, "URL do ML sem HTTPS fora de Development deveria falhar.");
+    }
+
+    [Fact]
+    [Trait("spec", "SPEC-0020:UT-04")]
+    public void URL_do_ML_sem_HTTPS_em_Development_passa()
+    {
+        // Simulador local (SPEC-0024) em http:// só em Development
+        var options = Configured("http://localhost:5280", "http://localhost:5280", allowNonOfficial: false);
+        var result = Validator(Environments.Development).Validate(null, options);
+        Assert.True(result.Succeeded, $"URL http:// em Development deveria passar: {result.FailureMessage}");
+    }
+
     [Fact]
     [Trait("spec", "SPEC-0020:UT-04")]
     public void RedirectUri_sem_HTTPS_em_Development_passa()
