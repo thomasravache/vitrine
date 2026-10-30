@@ -6,4 +6,7 @@ namespace Vitrine.Identity.Application.Abstractions;
 public interface IWorkspaceRepository
 {
     void Add(Workspace workspace);
+
+    /// <summary>Workspace do qual o usuário é membro (com os membros carregados); nulo se não pertence a nenhum.</summary>
+    Task<Workspace?> FindByMemberAsync(Guid userId, CancellationToken cancellationToken);
 }

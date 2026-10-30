@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using Vitrine.Identity.Application.Abstractions;
 using Vitrine.Identity.Domain.Workspaces;
@@ -19,6 +20,14 @@ internal sealed class IdentityUnitOfWork(IDbContextOutbox<IdentityModuleDbContex
         outbox.PublishAsync(integrationEvent).AsTask();
 
     public void Add(Workspace workspace) => outbox.DbContext.Workspaces.Add(workspace);
+
+    public Task<Workspace?> FindByMemberAsync(Guid userId, CancellationToken cancellationToken) =>
+        outbox.DbContext.Workspaces
+            .AsNoTracking()
+            .Include(workspace => workspace.Members)
+            .Where(workspace => workspace.Members.Any(member => member.UserId == userId))
+            .OrderBy(workspace => workspace.CreatedAt)
+            .FirstOrDefaultAsync(cancellationToken);
 
     private sealed class Transaction(IDbContextOutbox<IdentityModuleDbContext> outbox, IDbContextTransaction transaction)
         : IIdentityTransaction

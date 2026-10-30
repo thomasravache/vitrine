@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Contrato público síncrono do módulo MercadoLivre (ADR-0001). Nunca expõe tokens nem segredos (SPEC-0020:UT-06). -->
+
+</Project>

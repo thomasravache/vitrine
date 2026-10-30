@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Módulo MercadoLivre (SPEC-0020, ADR-0001): contas conectadas e autorizações pendentes, sem dependências de framework. -->
+
+</Project>

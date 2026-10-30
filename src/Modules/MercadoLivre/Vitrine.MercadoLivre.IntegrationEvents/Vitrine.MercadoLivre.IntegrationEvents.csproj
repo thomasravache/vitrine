@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Contrato público do módulo MercadoLivre (ADR-0001): eventos de integração v1 consumidos por outros módulos. -->
+
+</Project>
