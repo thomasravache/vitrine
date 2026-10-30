@@ -2306,6 +2306,7 @@
         "dependencies": {
           "Vitrine.Identity.PublicApi": "[1.0.0, )",
           "Vitrine.Listings.Domain": "[1.0.0, )",
+          "Vitrine.Listings.IntegrationEvents": "[1.0.0, )",
           "Vitrine.MercadoLivre.IntegrationEvents": "[1.0.0, )",
           "Vitrine.MercadoLivre.PublicApi": "[1.0.0, )"
         }
@@ -2321,6 +2322,9 @@
           "Vitrine.Listings.Domain": "[1.0.0, )",
           "WolverineFx.EntityFrameworkCore": "[6.59.0, )"
         }
+      },
+      "vitrine.listings.integrationevents": {
+        "type": "Project"
       },
       "vitrine.listings.presentation": {
         "type": "Project",

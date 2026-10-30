@@ -8,6 +8,9 @@
       "vitrine.listings.domain": {
         "type": "Project"
       },
+      "vitrine.listings.integrationevents": {
+        "type": "Project"
+      },
       "vitrine.mercadolivre.integrationevents": {
         "type": "Project"
       },

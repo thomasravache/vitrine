@@ -5,6 +5,9 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Vitrine.Listings.Domain\Vitrine.Listings.Domain.csproj" />
+    <!-- Contrato público do próprio módulo (reservado, como o MercadoLivre.PublicApi na SPEC-0020): chega à saída do
+         host e dos testes, que o carregam pelo nome (testes de arquitetura). -->
+    <ProjectReference Include="..\Vitrine.Listings.IntegrationEvents\Vitrine.Listings.IntegrationEvents.csproj" />
     <ProjectReference Include="..\..\MercadoLivre\Vitrine.MercadoLivre.PublicApi\Vitrine.MercadoLivre.PublicApi.csproj" />
     <ProjectReference Include="..\..\MercadoLivre\Vitrine.MercadoLivre.IntegrationEvents\Vitrine.MercadoLivre.IntegrationEvents.csproj" />
     <ProjectReference Include="..\..\Identity\Vitrine.Identity.PublicApi\Vitrine.Identity.PublicApi.csproj" />
