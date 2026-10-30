@@ -28,6 +28,11 @@
     <None Include="..\Vitrine.UnitTests\testconfig.json" Link="$(AssemblyName).testconfig.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
+  <!-- SPEC-0021:CT-02: resposta do /items/bulk no formato documentado, lida pelo teste de contrato. -->
+  <ItemGroup>
+    <None Include="MercadoLivre\Fixtures\**" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
   <ItemGroup>
     <Using Include="Xunit" />
   </ItemGroup>
