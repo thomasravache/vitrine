@@ -34,6 +34,8 @@ services:
       # Limites por minuto de /api/v1/auth/* (contrato: 10 por IP do cliente e 10 logins por e-mail).
       RateLimiting__AuthPerIp__PermitLimit: ${RATE_LIMIT_AUTH_PER_IP:-10}
       RateLimiting__LoginPerEmail__PermitLimit: ${RATE_LIMIT_LOGIN_PER_EMAIL:-10}
+      # Limite por minuto do webhook de notificações do ML por IP do cliente (SPEC-0023; contrato: 600).
+      RateLimiting__MercadoLivreNotificationsPerIp__PermitLimit: ${RATE_LIMIT_ML_NOTIFICATIONS_PER_IP:-600}
       # Mercado Livre (SPEC-0020): app do DevCenter com PKCE e escopos offline_access read write. Sem ClientId,
       # ClientSecret ou RedirectUri a Api sobe e a conexão de contas responde 503 ML_NOT_CONFIGURED.
       # ML_CLIENT_SECRET é secret do Environment (ADR-0006). URLs vazias = oficiais; em Production, URL diferente da

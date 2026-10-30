@@ -21,7 +21,8 @@ public static class MercadoLivreEndpoints
 
     /// <summary>
     /// Mapeia <c>/api/v1/mercadolivre</c>: iniciar e concluir a conexão, listar e desconectar contas. Tudo exige sessão
-    /// (política de fallback do host — ADR-0007); POST e DELETE exigem HTTPS e antiforgery.
+    /// (política de fallback do host — ADR-0007); POST e DELETE exigem HTTPS e antiforgery. A exceção é o webhook de
+    /// notificações do ML (<see cref="NotificationsEndpoint"/>, SPEC-0023): anônimo e fora do documento OpenAPI.
     /// </summary>
     public static IEndpointRouteBuilder MapMercadoLivreEndpoints(this IEndpointRouteBuilder endpoints)
     {
@@ -56,6 +57,7 @@ public static class MercadoLivreEndpoints
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status404NotFound);
+        NotificationsEndpoint.Map(group);
 
         return endpoints;
     }

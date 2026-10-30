@@ -6,10 +6,14 @@ using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Options;
+using Vitrine.MercadoLivre.Presentation;
 
 namespace Vitrine.Api.Security;
 
-/// <summary>Limites de <c>/api/v1/auth/*</c> (<c>RateLimiting__*</c> no ambiente — contrato v2 da SPEC-0008).</summary>
+/// <summary>
+/// Limites de <c>/api/v1/auth/*</c> (<c>RateLimiting__*</c> no ambiente — contrato v2 da SPEC-0008) e do webhook de
+/// notificações do ML (SPEC-0023).
+/// </summary>
 internal sealed class AuthRateLimitOptions
 {
     public const string Section = "RateLimiting";
@@ -17,6 +21,9 @@ internal sealed class AuthRateLimitOptions
     public LimitOptions AuthPerIp { get; set; } = new();
 
     public LimitOptions LoginPerEmail { get; set; } = new();
+
+    /// <summary><c>POST /api/v1/mercadolivre/notifications</c> por IP do cliente (padrão do contrato da SPEC-0023: 600/min).</summary>
+    public LimitOptions MercadoLivreNotificationsPerIp { get; set; } = new() { PermitLimit = 600 };
 
     internal sealed class LimitOptions
     {
@@ -32,6 +39,7 @@ internal sealed class AuthRateLimitOptions
 /// <c>Register</c>), então <c>/login/</c> e <c>/LOGIN</c> contam igual. O corpo desses endpoints tem teto de 4 KB (413) e
 /// o e-mail da partição é o mesmo que o endpoint usa: JSON com <c>email</c> repetido é recusado (400). O bloqueio de
 /// conta da SPEC-0006 (5 falhas → 423) dispara antes do limite por e-mail, que protege e-mails inexistentes e o custo do hash.
+/// O webhook de notificações do ML (SPEC-0023) tem a sua própria partição por IP (600/min por padrão), separada da de auth.
 /// </summary>
 internal static class AuthRateLimiting
 {
@@ -52,8 +60,12 @@ internal static class AuthRateLimiting
     {
         services.AddOptions<AuthRateLimitOptions>()
             .BindConfiguration(AuthRateLimitOptions.Section)
-            .Validate(options => options.AuthPerIp.PermitLimit > 0 && options.LoginPerEmail.PermitLimit > 0,
-                "RateLimiting:AuthPerIp:PermitLimit e RateLimiting:LoginPerEmail:PermitLimit devem ser maiores que zero.")
+            .Validate(
+                options => options.AuthPerIp.PermitLimit > 0
+                    && options.LoginPerEmail.PermitLimit > 0
+                    && options.MercadoLivreNotificationsPerIp.PermitLimit > 0,
+                "RateLimiting:AuthPerIp:PermitLimit, RateLimiting:LoginPerEmail:PermitLimit e "
+                    + "RateLimiting:MercadoLivreNotificationsPerIp:PermitLimit devem ser maiores que zero.")
             .ValidateOnStart();
 
         services.AddRateLimiter(_ => { });
@@ -61,6 +73,7 @@ internal static class AuthRateLimiting
         {
             var perIp = limits.Value.AuthPerIp.PermitLimit;
             var perEmail = limits.Value.LoginPerEmail.PermitLimit;
+            var notificationsPerIp = limits.Value.MercadoLivreNotificationsPerIp.PermitLimit;
 
             // Só em Development: a conexão local (Vite do AppHost em 127.0.0.1, onde rodam o E2E e o dev) não conta no
             // limite por IP — toda a suíte E2E sai do mesmo IP. Fora de Development não há exceção; o limite por e-mail vale sempre.
@@ -76,6 +89,11 @@ internal static class AuthRateLimiting
                 PartitionedRateLimiter.Create<HttpContext, string>(context =>
                     context.Items.TryGetValue(LoginEmailKey, out var email) && email is string normalized
                         ? FixedWindow("email:" + normalized, perEmail)
+                        : RateLimitPartition.GetNoLimiter(string.Empty)),
+                PartitionedRateLimiter.Create<HttpContext, string>(context =>
+                    EndpointName(context) == NotificationsEndpoint.EndpointName
+                    && !(exemptLoopback && context.Connection.RemoteIpAddress is { } local && IPAddress.IsLoopback(local))
+                        ? FixedWindow("ml-notifications-ip:" + (context.Connection.RemoteIpAddress?.ToString() ?? "desconhecido"), notificationsPerIp)
                         : RateLimitPartition.GetNoLimiter(string.Empty)));
             options.OnRejected = WriteTooManyRequestsAsync;
         });
