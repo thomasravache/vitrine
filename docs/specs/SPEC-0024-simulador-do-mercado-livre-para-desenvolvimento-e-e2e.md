@@ -11,7 +11,7 @@ depends_on: []
 consumes_contract: []
 contract_version: 1
 # breaking: "o que quebra para consumidores e como migrar"   # só se houver quebra; vai para o PR e pede `!` no título
-touches: [tools/MercadoLivreSimulator/**, src/AppHost/**, web/e2e/support/**, deploy/compose.override.yaml, deploy/compose.yaml, deploy/Caddyfile, deploy/caddy-sites/**, deploy/local/**, docs/runbooks/deploy.md, tests/Fixtures/MercadoLivre/**, tests/Vitrine.UnitTests/**, tests/Vitrine.IntegrationTests/**, tests/Vitrine.Tooling.Tests/**, tests/Vitrine.ArchitectureTests/**, tests/infra/**, Vitrine.slnx]
+touches: [tools/MercadoLivreSimulator/**, src/AppHost/**, web/e2e/support/**, deploy/compose.override.yaml, deploy/compose.yaml, deploy/Caddyfile, deploy/caddy-sites/**, deploy/local/**, docs/runbooks/deploy.md, tests/Fixtures/MercadoLivre/**, tests/Vitrine.UnitTests/**, tests/Vitrine.IntegrationTests/**, tests/Vitrine.Tooling.Tests/**, tests/Vitrine.ArchitectureTests/**, tests/infra/**, Vitrine.slnx, src/Modules/MercadoLivre/Vitrine.MercadoLivre.Infrastructure/MercadoLivreOptionsValidator.cs]
 adrs: [ADR-0002, ADR-0004, ADR-0016]
 external: []
 size: M
@@ -287,6 +287,7 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 <!-- Toda parada é registrada pelo Architect com `spec_graph.py impede` e fechada com `resolve` — não edite à mão. Tipos: spec (spec errada/incompleta → resolve com Emenda) | decisão (só o humano decide → resposta ou ADR) | trabalho (falta algo que exige código → SPEC-NNNN nova) | externo (acesso, ambiente, terceiro → ação tomada) | falha (3 FAILs seguidos no mesmo gate → diagnóstico e decisão). Com impedimento aberto a spec aparece como parada no INDEX e não pode ser fechada. -->
 | ID | Aberto em | Fase/Gate | Tipo | Descrição | Tentativas | Responsável | Resolução | Fechado em |
 |---|---|---|---|---|---|---|---|---|
+| IMP-01 | 2026-10-30 | G1 | spec | Compose local manda MercadoLivre__ApiBaseUrl=http://ml-simulator:8080 com ASPNETCORE_ENVIRONMENT=Production; o MercadoLivreOptionsValidator (SPEC-0020) exige https fora de Development mesmo com AllowNonOfficialEndpoints=true e a Api não sobe (ValidateOnStart) | Test-writer leu CheckEndpoint; IT-03 testa o valor do contrato | Architect | Emenda v1.2 da SPEC-0020 + v1.1 da SPEC-0024 — http só com AllowNonOfficialEndpoints=true | 2026-10-30 |
 
 ## 14. Relatório de Entrega
 <!-- Preenchido no CLOSE (G7). Diz o que foi feito, como, e prova que foi resolvido. Para status implemented o validate exige todas as subseções preenchidas, todo teste do plano com PASS + evidência e a Definição de Pronto toda marcada. -->
@@ -328,3 +329,4 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 <!-- Mudança em spec aprovada: uma linha por emenda. Mudou o contrato? Incremente `contract_version` e rode `spec_graph.py impacted SPEC-0024`. -->
 | Versão do contrato | Data | Mudança | Motivo | Specs impactadas | Aprovado por |
 |---|---|---|---|---|---|
+| v1.1 (contrato inalterado) | 2026-10-30 | (1) `touches` inclui `MercadoLivreOptionsValidator.cs` para a Emenda v1.2 da SPEC-0020 (`http://` só com `AllowNonOfficialEndpoints=true`); no Compose local o navegador usa `https://ml-simulador.vitrine.localhost` (Caddy) e a Api usa `http://ml-simulator:8080`; (2) form de decisão com `seller_id` e `decision=authorize|cancel`; nome da imagem lido do Compose; (3) o scan pode terminar com `scroll_id` nulo na última página com resultados ou numa página vazia; (4) `ML_SIMULATOR_URL` exportado por `web/e2e/support/app-host-fixture.ts`; (5) fixtures no formato documentado com valores sintéticos e `_source` (a documentação do ML responde 403 a acesso automatizado) — cópia oficial fica como pendência do usuário antes do go-live | SPEC_DEFECT e pontos em aberto do G1 (IMP-01) | SPEC-0020 (Emenda v1.2) | thomas (piloto automático do épico SPEC-0019) |
