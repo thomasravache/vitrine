@@ -6,7 +6,7 @@ namespace Vitrine.IntegrationTests.Listings;
 
 /// <summary>
 /// SPEC-0022:IT-05 — reconciliação (ADR-0010) pelo estado persistido: <c>ReconcileListings</c> ressincroniza as contas
-/// não <c>paused</c> cuja última sincronização (<c>coalesce(completed_at, started_at)</c>) é mais antiga que
+/// não <c>paused</c> cuja última sincronização ou tentativa (<c>greatest(completed_at, started_at)</c>, emenda v1.3) é mais antiga que
 /// <c>Listings:ReconciliationInterval</c> e corrige a alteração cuja notificação se perdeu; conta sincronizada há pouco
 /// não é ressincronizada. Um timer curto publica <c>ReconcileListings</c>: a conta vencida é ressincronizada logo depois
 /// de o host subir, sem esperar um intervalo inteiro de tempo de atividade do processo.
@@ -60,6 +60,45 @@ public sealed class ReconciliationTests(PostgresFixture postgres)
         Assert.Equal(pausedRuns, gateway.RunsStarted(paused.AccountId));
         Assert.Equal(70m, Assert.Single(await ListingsDatabase.ReadListingsAsync(connectionString, paused.AccountId, cancellationToken)).Price);
         Assert.Equal("paused", (await ListingsDatabase.ReadSyncStateAsync(connectionString, paused.AccountId, cancellationToken))!.Status);
+    }
+
+    [Fact]
+    [Trait("spec", "SPEC-0022:IT-05")]
+    public async Task Conta_failed_com_tentativa_recente_nao_e_ressincronizada_mesmo_com_completed_at_vencido()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var connectionString = await postgres.CreateDatabaseAsync(cancellationToken);
+        var gateway = new MercadoLivreItemsDouble();
+        await using var factory = ListingsHost.Create(connectionString, gateway);
+        using var api = new ListingsApi(factory);
+        var owner = await api.SignUpAsync(cancellationToken);
+
+        // Dado (intervalo padrão de 24 h) uma conta failed cujo último sucesso foi há 25 h, mas cuja tentativa (que falhou)
+        // começou há 10 min, e uma conta com os dois instantes de 25 h atrás; as duas com alteração só no dublê
+        var failedItem = ListingItem.New("active", price: 30m);
+        var failed = await ListingsHost.ConnectAsync(factory, gateway, owner.WorkspaceId, cancellationToken, failedItem);
+        var staleItem = ListingItem.New("active", price: 40m);
+        var stale = await ListingsHost.ConnectAsync(factory, gateway, owner.WorkspaceId, cancellationToken, staleItem);
+        var dayAgo = DateTimeOffset.UtcNow.AddHours(-25);
+        await ListingsDatabase.SetSyncStateAsync(
+            connectionString, failed.AccountId, "failed", DateTimeOffset.UtcNow.AddMinutes(-10), dayAgo, cancellationToken);
+        await ListingsDatabase.SetSyncStateAsync(connectionString, stale.AccountId, "idle", dayAgo.AddMinutes(-1), dayAgo, cancellationToken);
+        var failedRuns = gateway.RunsStarted(failed.AccountId);
+        gateway.Put(failed.AccountId, failedItem with { Price = 33m, LastUpdated = failedItem.LastUpdated.AddHours(1) });
+        gateway.Put(stale.AccountId, staleItem with { Price = 44m, LastUpdated = staleItem.LastUpdated.AddHours(1) });
+
+        // Quando ReconcileListings é processado
+        await ListingsHost.PublishAsync(factory, new ReconcileListings());
+
+        // Então a conta com os dois instantes vencidos é ressincronizada (greatest(completed_at, started_at) < now - interval)
+        await ListingsDatabase.WaitForIdleAsync(connectionString, stale.AccountId, dayAgo, cancellationToken);
+        Assert.Equal(44m, Assert.Single(await ListingsDatabase.ReadListingsAsync(connectionString, stale.AccountId, cancellationToken)).Price);
+
+        // E a failed com tentativa recente não é: nenhuma busca nova, anúncio e estado intocados (o retry do Wolverine cuida dela)
+        await Task.Delay(TimeSpan.FromSeconds(2), cancellationToken);
+        Assert.Equal(failedRuns, gateway.RunsStarted(failed.AccountId));
+        Assert.Equal(30m, Assert.Single(await ListingsDatabase.ReadListingsAsync(connectionString, failed.AccountId, cancellationToken)).Price);
+        Assert.Equal("failed", (await ListingsDatabase.ReadSyncStateAsync(connectionString, failed.AccountId, cancellationToken))!.Status);
     }
 
     [Fact]
