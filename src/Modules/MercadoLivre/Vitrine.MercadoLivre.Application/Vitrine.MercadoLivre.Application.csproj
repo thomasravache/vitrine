@@ -5,6 +5,8 @@
   <ItemGroup>
     <ProjectReference Include="..\Vitrine.MercadoLivre.Domain\Vitrine.MercadoLivre.Domain.csproj" />
     <ProjectReference Include="..\Vitrine.MercadoLivre.IntegrationEvents\Vitrine.MercadoLivre.IntegrationEvents.csproj" />
+    <!-- Contrato síncrono do próprio módulo (implementado aqui, como no Identity); chega à saída do host e dos testes. -->
+    <ProjectReference Include="..\Vitrine.MercadoLivre.PublicApi\Vitrine.MercadoLivre.PublicApi.csproj" />
     <ProjectReference Include="..\..\Identity\Vitrine.Identity.PublicApi\Vitrine.Identity.PublicApi.csproj" />
   </ItemGroup>
 

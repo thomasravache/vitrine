@@ -1274,7 +1274,8 @@
         "dependencies": {
           "Vitrine.Identity.PublicApi": "[1.0.0, )",
           "Vitrine.MercadoLivre.Domain": "[1.0.0, )",
-          "Vitrine.MercadoLivre.IntegrationEvents": "[1.0.0, )"
+          "Vitrine.MercadoLivre.IntegrationEvents": "[1.0.0, )",
+          "Vitrine.MercadoLivre.PublicApi": "[1.0.0, )"
         }
       },
       "vitrine.mercadolivre.domain": {
@@ -1302,6 +1303,9 @@
           "Vitrine.Common.Web": "[1.0.0, )",
           "Vitrine.MercadoLivre.Application": "[1.0.0, )"
         }
+      },
+      "vitrine.mercadolivre.publicapi": {
+        "type": "Project"
       },
       "vitrine.servicedefaults": {
         "type": "Project",

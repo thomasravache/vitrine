@@ -10,6 +10,9 @@
       },
       "vitrine.mercadolivre.integrationevents": {
         "type": "Project"
+      },
+      "vitrine.mercadolivre.publicapi": {
+        "type": "Project"
       }
     }
   }
