@@ -40,8 +40,8 @@ O ML não assina as notificações. Um atacante que conheça o `application_id` 
 
 ## 4. Plano de Testes (TDD)
 <!-- Mínimo: um teste de regressão que reproduz o problema e FALHA antes da correção, no nível em que o defeito aparece (IT para fronteiras de I/O, E2E para jornadas de usuário). Código sem cobertura: primeiro CH-xx fixando o comportamento atual. Tag no código: `SPEC-0029:<ID>`. Modo privado: sem tag no código; aponte o teste no fim da linha com `→ caminho::nome` (ex.: `→ tests/test_soma.py::test_soma`). Categoria sem teste: "N/A — motivo" SEM ID. -->
-- Caracterização: N/A — os testes do IT-09 da SPEC-0022 seguem como guarda do caminho legítimo.
-- **UT-01** — Unidade: N/A — o defeito está no handler com banco; o IT-01 o reproduz.
+- Caracterização: N/A — os testes de notificação da SPEC-0022 seguem como guarda do caminho legítimo.
+- Unidade: N/A — o defeito está no handler com banco; o IT-01 o reproduz.
 - **IT-01** — Dado uma conta conectada com seus anúncios e o gateway devolvendo `Found` para um item cujo `SellerId` é de outro vendedor, quando chega `MercadoLivreItemChanged` desse item para a conta, então nenhuma linha é gravada para ele, a métrica `foreign_item` é incrementada e os anúncios da conta não mudam; e uma notificação de item do próprio vendedor continua atualizando normalmente.
 
 ## 5. Questões em Aberto
@@ -69,7 +69,7 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 | Gate | Status | Evidência | Data |
 |---|---|---|---|
 | G0 Spec | PASS | validate: 0 erro(s) — 570f56b (árvore suja) | 2026-10-30 |
-| G1 Red | PENDING | | |
+| G1 Red | FAIL | verify G1: FAIL — testes do plano sem tag no código versionado: SPEC-0029:UT-01, SPEC-00 — 86c6509 | 2026-10-30 |
 | G2 Green | PENDING | | |
 | G3 Arquitetura | PENDING | | |
 | G4 Review | PENDING | | |
