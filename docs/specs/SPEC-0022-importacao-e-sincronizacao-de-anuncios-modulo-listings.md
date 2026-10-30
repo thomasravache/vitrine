@@ -11,7 +11,7 @@ depends_on: []
 consumes_contract: [SPEC-0020@1, SPEC-0021@1, SPEC-0023@1]
 contract_version: 1
 # breaking: "o que quebra para consumidores e como migrar"   # só se houver quebra; vai para o PR e pede `!` no título
-touches: [src/Modules/Listings/**, src/Api/**, tests/Vitrine.UnitTests/**, tests/Vitrine.IntegrationTests/**, tests/Vitrine.ArchitectureTests/**, web/src/api/**, Vitrine.slnx, tests/Vitrine.Tooling.Tests/packages.lock.json, web/e2e/support/packages.lock.json, src/AppHost/packages.lock.json]
+touches: [src/Modules/Listings/**, src/Api/**, tests/Vitrine.UnitTests/**, tests/Vitrine.IntegrationTests/**, tests/Vitrine.ArchitectureTests/**, web/src/api/**, Vitrine.slnx, tests/Vitrine.Tooling.Tests/packages.lock.json, web/e2e/support/packages.lock.json, src/AppHost/packages.lock.json, src/Modules/MercadoLivre/Vitrine.MercadoLivre.IntegrationEvents/MercadoLivreItemChanged.cs]
 adrs: [ADR-0001, ADR-0010, ADR-0011, ADR-0014]
 external: []
 size: M
@@ -344,3 +344,4 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 <!-- Mudança em spec aprovada: uma linha por emenda. Mudou o contrato? Incremente `contract_version` e rode `spec_graph.py impacted SPEC-0022`. -->
 | Versão do contrato | Data | Mudança | Motivo | Specs impactadas | Aprovado por |
 |---|---|---|---|---|---|
+| v1.1 (contrato inalterado) | 2026-10-30 | `touches` inclui `src/Modules/MercadoLivre/Vitrine.MercadoLivre.IntegrationEvents/MercadoLivreItemChanged.cs`: esta spec cria o record do evento exatamente como o contrato SPEC-0023@1 (§6), ao lado dos eventos v1 da SPEC-0020; a SPEC-0023 só o publica | O consumidor roda antes do produtor (onda 3 antes da 4) e o tipo precisa existir para o handler compilar | SPEC-0023 (não recria o tipo) | thomas (piloto automático do épico SPEC-0019) |
