@@ -9,7 +9,7 @@ created: 2026-10-30
 parent: SPEC-0019
 depends_on: [SPEC-0022]
 consumes_contract: []
-touches: [src/Modules/MercadoLivre/Vitrine.MercadoLivre.Infrastructure/MercadoLivreModule.cs, tests/Vitrine.IntegrationTests/Listings/**]
+touches: [src/Modules/MercadoLivre/Vitrine.MercadoLivre.Infrastructure/MercadoLivreModule.cs, tests/Vitrine.IntegrationTests/Listings/**, tests/Vitrine.IntegrationTests/MercadoLivre/**]
 adrs: [ADR-0014]
 external: []
 size: S
@@ -41,7 +41,7 @@ Na Api real, os handlers do Wolverine que recebem `IMercadoLivreItems` (o `SyncL
 ## 4. Plano de Testes (TDD)
 <!-- Mínimo: um teste de regressão que reproduz o problema e FALHA antes da correção, no nível em que o defeito aparece (IT para fronteiras de I/O, E2E para jornadas de usuário). Código sem cobertura: primeiro CH-xx fixando o comportamento atual. Tag no código: `SPEC-0028:<ID>`. Modo privado: sem tag no código; aponte o teste no fim da linha com `→ caminho::nome` (ex.: `→ tests/test_soma.py::test_soma`). Categoria sem teste: "N/A — motivo" SEM ID. -->
 - Caracterização: N/A — os testes do Listings (SPEC-0022) seguem como guarda com o dublê.
-- **UT-01** — Unidade: N/A — o defeito só aparece na geração de código do Wolverine com o host real; o IT-01 o reproduz.
+- Unidade: N/A — o defeito só aparece na geração de código do Wolverine com o host real; o IT-01 o reproduz.
 - **IT-01** — Dado o host com o gateway **real** (sem dublê de `IMercadoLivreItems`) e o ML simulado por WireMock com uma conta conectada e dois anúncios, quando `SyncListings` é processado e, depois, chega um `MercadoLivreItemChanged`, então os anúncios são gravados e atualizados em `listings.listings` (sem erro de geração de código do Wolverine).
 
 ## 5. Questões em Aberto
@@ -69,9 +69,9 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 | Gate | Status | Evidência | Data |
 |---|---|---|---|
 | G0 Spec | PASS | validate: 0 erro(s) — 6024a62 (árvore suja) | 2026-10-30 |
-| G1 Red | PENDING | | |
-| G2 Green | PENDING | | |
-| G3 Arquitetura | PENDING | | |
+| G1 Red | PASS | MANUAL: verify G1: PASS (test 02b4272 antes do fix 33f1cbd; IT-01 com tag no código); red do IT-01 num clone novo do HEAD 02b4272 sem o fix: timeout 'a sincronização da conta não concluiu', com InvalidServiceLocationException (MercadoLivreItemsGateway não é público, ServiceLocationPolicy.NotAllowed) no log; o comando de red do gate (testes unitários) não cobre IT | 2026-10-30 |
+| G2 Green | PASS | build exit 0 (npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts a); test exit 0 (Duration  354ms (environment 59%, transform 19%, import 16%, tests 4%, worker 2%)); lint exit 0 ([0m[34mChecked 40 files in 23[0m[0m[2m[34mms[0m[0m[34m.[0m[0m[34m No fixes app); coverage exit 0 (Coverage: 97%) — 7ab87f0 | 2026-10-30 |
+| G3 Arquitetura | PASS | arch_test exit 0 (duration: 1s 731ms) — 7ab87f0 | 2026-10-30 |
 | G4 Review | PENDING | | |
 | G5 Integração & CI | PENDING | | |
 | H2 Integração aprovada | PENDING | | |
@@ -114,3 +114,4 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 <!-- Mudança em spec aprovada: uma linha por emenda, aprovada pelo humano. -->
 | Versão | Data | Mudança | Motivo | Specs impactadas | Aprovado por |
 |---|---|---|---|---|---|
+| v1.1 | 2026-10-30 | `touches` inclui `tests/Vitrine.IntegrationTests/MercadoLivre/**`: com a correção, a importação do Listings passa a rodar de verdade depois da conexão nos testes do ML e as asserções "nenhuma chamada ao ML" passam a ignorar as chamadas da importação | Teste instável (`AccountsTests`) revelado pela correção | nenhuma | thomas (piloto automático do épico SPEC-0019) |

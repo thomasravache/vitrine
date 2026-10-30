@@ -153,7 +153,8 @@ Evento (Vitrine.MercadoLivre.IntegrationEvents), v1:
 | Anônimo e fora do OpenAPI | sem cookie nem antiforgery | aceito; endpoint na lista `AnonymousEndpoints`; ausente do documento OpenAPI | IT-07 |
 | ML não configurado | sem `ClientId` | 503 ML_NOT_CONFIGURED | IT-04 |
 | `_id` longo | `_id` com mais de 64 caracteres | 400 VALIDATION_FAILED (`errors._id`), nada gravado | UT-02 |
-| Retenção do inbox | linhas processadas há mais de 7 dias | apagadas pelo job diário; as mais recentes e as não processadas ficam | IT-08 |
+| Retenção do inbox | processadas há mais de 7 dias; `unknown_user`/`invalid` há mais de 1 dia; não processadas (retentativas esgotadas) recebidas há mais de 7 dias | apagadas pelo job diário; as demais ficam | IT-08 |
+| Chave duplicada | JSON com a mesma chave duas vezes | 400 VALIDATION_FAILED | UT-02 |
 
 ## 7. Artefato B — Plano de Testes (TDD)
 
@@ -181,7 +182,7 @@ Evento (Vitrine.MercadoLivre.IntegrationEvents), v1:
   - o teste de autorização por padrão passa com a entrada `POST /api/v1/mercadolivre/notifications` na lista `AnonymousEndpoints`;
   - o documento OpenAPI gerado não contém esse caminho.
 
-- **IT-08** — Dado linhas do inbox processadas há 8 dias, há 1 dia e uma não processada antiga, quando a limpeza diária do módulo roda (mensagem recorrente do Wolverine, como `CleanupPendingAuthorizations`), então só a processada há 8 dias é apagada.
+- **IT-08** — Dado linhas do inbox: processada com sucesso há 8 dias e há 1 dia; processada como `unknown_user`/`invalid` há 2 dias e há 1 hora; não processada recebida há 8 dias e há 1 dia — quando a limpeza diária do módulo roda (mensagem recorrente do Wolverine, como `CleanupPendingAuthorizations`), então são apagadas a de sucesso de 8 dias, a `unknown_user`/`invalid` de 2 dias e a não processada de 8 dias; as demais ficam (Emenda v1.2).
 ### 7.4 Testes de Contrato
 - **CT-01** — Dado uma notificação processada, quando um assinante de teste recebe `MercadoLivreItemChanged`, então o payload valida contra o schema v1 (seção 6). A SPEC-0022 consome esse contrato.
 
@@ -239,8 +240,8 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 |---|---|---|---|
 | G0 Spec | PASS | validate: 0 erro(s) — ddc6ebd (árvore suja) | 2026-10-30 |
 | G1 Red | PASS | verify G1: PASS; `dotnet test tests/Vitrine.UnitTests && npm --prefix web run test` exit 2 (red: Test run completed with non-success exit code: 2 (see: https://aka.ms/testingplatform/exit) — 189a02e | 2026-10-30 |
-| G2 Green | PENDING | | |
-| G3 Arquitetura | PENDING | | |
+| G2 Green | PASS | build exit 0 (npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts a); test exit 0 (Duration  363ms (environment 59%, import 20%, transform 16%, tests 4%, worker 1%)); lint exit 0 ([0m[34mChecked 40 files in 17[0m[0m[2m[34mms[0m[0m[34m.[0m[0m[34m No fixes app); coverage exit 0 (Coverage: 97%) — 7ab87f0 | 2026-10-30 |
+| G3 Arquitetura | PASS | arch_test exit 0 (duration: 1s 561ms) — 7ab87f0 | 2026-10-30 |
 | G4 Review | PENDING | | |
 | G5 Integração & CI | PENDING | | |
 | H2 Integração aprovada | PENDING | | |
@@ -293,3 +294,4 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 | Versão do contrato | Data | Mudança | Motivo | Specs impactadas | Aprovado por |
 |---|---|---|---|---|---|
 | v1.1 (contrato esclarecido) | 2026-10-30 | (1) IT-08 cobre a retenção de 7 dias do inbox; (2) `outcome` de sucesso = `item_changed`; (3) métrica: `accepted`/`duplicate`/`ignored_app`/`ignored_topic` contados no recebimento, `invalid` no 400 e no processamento de resource inválido, `unknown_user` no processamento — uma notificação aceita pode contar `accepted` e depois `unknown_user`/`invalid`; (4) `_id` com mais de 64 caracteres → 400 VALIDATION_FAILED; (5) chave `RateLimiting:MercadoLivreNotificationsPerIp:PermitLimit`; (6) fixture no formato documentado com valores fictícios até a SPEC-0024 trazer a cópia oficial | Lacunas apontadas pelo Test-writer no G1 | SPEC-0024 (fixture) | thomas (piloto automático do épico SPEC-0019) |
+| v1.2 | 2026-10-30 | Retenção: `unknown_user`/`invalid` por 1 dia e não processadas (retentativas esgotadas) por 7 dias pelo `received_at`, para limitar o volume do inbox sob abuso; UT-02 cobre JSON com chave duplicada | Achados 2–4 do G4 | nenhuma | thomas (piloto automático do épico SPEC-0019) |

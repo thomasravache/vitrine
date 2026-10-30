@@ -103,6 +103,7 @@ Contratos entre as filhas:
 | SPEC-0026 | UseFieldProtection cria um provedor interno do EF por protetor (dívida do G4 da SPEC-0020) | lite | fix | S | SPEC-0020 | — |
 | SPEC-0027 | Teste de arquitetura passa localmente com assembly de módulo não referenciado | lite | fix | S | — | — |
 | SPEC-0028 | Handlers do Listings não são gerados pelo Wolverine com o gateway real do ML | lite | fix | S | SPEC-0022 | — |
+| SPEC-0029 | Notificação forjada grava anúncio de outro vendedor no catálogo da conta | lite | fix | S | SPEC-0022 | — |
 
 ## 5. Estratégia de Entrega
 - **Ambientes:**
