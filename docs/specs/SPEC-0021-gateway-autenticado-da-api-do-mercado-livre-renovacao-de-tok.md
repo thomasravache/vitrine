@@ -7,7 +7,7 @@ user_facing: false
 status: approved
 created: 2026-10-30
 parent: SPEC-0019
-depends_on: []
+depends_on: [SPEC-0026]
 consumes_contract: [SPEC-0020@1]
 contract_version: 1
 # breaking: "o que quebra para consumidores e como migrar"   # só se houver quebra; vai para o PR e pede `!` no título

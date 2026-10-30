@@ -4,7 +4,7 @@ title: Conectar e desconectar conta do Mercado Livre (OAuth com PKCE)
 tier: full
 type: feature
 user_facing: false
-status: in-progress
+status: implemented
 created: 2026-10-30
 parent: SPEC-0019
 depends_on: []
@@ -355,7 +355,7 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 | G5 Integração & CI | PASS | MANUAL: PR #47 (sdd/SPEC-0020 @ 4352c36): CI 8/8 verde + CodeQL (runs/41060031791); local no integrado via gate --run: build, unit, integração (2m10s), e2e 30/30, arquitetura OK; security_scan rodado em bash (o sh do gate não aceita pipefail): 0 vulneráveis high/critical, npm audit 0, gitleaks 263 commits sem vazamento | 2026-10-30 |
 | H2 Integração aprovada | PASS | política auto-on-green (aprovada por thomas em 2026-10-13); G5 PASS | 2026-10-30 |
 | G6 Deploy | PASS | MANUAL: Deploy local prod-like via pipeline local (deploy/deploy.sh 333ab7f --env-file deploy/local/.env): health 200 em 5 s; migração do schema mercadolivre aplicada; smoke @smoke 2/2 (desktop+mobile); GET /api/v1/mercadolivre/accounts sem sessão → 401; agente wolverine-recurring iniciado; staging/produção na SPEC-0009 (go-live com o usuário) | 2026-10-30 |
-| G7 Pronto & Docs | PENDING | | |
+| G7 Pronto & Docs | PASS | Relatório de Entrega e Definição de Pronto: ok — bb491a2 | 2026-10-30 |
 
 ## 13. Registro de Impedimentos
 <!-- Toda parada é registrada pelo Architect com `spec_graph.py impede` e fechada com `resolve` — não edite à mão. Tipos: spec (spec errada/incompleta → resolve com Emenda) | decisão (só o humano decide → resposta ou ADR) | trabalho (falta algo que exige código → SPEC-NNNN nova) | externo (acesso, ambiente, terceiro → ação tomada) | falha (3 FAILs seguidos no mesmo gate → diagnóstico e decisão). Com impedimento aberto a spec aparece como parada no INDEX e não pode ser fechada. -->
