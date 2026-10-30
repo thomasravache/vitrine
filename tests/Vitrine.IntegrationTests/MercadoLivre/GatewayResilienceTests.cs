@@ -1,4 +1,7 @@
 using System.Diagnostics;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Http.Resilience;
+using Microsoft.Extensions.Options;
 using Vitrine.IntegrationTests.MercadoLivre.Support;
 using Vitrine.IntegrationTests.Support;
 using Vitrine.MercadoLivre.Domain.Accounts;
@@ -98,4 +101,82 @@ public sealed class GatewayResilienceTests(PostgresFixture postgres)
         Assert.Empty(fake.BulkCalls);
         Assert.True(elapsed.Elapsed < TimeSpan.FromSeconds(5), $"Com o circuito aberto as chamadas deveriam falhar rápido ({elapsed.Elapsed}).");
     }
+    [Fact]
+    [Trait("spec", "SPEC-0021:IT-04")]
+    public async Task Pipeline_do_mercadolivre_api_tem_3_tentativas_timeout_de_10_s_por_tentativa_e_60_s_no_total()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var factory = MercadoLivreHost.Create(await postgres.CreateDatabaseAsync(cancellationToken));
+
+        // Quando as opções do pipeline padrão do cliente mercadolivre-api são lidas no host
+        var options = factory.Services.GetRequiredService<IOptionsMonitor<HttpStandardResilienceOptions>>()
+            .Get(MercadoLivreGateway.ApiResilienceOptionsName);
+
+        // Então são as da seção 2 da SPEC-0021 (emenda v1.1)
+        Assert.Equal(Attempts - 1, options.Retry.MaxRetryAttempts);
+        Assert.True(options.Retry.ShouldRetryAfterHeader, "O retry precisa respeitar o Retry-After.");
+        Assert.Equal(TimeSpan.FromSeconds(10), options.AttemptTimeout.Timeout);
+        Assert.Equal(TimeSpan.FromSeconds(60), options.TotalRequestTimeout.Timeout);
+    }
+
+    [Fact]
+    [Trait("spec", "SPEC-0021:IT-04")]
+    public async Task Retry_After_acima_de_30_s_e_limitado_a_30_s()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+
+        // Dado um relógio que acelera as esperas longas (30 s viram 1,5 s) e registra cada prazo pedido
+        var clock = new AcceleratedTimeProvider();
+        await using var factory = MercadoLivreHost.Create(await postgres.CreateDatabaseAsync(cancellationToken)).WithClock(clock);
+        var fake = new MercadoLivreFake(factory.ExternalServices);
+        var account = await MercadoLivreGateway.SeedValidAccountAsync(factory, cancellationToken);
+
+        // E o ML respondendo 429 com Retry-After: 120 e depois 200
+        fake.BulkFailsFirst(1, 429, retryAfter: "120");
+        clock.ForgetRequested();
+
+        // Quando GetItemsAsync é chamado
+        var elapsed = Stopwatch.StartNew();
+        var results = await MercadoLivreGateway.GetItemsAsync(factory, account.AccountId, MlItem.NewIds(1), cancellationToken);
+        elapsed.Stop();
+
+        // Então a espera pedida foi de 30 s (o teto), nunca de 120 s, e a chamada concluiu na 2ª tentativa
+        // (sem o teto, a espera de 120 s passaria do timeout total de 60 s e a chamada falharia)
+        Assert.IsType<MercadoLivreItemResult.Found>(Assert.Single(results));
+        Assert.Equal(2, fake.BulkCalls.Count);
+        Assert.Contains(TimeSpan.FromSeconds(30), clock.Requested);
+        Assert.DoesNotContain(TimeSpan.FromSeconds(120), clock.Requested);
+        Assert.True(elapsed.Elapsed < TimeSpan.FromSeconds(15), $"A espera não foi limitada a 30 s ({elapsed.Elapsed} com o relógio acelerado).");
+    }
+
+    [Fact]
+    [Trait("spec", "SPEC-0021:IT-04")]
+    public async Task Tentativa_que_passa_de_10_s_e_cancelada_e_retentada()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+
+        // Dado um relógio que acelera os prazos longos (o timeout de 10 s vira 0,5 s) e registra cada prazo pedido
+        var clock = new AcceleratedTimeProvider();
+        await using var factory = MercadoLivreHost.Create(await postgres.CreateDatabaseAsync(cancellationToken))
+            .WithClock(clock)
+            .WithFastResilience();
+        var fake = new MercadoLivreFake(factory.ExternalServices);
+        var account = await MercadoLivreGateway.SeedValidAccountAsync(factory, cancellationToken);
+
+        // E o ML demorando na 1ª chamada (8 s reais, 160 s no relógio acelerado) e respondendo na hora na 2ª
+        fake.BulkDelaysFirst(1, TimeSpan.FromSeconds(8));
+        clock.ForgetRequested();
+
+        // Quando GetItemsAsync é chamado
+        var elapsed = Stopwatch.StartNew();
+        var results = await MercadoLivreGateway.GetItemsAsync(factory, account.AccountId, MlItem.NewIds(1), cancellationToken);
+        elapsed.Stop();
+
+        // Então a 1ª tentativa foi cancelada pelo timeout de 10 s e a 2ª concluiu, sem esperar a resposta lenta
+        Assert.IsType<MercadoLivreItemResult.Found>(Assert.Single(results));
+        Assert.Equal(2, fake.BulkCalls.Count);
+        Assert.Contains(TimeSpan.FromSeconds(10), clock.Requested);
+        Assert.True(elapsed.Elapsed < TimeSpan.FromSeconds(6), $"A tentativa lenta não foi cancelada pelo timeout ({elapsed.Elapsed}).");
+    }
 }
+

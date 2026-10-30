@@ -4,7 +4,7 @@ using System.Diagnostics.Metrics;
 namespace Vitrine.IntegrationTests.Observability.Support;
 
 /// <summary>
-/// <see cref="MeterListener"/> de teste para o meter <c>Vitrine.Identity</c>: soma as medições de cada instrumento por
+/// <see cref="MeterListener"/> de teste para o meter <c>Vitrine.Identity</c> (ou outro, como <c>Vitrine.MercadoLivre</c>): soma as medições de cada instrumento por
 /// valor da tag <c>result</c> (ou sem tag). Só conta instrumentos do meter criado pelo <see cref="IMeterFactory"/> do
 /// host do teste (<see cref="Meter.Scope"/>): medições de outros hosts no mesmo processo ficam de fora.
 /// </summary>
@@ -22,12 +22,13 @@ internal sealed class AuthMetricsListener : IDisposable
     private readonly ConcurrentDictionary<string, byte> _instruments = new();
 
     /// <param name="meterFactory">O <see cref="IMeterFactory"/> do host do teste (escopo dos meters dele).</param>
-    public AuthMetricsListener(IMeterFactory meterFactory)
+    /// <param name="meterName">Meter ouvido (padrão: <see cref="MeterName"/>).</param>
+    public AuthMetricsListener(IMeterFactory meterFactory, string meterName = MeterName)
     {
         ArgumentNullException.ThrowIfNull(meterFactory);
         _listener.InstrumentPublished = (instrument, listener) =>
         {
-            if (instrument.Meter.Name == MeterName && ReferenceEquals(instrument.Meter.Scope, meterFactory))
+            if (instrument.Meter.Name == meterName && ReferenceEquals(instrument.Meter.Scope, meterFactory))
             {
                 _instruments.TryAdd(instrument.Name, 0);
                 listener.EnableMeasurementEvents(instrument);

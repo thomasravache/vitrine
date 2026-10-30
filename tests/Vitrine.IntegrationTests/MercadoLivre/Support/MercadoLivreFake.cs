@@ -205,6 +205,24 @@ internal sealed class MercadoLivreFake(WireMockServer server)
     public void BulkFailsFirst(int times, int status, string? retryAfter = null, Func<string, object>? entry = null) =>
         Bulk(call => call <= times ? ErrorResponse(status, retryAfter) : null, entry, requiredToken: null);
 
+    /// <summary>
+    /// As <paramref name="times"/> primeiras chamadas de <c>/items/bulk</c> só respondem (200) depois de
+    /// <paramref name="delay"/>; as seguintes respondem na hora.
+    /// </summary>
+    public void BulkDelaysFirst(int times, TimeSpan delay) =>
+        Bulk(
+            call =>
+            {
+                if (call <= times)
+                {
+                    Thread.Sleep(delay);
+                }
+
+                return null;
+            },
+            entry: null,
+            requiredToken: null);
+
     /// <summary>Toda chamada de <c>/items/bulk</c> responde <paramref name="status"/>.</summary>
     public void BulkAlwaysFails(int status) => Bulk(_ => ErrorResponse(status, null), entry: null, requiredToken: null);
 
