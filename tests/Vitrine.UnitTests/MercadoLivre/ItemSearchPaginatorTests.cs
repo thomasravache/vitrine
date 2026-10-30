@@ -90,6 +90,36 @@ public sealed class ItemSearchPaginatorTests
 
     [Fact]
     [Trait("spec", "SPEC-0021:UT-02")]
+    public async Task Scan_com_o_mesmo_scroll_id_em_todas_as_paginas_e_results_diferentes_devolve_todos_os_IDs()
+    {
+        // Dado o scan do ML como um scroll do Elasticsearch: o mesmo scroll_id em todas as páginas, cada uma com os
+        // próximos IDs, até results vazio
+        var ids = Ids("MLB7", 2300);
+        var scanPages = 0;
+        var search = new FakeSearch(request =>
+        {
+            if (!request.Scan)
+            {
+                return new ItemSearchPage([.. ids.Take(100)], ids.Count, null);
+            }
+
+            var results = ids.Skip(scanPages++ * 100).Take(100).ToList();
+            return new ItemSearchPage(results, 0, "scroll-fixo-elasticsearch");
+        });
+
+        // Quando o paginador percorre; então não lança e devolve todos os IDs
+        var pages = await CollectAsync(search);
+        Assert.Equal(ids, pages.SelectMany(page => page));
+
+        // E segue o scroll_id (o mesmo) em toda página depois da 1ª scan: 23 cheias + a vazia que encerra
+        var scans = search.Requests.Skip(1).ToList();
+        Assert.Null(scans[0].ScrollId);
+        Assert.All(scans.Skip(1), request => Assert.Equal("scroll-fixo-elasticsearch", request.ScrollId));
+        Assert.Equal(24, scans.Count);
+    }
+
+    [Fact]
+    [Trait("spec", "SPEC-0021:UT-02")]
     public async Task Scan_termina_quando_o_scroll_id_vem_nulo()
     {
         var search = new FakeSearch(request => request switch

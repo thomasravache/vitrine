@@ -81,6 +81,31 @@ public sealed class GatewayItemsTests(PostgresFixture postgres)
     }
 
     [Fact]
+    [Trait("spec", "SPEC-0021:IT-06")]
+    public async Task Busca_com_total_acima_de_1000_e_scroll_id_constante_importa_todos_os_IDs()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var factory = MercadoLivreHost.Create(await postgres.CreateDatabaseAsync(cancellationToken));
+        var fake = new MercadoLivreFake(factory.ExternalServices);
+
+        // Dado uma conta com 1250 anúncios e o scan do ML devolvendo o mesmo scroll_id em todas as páginas
+        // (scroll do Elasticsearch: o cursor fica no servidor)
+        var account = await MercadoLivreGateway.SeedValidAccountAsync(factory, cancellationToken);
+        var ids = MlItem.NewIds(1250);
+        fake.SearchResponds(account.Seller.Id, ids, requiredToken: account.Tokens.AccessToken, constantScrollId: true);
+
+        // Quando SearchItemIdsAsync é chamado; então não lança e devolve todos os IDs
+        var pages = await MercadoLivreGateway.SearchItemIdsAsync(factory, account.AccountId, "active", cancellationToken);
+        Assert.Equal(ids.Order(StringComparer.Ordinal), pages.SelectMany(page => page).Distinct().Order(StringComparer.Ordinal));
+
+        // E as páginas scan seguintes à 1ª levam o scroll_id constante, até a página vazia (13 cheias + 1 vazia)
+        var scans = fake.SearchCalls(account.Seller.Id).Select(MercadoLivreFake.QueryOf).Skip(1).ToList();
+        Assert.False(scans[0].ContainsKey("scroll_id"), "A 1ª página scan não leva scroll_id.");
+        Assert.All(scans.Skip(1), query => Assert.Equal(MercadoLivreFake.ConstantScrollId, query.GetValueOrDefault("scroll_id")));
+        Assert.Equal(14, scans.Count);
+    }
+
+    [Fact]
     [Trait("spec", "SPEC-0021:IT-07")]
     public async Task Quarenta_e_cinco_IDs_viram_3_chamadas_bulk_mapeadas_na_ordem_pedida()
     {

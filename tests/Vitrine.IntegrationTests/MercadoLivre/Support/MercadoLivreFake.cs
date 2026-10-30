@@ -291,9 +291,15 @@ internal sealed class MercadoLivreFake(WireMockServer server)
     /// devolve páginas de 100 com <c>scroll_id</c> <c>scroll-N</c> encadeado e, no fim, <c>results</c> vazio com o
     /// mesmo <c>scroll_id</c> repetido. Com <paramref name="requiredToken"/>, outro Bearer recebe 401.
     /// </summary>
-    public void SearchResponds(long mlUserId, IReadOnlyList<string> ids, string? requiredToken = null)
+    /// <remarks>
+    /// Com <paramref name="constantScrollId"/>, o scan se comporta como o scroll do Elasticsearch por trás do ML: o
+    /// mesmo <c>scroll_id</c> em todas as páginas, com o cursor guardado no servidor (cada requisição com ele devolve a
+    /// página seguinte).
+    /// </remarks>
+    public void SearchResponds(long mlUserId, IReadOnlyList<string> ids, string? requiredToken = null, bool constantScrollId = false)
     {
         ArgumentNullException.ThrowIfNull(ids);
+        var scanCursor = 0;
         server.Given(Request.Create().WithPath(SearchPath(mlUserId)).UsingGet()).RespondWith(Response.Create().WithCallback(request =>
         {
             if (Rejects(request, requiredToken))
@@ -306,9 +312,24 @@ internal sealed class MercadoLivreFake(WireMockServer server)
             if (query.TryGetValue("search_type", out var type) && type == "scan")
             {
                 var scroll = query.TryGetValue("scroll_id", out var id) ? id.ToString() : string.Empty;
-                var index = scroll.Length == 0 ? 0 : int.Parse(scroll["scroll-".Length..], CultureInfo.InvariantCulture);
+                int index;
+                if (constantScrollId && scroll.Length == 0)
+                {
+                    // Scan novo: o cursor do servidor recomeça e a próxima requisição recebe a 2ª página.
+                    Interlocked.Exchange(ref scanCursor, 1);
+                    index = 0;
+                }
+                else if (constantScrollId)
+                {
+                    index = Interlocked.Increment(ref scanCursor) - 1;
+                }
+                else
+                {
+                    index = scroll.Length == 0 ? 0 : int.Parse(scroll["scroll-".Length..], CultureInfo.InvariantCulture);
+                }
+
                 var page = ids.Skip(index * limit).Take(limit).ToArray();
-                var next = page.Length == 0 ? scroll : $"scroll-{index + 1}";
+                var next = constantScrollId ? ConstantScrollId : page.Length == 0 ? scroll : $"scroll-{index + 1}";
                 return Message(200, new Dictionary<string, object?>
                 {
                     ["seller_id"] = mlUserId.ToString(CultureInfo.InvariantCulture),
@@ -332,6 +353,9 @@ internal sealed class MercadoLivreFake(WireMockServer server)
             }, null);
         }));
     }
+
+    /// <summary><c>scroll_id</c> devolvido em todas as páginas do scan com <c>constantScrollId</c>.</summary>
+    public const string ConstantScrollId = "DXF1ZXJ5QW5kRmV0Y2gBAAAAAAAAAAEWb3Zfc2Nyb2xsX2ZpeG8";
 
     public static string SearchPath(long mlUserId) => string.Create(CultureInfo.InvariantCulture, $"/users/{mlUserId}/items/search");
 
