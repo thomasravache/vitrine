@@ -8,8 +8,14 @@ namespace Vitrine.MercadoLivre.Domain.Notifications;
 /// </summary>
 public sealed class InboxNotification
 {
-    /// <summary>Quanto tempo uma notificação processada continua no inbox (SPEC-0023, §5).</summary>
+    /// <summary>Quanto tempo uma notificação processada com sucesso continua no inbox (SPEC-0023, §5).</summary>
     public static readonly TimeSpan Retention = TimeSpan.FromDays(7);
+
+    /// <summary>Quanto tempo uma notificação processada como <c>unknown_user</c>/<c>invalid</c> continua no inbox (emenda v1.2).</summary>
+    public static readonly TimeSpan RejectedRetention = TimeSpan.FromDays(1);
+
+    /// <summary>Quanto tempo, desde o <c>received_at</c>, uma notificação não processada continua no inbox (emenda v1.2).</summary>
+    public static readonly TimeSpan UnprocessedRetention = TimeSpan.FromDays(7);
 
     // Materialização pelo EF Core.
     private InboxNotification()

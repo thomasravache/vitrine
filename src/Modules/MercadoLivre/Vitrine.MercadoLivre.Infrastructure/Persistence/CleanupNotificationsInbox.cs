@@ -11,8 +11,9 @@ namespace Vitrine.MercadoLivre.Infrastructure.Persistence;
 public sealed record CleanupNotificationsInbox;
 
 /// <summary>
-/// Apaga as notificações processadas há mais de <see cref="InboxNotification.Retention"/>; as não processadas nunca são
-/// apagadas.
+/// Apaga do inbox (emenda v1.2): as processadas com sucesso há mais de <see cref="InboxNotification.Retention"/>, as
+/// <c>unknown_user</c>/<c>invalid</c> processadas há mais de <see cref="InboxNotification.RejectedRetention"/> e as não
+/// processadas (retentativas esgotadas) recebidas há mais de <see cref="InboxNotification.UnprocessedRetention"/>.
 /// </summary>
 public static partial class CleanupNotificationsInboxHandler
 {
@@ -27,13 +28,23 @@ public static partial class CleanupNotificationsInboxHandler
         ArgumentNullException.ThrowIfNull(db);
         ArgumentNullException.ThrowIfNull(clock);
 
-        var limit = clock.GetUtcNow() - InboxNotification.Retention;
+        var now = clock.GetUtcNow();
+        var succeededBefore = now - InboxNotification.Retention;
+        var rejectedBefore = now - InboxNotification.RejectedRetention;
+        var unprocessedBefore = now - InboxNotification.UnprocessedRetention;
         var deleted = await db.Notifications
-            .Where(notification => notification.ProcessedAt != null && notification.ProcessedAt < limit)
+            .Where(notification =>
+                (notification.ProcessedAt != null
+                    && notification.Outcome == InboxNotificationOutcome.ItemChanged
+                    && notification.ProcessedAt < succeededBefore)
+                || (notification.ProcessedAt != null
+                    && notification.Outcome != InboxNotificationOutcome.ItemChanged
+                    && notification.ProcessedAt < rejectedBefore)
+                || (notification.ProcessedAt == null && notification.ReceivedAt < unprocessedBefore))
             .ExecuteDeleteAsync(cancellationToken);
         Deleted(logger, deleted);
     }
 
-    [LoggerMessage(EventId = 1, Level = LogLevel.Information, Message = "Notificações do inbox processadas há mais de 7 dias apagadas: {Count}.")]
+    [LoggerMessage(EventId = 1, Level = LogLevel.Information, Message = "Notificações apagadas do inbox pela retenção: {Count}.")]
     private static partial void Deleted(ILogger logger, int count);
 }
