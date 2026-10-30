@@ -37,6 +37,9 @@ public static class MercadoLivreModule
     /// <summary>Tempo máximo de uma chamada ao ML, com as tentativas (contrato da SPEC-0020: 10 s).</summary>
     public static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(10);
 
+    /// <summary>Cron (UTC) da limpeza diária das autorizações pendentes: todo dia às 03:00.</summary>
+    public const string CleanupSchedule = "0 3 * * *";
+
     /// <summary>Registra os serviços do módulo MercadoLivre.</summary>
     public static IServiceCollection AddMercadoLivreModule(this IServiceCollection services, IConfiguration configuration)
     {
@@ -59,11 +62,11 @@ public static class MercadoLivreModule
         services.ConfigureDbContext<MercadoLivreModuleDbContext>(options =>
             options.ReplaceService<IModelCacheKeyFactory, ProtectorModelCacheKeyFactory>());
         services.AddSingleton<ISystemPart, MercadoLivreMigrations>();
-        services.AddHostedService<PendingAuthorizationsCleanup>();
         services.ConfigureWolverine(options =>
         {
             options.LocalQueueFor<MercadoLivreAccountConnected>().UseDurableInbox();
             options.LocalQueueFor<MercadoLivreAccountDisconnected>().UseDurableInbox();
+            options.Discovery.IncludeType(typeof(CleanupPendingAuthorizationsHandler));
         });
 
         // Cliente HTTP do ML: URLs oficiais por padrão; até 10 s por chamada, com as tentativas. O POST /oauth/token
@@ -96,6 +99,18 @@ public static class MercadoLivreModule
         services.AddScoped<DisconnectAccountHandler>();
 
         return services;
+    }
+
+    /// <summary>
+    /// Mensagens recorrentes do módulo (ADR-0014), registradas pelo host no <c>UseWolverine</c> (o agendamento registra
+    /// serviços, o que uma extensão <c>ConfigureWolverine</c> não pode fazer): limpeza diária das autorizações
+    /// pendentes, durável e disparada uma vez por cluster.
+    /// </summary>
+    public static WolverineOptions AddMercadoLivreSchedules(this WolverineOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+        options.Schedules.ScheduleRecurring<CleanupPendingAuthorizations>(CleanupSchedule);
+        return options;
     }
 
     internal static void ConfigureNpgsql(NpgsqlDbContextOptionsBuilder npgsql) =>

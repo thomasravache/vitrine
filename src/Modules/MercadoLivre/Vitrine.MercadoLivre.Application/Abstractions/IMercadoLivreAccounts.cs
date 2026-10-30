@@ -10,6 +10,11 @@ public interface IMercadoLivreAccounts
     /// <summary>Apaga a conta e os tokens dela.</summary>
     void Remove(MercadoLivreAccount account);
 
+    /// <summary>
+    /// Trava o vendedor até o fim da transação aberta: conclusões simultâneas da mesma conta do ML gravam uma de cada vez.
+    /// </summary>
+    Task LockMlUserAsync(long mlUserId, CancellationToken cancellationToken);
+
     /// <summary>Conta com o id do vendedor no ML, em qualquer workspace (<c>ml_user_id</c> é único).</summary>
     Task<MercadoLivreAccount?> FindByMlUserIdAsync(long mlUserId, CancellationToken cancellationToken);
 

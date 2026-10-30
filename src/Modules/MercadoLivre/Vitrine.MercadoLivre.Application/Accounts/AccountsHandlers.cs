@@ -42,7 +42,16 @@ public sealed class DisconnectAccountHandler(
 
         accounts.Remove(account);
         await unitOfWork.PublishAsync(new MercadoLivreAccountDisconnected(account.Id, account.WorkspaceId, account.MlUserId, clock.GetUtcNow()));
-        await transaction.CommitAsync(cancellationToken);
+        try
+        {
+            await transaction.CommitAsync(cancellationToken);
+        }
+        catch (ConcurrentChangeException)
+        {
+            // Outro DELETE simultâneo apagou a conta antes (e publicou o evento); este não confirma nada.
+            return DisconnectAccountResult.NotFound;
+        }
+
         return DisconnectAccountResult.Disconnected;
     }
 }

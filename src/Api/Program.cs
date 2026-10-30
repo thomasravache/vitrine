@@ -73,6 +73,9 @@ if (!generatingOpenApi)
             || builder.Configuration.GetValue<bool>("Wolverine:AutoBuildMessageStorageOnStartup");
         options.AutoBuildMessageStorageOnStartup = buildStorageOnStartup ? AutoCreate.CreateOrUpdate : AutoCreate.None;
         options.UseRuntimeCompilation();
+
+        // Mensagens recorrentes dos módulos (jobs agendados — ADR-0014).
+        options.AddMercadoLivreSchedules();
     });
 }
 

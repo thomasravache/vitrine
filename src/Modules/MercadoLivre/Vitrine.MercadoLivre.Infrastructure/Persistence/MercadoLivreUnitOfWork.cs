@@ -16,6 +16,9 @@ namespace Vitrine.MercadoLivre.Infrastructure.Persistence;
 internal sealed class MercadoLivreUnitOfWork(IDbContextOutbox<MercadoLivreModuleDbContext> outbox)
     : IMercadoLivreUnitOfWork, IMercadoLivreAccounts, IPendingAuthorizations
 {
+    // Classe dos locks consultivos do módulo (pg_advisory_xact_lock(int, int)).
+    private const int AdvisoryLockClass = 20_020;
+
     private MercadoLivreModuleDbContext Db => outbox.DbContext;
 
     public async Task<IMercadoLivreTransaction> BeginTransactionAsync(CancellationToken cancellationToken) =>
@@ -24,6 +27,12 @@ internal sealed class MercadoLivreUnitOfWork(IDbContextOutbox<MercadoLivreModule
     public Task PublishAsync<TEvent>(TEvent integrationEvent)
         where TEvent : class =>
         outbox.PublishAsync(integrationEvent).AsTask();
+
+    // Lock da transação aberta, na chave de dois inteiros (espaço separado dos locks bigint do Wolverine); colisões do
+    // hash só serializam conclusões de vendedores diferentes.
+    public Task LockMlUserAsync(long mlUserId, CancellationToken cancellationToken) =>
+        Db.Database.ExecuteSqlAsync(
+            $"select pg_advisory_xact_lock({AdvisoryLockClass}, {(int)(mlUserId ^ (mlUserId >> 32))})", cancellationToken);
 
     public void Add(MercadoLivreAccount account) => Db.Accounts.Add(account);
 

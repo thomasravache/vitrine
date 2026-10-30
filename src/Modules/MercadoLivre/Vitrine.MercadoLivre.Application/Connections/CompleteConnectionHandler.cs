@@ -30,6 +30,9 @@ public sealed class CompleteConnectionHandler(
     /// <summary>Único site atendido (épico SPEC-0019).</summary>
     public const string SupportedSiteId = "MLB";
 
+    /// <summary>Tempo máximo das chamadas ao ML numa conclusão (troca do code + <c>/users/me</c> — §5).</summary>
+    public static readonly TimeSpan MercadoLivreTimeout = TimeSpan.FromSeconds(10);
+
     public async Task<CompleteConnectionResult> HandleAsync(Guid userId, string? code, string? state, CancellationToken cancellationToken)
     {
         var member = await membership.GetAsync(userId, cancellationToken);
@@ -72,19 +75,35 @@ public sealed class CompleteConnectionHandler(
             return new CompleteConnectionResult.StateInvalid();
         }
 
-        var exchange = await oauth.ExchangeCodeAsync(code, codeVerifier, cancellationToken);
-        if (exchange is TokenExchange.CodeRejected)
+        // Timeout de 10 s da conclusão inteira (troca do code + /users/me — §5), ligado ao cancelamento da requisição.
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeout.CancelAfter(MercadoLivreTimeout);
+        TokenExchange.Issued issued;
+        MercadoLivreSeller? seller;
+        try
         {
-            return new CompleteConnectionResult.CodeInvalid();
-        }
+            var exchange = await oauth.ExchangeCodeAsync(code, codeVerifier, timeout.Token);
+            if (exchange is TokenExchange.CodeRejected)
+            {
+                return new CompleteConnectionResult.CodeInvalid();
+            }
 
-        if (exchange is not TokenExchange.Issued issued)
+            if (exchange is not TokenExchange.Issued exchanged)
+            {
+                return new CompleteConnectionResult.MlUnavailable();
+            }
+
+            issued = exchanged;
+            seller = await oauth.GetSellerAsync(issued.Tokens.AccessToken, timeout.Token);
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
+            // Estourou o limite total (o cancelamento pedido pelo cliente continua propagando).
             return new CompleteConnectionResult.MlUnavailable();
         }
 
-        var seller = await oauth.GetSellerAsync(issued.Tokens.AccessToken, cancellationToken);
-        if (seller is null)
+        // A divergência entre /users/me e o token vem antes do site: resposta incoerente do ML é 502.
+        if (seller is null || seller.MlUserId != issued.MlUserId)
         {
             return new CompleteConnectionResult.MlUnavailable();
         }
@@ -94,12 +113,17 @@ public sealed class CompleteConnectionHandler(
             return new CompleteConnectionResult.SiteNotSupported();
         }
 
-        if (seller.MlUserId != issued.MlUserId)
+        if (await SaveAccountAsync(workspaceId, seller, issued.Tokens, cancellationToken) is { } saved)
         {
-            return new CompleteConnectionResult.MlUnavailable();
+            return saved;
         }
 
-        return await SaveAccountAsync(workspaceId, seller, issued.Tokens, cancellationToken);
+        // A chave única recusou a gravação (corrida que escapou do lock): consulta de novo quem gravou. Outro workspace é
+        // 409; o mesmo workspace é 502 (nada desta conclusão foi confirmado; o vendedor tenta de novo).
+        var winner = await accounts.FindByMlUserIdAsync(seller.MlUserId, cancellationToken);
+        return winner is not null && winner.WorkspaceId != workspaceId
+            ? new CompleteConnectionResult.AccountInUse()
+            : new CompleteConnectionResult.MlUnavailable();
     }
 
     /// <summary>Consome a autorização pendente; devolve o verifier ou nulo quando o state é inválido.</summary>
@@ -127,10 +151,14 @@ public sealed class CompleteConnectionHandler(
         return authorization.CodeVerifier;
     }
 
-    private async Task<CompleteConnectionResult> SaveAccountAsync(
+    /// <summary>Grava ou reconecta a conta; nulo quando outra requisição gravou a mesma conta ao mesmo tempo.</summary>
+    private async Task<CompleteConnectionResult?> SaveAccountAsync(
         Guid workspaceId, MercadoLivreSeller seller, MercadoLivreTokens tokens, CancellationToken cancellationToken)
     {
         await using var transaction = await unitOfWork.BeginTransactionAsync(cancellationToken);
+        // Conclusões simultâneas do mesmo vendedor ficam em fila até o commit da anterior: a segunda já enxerga a conta
+        // gravada e reconecta (mesmo workspace) ou responde 409 (outro workspace).
+        await accounts.LockMlUserAsync(seller.MlUserId, cancellationToken);
         var now = clock.GetUtcNow();
         var account = await accounts.FindByMlUserIdAsync(seller.MlUserId, cancellationToken);
         if (account is not null && account.WorkspaceId != workspaceId)
@@ -164,8 +192,8 @@ public sealed class CompleteConnectionHandler(
         }
         catch (ConcurrentChangeException)
         {
-            // A mesma conta do ML foi gravada ao mesmo tempo por outra conclusão.
-            return new CompleteConnectionResult.AccountInUse();
+            // A mesma conta do ML foi gravada ao mesmo tempo por outra conclusão: nada desta transação foi confirmado.
+            return null;
         }
 
         return new CompleteConnectionResult.Connected(account.Id, account.MlUserId, account.Nickname, reconnected);

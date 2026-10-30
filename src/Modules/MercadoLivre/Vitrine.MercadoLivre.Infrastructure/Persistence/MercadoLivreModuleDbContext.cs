@@ -79,10 +79,14 @@ public sealed class MercadoLivreModuleDbContext(DbContextOptions<MercadoLivreMod
     }
 
     // Grava cifrado e lê decifrado (texto adulterado lança CryptographicException, nunca texto parcial).
-    private ValueConverter<string, string> Protected() =>
-        new(
-            plaintext => protector.Protect(plaintext, MercadoLivreModule.TokensProtectionPurpose),
-            ciphertext => protector.Unprotect(ciphertext, MercadoLivreModule.TokensProtectionPurpose));
+    // O modelo cacheado guarda só o protetor (cópia local), nunca o contexto que o montou.
+    private ValueConverter<string, string> Protected()
+    {
+        var fields = protector;
+        return new(
+            plaintext => fields.Protect(plaintext, MercadoLivreModule.TokensProtectionPurpose),
+            ciphertext => fields.Unprotect(ciphertext, MercadoLivreModule.TokensProtectionPurpose));
+    }
 }
 
 /// <summary>
