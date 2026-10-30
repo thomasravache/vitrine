@@ -230,9 +230,9 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 
 **Fase final: Integração, entrega e documentação**
 - [x] Review independente (G4)
-- [ ] Integração + CI verde (G5) e aprovação (H2)
-- [ ] Deploy no ambiente local prod-like com smoke (G6)
-- [ ] Relatório de Entrega, docs raiz e CHANGELOG (G7)
+- [x] Integração + CI verde (G5) e aprovação (H2)
+- [x] Deploy no ambiente local prod-like com smoke (G6)
+- [x] Relatório de Entrega, docs raiz e CHANGELOG (G7)
 
 ## 12. Registro de Gates
 <!-- Status: PENDING | PASS | FAIL | N/A. PASS e N/A exigem evidência (comando + resultado, SHA, execução de CI, veredito). -->
@@ -243,9 +243,9 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 | G2 Green | PASS | build exit 0 (npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts a); test exit 0 (Duration  349ms (environment 55%, transform 22%, import 18%, tests 5%, worker 1%)); lint exit 0 ([0m[34mChecked 40 files in 23[0m[0m[2m[34mms[0m[0m[34m.[0m[0m[34m No fixes app); coverage exit 0 (Coverage: 97%) — 374860e | 2026-10-30 |
 | G3 Arquitetura | PASS | arch_test exit 0 (duration: 1s 587ms) — 374860e | 2026-10-30 |
 | G4 Review | PASS | verify G1+G4: PASS; revisão: Reviewer independente: APPROVED (2ª rodada; notificação forjada → SPEC-0029; retenção v1.2 pelo accepted_at; nit: comparar seller com o ml_user_id lido da conta) — 374860e | 2026-10-30 |
-| G5 Integração & CI | PENDING | | |
-| H2 Integração aprovada | PENDING | | |
-| G6 Deploy | PENDING | | |
+| G5 Integração & CI | PASS | build exit 0 (npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts a); test exit 0 (Duration  461ms (environment 61%, transform 20%, import 14%, tests 3%, worker 2%)); test_integration exit 0 (duration: 3m 44s 772ms); test_e2e exit 0 (30 passed (31.3s)); arch_test exit 0 (duration: 1s 788ms); security_scan exit 0 ([90m4:20PM[0m [32mINF[0m [1mno leaks found[0m); nota: PR #51 CI 8/8 verde + CodeQL (runs/41112611794) — 0051d64 | 2026-10-30 |
+| H2 Integração aprovada | PASS | política auto-on-green (aprovada por thomas em 2026-10-13); G5 PASS | 2026-10-30 |
+| G6 Deploy | PASS | MANUAL: Deploy local prod-like (deploy/deploy.sh 963c0fc --env-file deploy/local/.env): health 200 em 5 s; migração do inbox aplicada; smoke @smoke 2/2; POST /api/v1/mercadolivre/notifications sem credenciais do ML → 503 ML_NOT_CONFIGURED (esperado no local), GET → 404; 0 logs Error/Critical; staging/produção na SPEC-0009 | 2026-10-30 |
 | G7 Pronto & Docs | PENDING | | |
 
 ## 13. Registro de Impedimentos
@@ -257,37 +257,55 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 <!-- Preenchido no CLOSE (G7). Diz o que foi feito, como, e prova que foi resolvido. Para status implemented o validate exige todas as subseções preenchidas, todo teste do plano com PASS + evidência e a Definição de Pronto toda marcada. -->
 
 ### O que foi entregue
-<!-- comportamento entregue do ponto de vista do usuário/sistema -->
+Webhook anônimo `POST /api/v1/mercadolivre/notifications` (fora do OpenAPI) que recebe as notificações do ML, responde 200 em < 100 ms gravando no inbox `mercadolivre.notifications` (dedupe por `_id`) e processa depois, de forma durável: para o tópico `items` de uma conta conhecida, publica `MercadoLivreItemChanged` v1, que o Listings usa para reler o anúncio. Corpo ≤ 16 KB, 600/min por IP, JSON estrito (tipos, tamanho de `_id`, chave duplicada), sem refletir o corpo nem enviar cookie. Limpeza diária do inbox.
 
 ### Como foi feito
-<!-- decisões de implementação, módulos/arquivos principais, desvios e emendas (com versão), dívidas assumidas -->
+- Application: `NotificationPayload.Parse` estrito, `NotificationResource.TryGetItemId` (`\A/items/(MLB[0-9]+)\z`), `ReceiveNotificationHandler` (503 → 400 → `ignored_app` → `ignored_topic` → inbox).
+- Infrastructure: migração do inbox (UNIQUE em `notification_id`); `INSERT … ON CONFLICT DO NOTHING` com `ProcessMercadoLivreNotification` no outbox na mesma transação; processamento com `FOR UPDATE`, idempotente; `CleanupNotificationsInbox` recorrente (03:00 UTC); métrica com `topic` limitado a `items|other|unknown`.
+- Api: partição própria de rate limit por nome de endpoint (`RateLimiting:MercadoLivreNotificationsPerIp:PermitLimit`); 413 com o código `PAYLOAD_TOO_LARGE`.
+- Emendas: v1.1 (IT-08 de retenção, `outcome` `item_changed`, regras da métrica, `_id` ≤ 64, nome da chave, fixture fictícia) e v1.2 (retenção de 1 dia para `unknown_user`/`invalid` e de 7 dias pelo `accepted_at` para não processadas; chave duplicada no UT-02).
+- G4: o achado de segurança (notificação forjada gravando anúncio alheio) foi corrigido na SPEC-0029; o defeito de geração de código do Wolverine com o gateway real, revelado aqui, foi corrigido na SPEC-0028.
+- Desvio conhecido: o Wolverine 6.59 avisa que `ClassicCombineIntoOneLogicalHandler` some no 7.0 (handlers do mesmo tipo de mensagem combinados) — tratar na atualização para o 7.0.
 
 ### Prova de Correção
-<!-- type fix: o teste de regressão falhou antes da correção (commit red + saída) e passa depois (commit green + execução). Outros tipos: "N/A". -->
+N/A — `type: feature`.
 
 ### Verificação
-<!-- Uma linha por teste do plano (todos os IDs da seção 7). Resultado: PASS. Evidência: execução de CI, commit ou relatório. -->
 | Teste | Comportamento | Resultado | Evidência |
 |---|---|---|---|
+| CH-01 | Lista de endpoints anônimos e rate limit por IP antes do webhook | PASS | CI PR #51 runs/41112611794 (374860e); main 963c0fc |
+| UT-01 | Resource `/items/MLB…` reconhecido só no formato exato | PASS | CI PR #51 runs/41112611794 (374860e); main 963c0fc |
+| UT-02 | Payload estrito: tipos, `_id` ≤ 64, int64, chave duplicada, campos extras ignorados | PASS | CI PR #51 runs/41112611794 (374860e); main 963c0fc |
+| IT-01 | Notificação de item de conta conhecida → 200, inbox `item_changed` e `MercadoLivreItemChanged` publicado | PASS | CI PR #51 runs/41112611794 (374860e); main 963c0fc |
+| IT-02 | Duplicada pelo `_id` → 200 sem linha nem evento a mais | PASS | CI PR #51 runs/41112611794 (374860e); main 963c0fc |
+| IT-03 | Outro app, tópico não tratado, vendedor desconhecido e resource inválido; métricas por resultado | PASS | CI PR #51 runs/41112611794 (374860e); main 963c0fc |
+| IT-04 | 400 VALIDATION_FAILED, 413 acima de 16 KB (com e sem Content-Length), 503 sem ClientId | PASS | CI PR #51 runs/41112611794 (374860e); main 963c0fc |
+| IT-05 | p95 < 100 ms em 50 POSTs | PASS | CI PR #51 runs/41112611794 (374860e); main 963c0fc |
+| IT-06 | Rate limit por IP com 429 e Retry-After; outro IP não é afetado | PASS | CI PR #51 runs/41112611794 (374860e); main 963c0fc |
+| IT-07 | Anônimo, sem antiforgery, na lista `AnonymousEndpoints`, fora do OpenAPI, sem cookie | PASS | CI PR #51 runs/41112611794 (374860e); main 963c0fc |
+| IT-08 | Retenção do inbox (7 dias, 1 dia para recusadas, 7 dias pelo `accepted_at` para não processadas) e agendamento | PASS | CI PR #51 runs/41112611794 (374860e); main 963c0fc |
+| CT-01 | `MercadoLivreItemChanged` publicado conforme o schema v1 | PASS | CI PR #51 runs/41112611794 (374860e); main 963c0fc |
 
 ### Definição de Pronto
-- [ ] Todos os testes do plano passando e listados na Verificação
-- [ ] Todo comportamento do Mapa de Comportamentos coberto e verificado
-- [ ] Suíte completa, arquitetura e CI verdes no resultado integrado (G5)
-- [ ] Review independente sem achados blocker/major (G4)
-- [ ] Padrão arquitetural existente mantido, ou desvio coberto por ADR aprovado
-- [ ] Requisitos não-funcionais medidos com evidência (ou N/A justificado)
-- [ ] Disponível no ambiente-alvo via pipeline, com smoke/E2E passando no ambiente (G6)
-- [ ] Observabilidade e rollback prontos conforme o Plano de Rollout
-- [ ] Documentação raiz e CHANGELOG atualizados (G7)
-- [ ] Guia de jornadas e mapa do sistema atualizados quando a entrega muda uma jornada ou um componente (G7)
-- [ ] Pendências registradas como novas specs (ou nenhuma)
+- [x] Todos os testes do plano passando e listados na Verificação
+- [x] Todo comportamento do Mapa de Comportamentos coberto e verificado
+- [x] Suíte completa, arquitetura e CI verdes no resultado integrado (G5)
+- [x] Review independente sem achados blocker/major (G4)
+- [x] Padrão arquitetural existente mantido, ou desvio coberto por ADR aprovado
+- [x] Requisitos não-funcionais medidos com evidência (ou N/A justificado) — p95 < 100 ms (IT-05), corpo ≤ 16 KB e rate limit por IP (IT-04/IT-06)
+- [x] Disponível no ambiente-alvo via pipeline, com smoke/E2E passando no ambiente (G6) — ambiente local prod-like; staging/produção na SPEC-0009
+- [x] Observabilidade e rollback prontos conforme o Plano de Rollout — métrica `vitrine.mercadolivre.notifications{topic,result}`; rollback por revert (tabela nova)
+- [x] Documentação raiz e CHANGELOG atualizados (G7)
+- [x] Guia de jornadas e mapa do sistema atualizados quando a entrega muda uma jornada ou um componente (G7) — N/A: sem `living_docs`; README atualizado
+- [x] Pendências registradas como novas specs (ou nenhuma)
 
 ### Deploy
-<!-- ambiente(s), versão/tag, data, estratégia, estado da feature flag, execução do pipeline -->
+Ambiente local prod-like, imagem `ghcr.io/thomasravache/vitrine-api:963c0fc`, 2026-10-30, `deploy/deploy.sh` (health 200 em 5 s, smoke 2/2, 0 logs Error/Critical). Staging/produção na SPEC-0009.
 
 ### Pendências
-<!-- specs criadas para o que ficou de fora, ou "Nenhuma" -->
+- Go-live (SPEC-0009): URL do webhook no DevCenter do ML; allowlist dos IPs do ML no Caddy passa a ser obrigatória; rate limit por /64 em IPv6 (hoje por endereço, herdado da SPEC-0008).
+- Atualização do Wolverine para 7.0: revisar handlers combinados.
+- Nit do G4: comparar o vendedor com o `ml_user_id` lido da conta no `ItemChangedHandler` (defensivo; hoje equivalente).
 
 ## 15. Emendas
 <!-- Mudança em spec aprovada: uma linha por emenda. Mudou o contrato? Incremente `contract_version` e rode `spec_graph.py impacted SPEC-0023`. -->
