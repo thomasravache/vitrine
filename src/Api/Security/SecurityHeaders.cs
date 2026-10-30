@@ -28,9 +28,15 @@ internal sealed class SecurityHeaders
 
     public string ContentSecurityPolicyValue => _contentSecurityPolicy;
 
-    /// <summary>Política da SPA: tudo da própria origem; <c>connect-src</c> também a ingestão do Sentry, se configurado.</summary>
+    /// <summary>Origem das miniaturas dos anúncios (CDN do Mercado Livre), liberada em <c>img-src</c> (SPEC-0008 v5, SPEC-0025).</summary>
+    public const string MlThumbnailsSource = "https://*.mlstatic.com";
+
+    /// <summary>
+    /// Política da SPA: tudo da própria origem; <c>connect-src</c> também a ingestão do Sentry, se configurado;
+    /// <c>img-src</c> também as miniaturas do Mercado Livre.
+    /// </summary>
     public static string ContentSecurityPolicy(string? sentryOrigin) =>
-        $"default-src 'self'; script-src 'self'; connect-src 'self'{(sentryOrigin is null ? string.Empty : " " + sentryOrigin)}; frame-ancestors 'none'";
+        $"default-src 'self'; script-src 'self'; connect-src 'self'{(sentryOrigin is null ? string.Empty : " " + sentryOrigin)}; img-src 'self' {MlThumbnailsSource}; frame-ancestors 'none'";
 
     /// <summary>Origem (esquema://host[:porta]) do DSN do Sentry; <c>null</c> sem DSN ou com DSN inválido.</summary>
     public static string? SentryOrigin(string? dsn) =>

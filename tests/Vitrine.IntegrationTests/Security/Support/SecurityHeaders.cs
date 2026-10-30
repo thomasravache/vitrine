@@ -5,9 +5,13 @@ internal static class SecurityHeaders
 {
     public const string HstsValue = "max-age=31536000; includeSubDomains";
 
+    /// <summary>Origem das miniaturas dos anúncios (CDN do ML) liberada em <c>img-src</c> (SPEC-0008 v5, SPEC-0025).</summary>
+    public const string MlThumbnailsSource = "https://*.mlstatic.com";
+
     /// <summary>
     /// Exige em <paramref name="response"/> todos os cabeçalhos do contrato; HSTS presente só quando
-    /// <paramref name="expectHsts"/>; <c>connect-src</c> com a origem do Sentry só quando <paramref name="sentryOrigin"/>.
+    /// <paramref name="expectHsts"/>; <c>connect-src</c> com a origem do Sentry só quando <paramref name="sentryOrigin"/>;
+    /// <c>img-src</c> com <c>'self'</c> e o CDN do ML (SPEC-0025:IT-01), demais diretivas iguais às da SPEC-0008.
     /// </summary>
     public static void AssertContract(HttpResponseMessage response, bool expectHsts, string? sentryOrigin = null)
     {
@@ -22,6 +26,7 @@ internal static class SecurityHeaders
                 ["default-src"] = ["'self'"],
                 ["script-src"] = ["'self'"],
                 ["connect-src"] = connectSrc,
+                ["img-src"] = ["'self'", MlThumbnailsSource],
                 ["frame-ancestors"] = ["'none'"],
             },
             where);
