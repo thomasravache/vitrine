@@ -1085,6 +1085,9 @@
       "vitrine.mercadolivre.publicapi": {
         "type": "Project"
       },
+      "vitrine.mercadolivresimulator": {
+        "type": "Project"
+      },
       "vitrine.servicedefaults": {
         "type": "Project",
         "dependencies": {

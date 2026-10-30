@@ -121,7 +121,16 @@ require_local_env() {
   require_cmd curl
   if [[ -z "${SPEC0005_ENV_FILE:-}" ]]; then
     SPEC0005_ENV_FILE="$(mktemp)"
-    cp "$ENV_EXAMPLE" "$SPEC0005_ENV_FILE"
+    if [[ "${SPEC_ID:-}" == "SPEC-0024" ]]; then
+      cp "$ENV_EXAMPLE" "$SPEC0005_ENV_FILE"
+    else
+      # SPEC-0024: o .env.example liga o simulador do ML (perfil ml-simulator + sites extras do Caddy), cuja imagem é só
+      # local. Os testes da SPEC-0005/0012 não dependem dele: a cópia tira o perfil e CADDY_EXTRA_SITES_DIR (como o IT-06).
+      grep -vE '^[[:space:]]*(COMPOSE_PROFILES|CADDY_EXTRA_SITES_DIR)[[:space:]]*=' "$ENV_EXAMPLE" >"$SPEC0005_ENV_FILE" || true
+      sed -nE 's/^[[:space:]]*COMPOSE_PROFILES[[:space:]]*=[[:space:]]*//p' "$ENV_EXAMPLE" | tail -n1 \
+        | tr ',' '\n' | sed -E 's/^[[:space:]]+|[[:space:]]+$//g' | grep -vx 'ml-simulator' | grep -v '^$' | paste -sd, - \
+        | sed 's/^/COMPOSE_PROFILES=/' >>"$SPEC0005_ENV_FILE" || true
+    fi
     if [[ -n "${SPEC0005_IMAGE_REPO:-}" ]]; then
       printf '\nIMAGE_REPO=%s\n' "$SPEC0005_IMAGE_REPO" >>"$SPEC0005_ENV_FILE"
     fi

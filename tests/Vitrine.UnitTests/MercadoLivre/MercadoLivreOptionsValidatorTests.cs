@@ -71,21 +71,39 @@ public sealed class MercadoLivreOptionsValidatorTests
     [InlineData("Production", MercadoLivreOptions.OfficialAuthorizationBaseUrl, "http://ml-simulador.vitrine.test")]
     [InlineData("Staging", "http://ml-simulador.vitrine.test", MercadoLivreOptions.OfficialApiBaseUrl)]
     [InlineData("Staging", MercadoLivreOptions.OfficialAuthorizationBaseUrl, "http://ml-simulador.vitrine.test")]
-    public void URL_do_ML_sem_HTTPS_fora_de_Development_falha_mesmo_com_AllowNonOfficialEndpoints(
+    public void URL_do_ML_sem_HTTPS_fora_de_Development_sem_AllowNonOfficialEndpoints_falha(
         string environment, string authorizationBaseUrl, string apiBaseUrl)
     {
+        // Dado AuthorizationBaseUrl ou ApiBaseUrl em http:// fora de Development, com AllowNonOfficialEndpoints=false
+        var options = Configured(authorizationBaseUrl, apiBaseUrl, allowNonOfficial: false);
+
+        // Quando validadas; então falha (sem a flag, tokens e code nunca trafegam sem TLS)
+        Assert.True(Validator(environment).Validate(null, options).Failed, "URL do ML sem HTTPS fora de Development sem a flag deveria falhar.");
+    }
+
+    [Theory]
+    [Trait("spec", "SPEC-0020:UT-04")]
+    [InlineData("Production", "https://ml-simulador.vitrine.localhost", "http://ml-simulator:8080")]
+    [InlineData("Production", "http://ml-simulador.vitrine.test", "http://ml-simulador.vitrine.test")]
+    [InlineData("Staging", "https://ml-simulador.vitrine.localhost", "http://ml-simulator:8080")]
+    [InlineData("Staging", "http://ml-simulador.vitrine.test", MercadoLivreOptions.OfficialApiBaseUrl)]
+    public void URL_do_ML_sem_HTTPS_fora_de_Development_com_AllowNonOfficialEndpoints_passa(
+        string environment, string authorizationBaseUrl, string apiBaseUrl)
+    {
+        // Emenda v1.2 (SPEC-0024, ADR-0016): o simulador do ambiente local prod-like fala http:// na rede interna do Compose.
         // Dado AuthorizationBaseUrl ou ApiBaseUrl em http:// fora de Development, com AllowNonOfficialEndpoints=true
         var options = Configured(authorizationBaseUrl, apiBaseUrl, allowNonOfficial: true);
 
-        // Quando validadas; então falha (tokens e code nunca trafegam sem TLS)
-        Assert.True(Validator(environment).Validate(null, options).Failed, "URL do ML sem HTTPS fora de Development deveria falhar.");
+        // Quando validadas; então passa
+        var result = Validator(environment).Validate(null, options);
+        Assert.True(result.Succeeded, $"http:// com AllowNonOfficialEndpoints=true fora de Development deveria passar: {result.FailureMessage}");
     }
 
     [Fact]
     [Trait("spec", "SPEC-0020:UT-04")]
     public void URL_do_ML_sem_HTTPS_em_Development_passa()
     {
-        // Simulador local (SPEC-0024) em http:// só em Development
+        // Simulador local (SPEC-0024) em http:// em Development, mesmo sem AllowNonOfficialEndpoints
         var options = Configured("http://localhost:5280", "http://localhost:5280", allowNonOfficial: false);
         var result = Validator(Environments.Development).Validate(null, options);
         Assert.True(result.Succeeded, $"URL http:// em Development deveria passar: {result.FailureMessage}");

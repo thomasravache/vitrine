@@ -20,8 +20,10 @@ Pré-requisitos: Docker com Compose v2, portas 80 e 443 livres, .NET SDK (para c
 TAG=$(git rev-parse --short HEAD)
 npm --prefix web ci && npm --prefix web run build
 dotnet publish src/Api/Vitrine.Api.csproj -c Release -t:PublishContainer -p:PublishSpa=true -p:ContainerRepository=vitrine-api -p:ContainerImageTag=$TAG
+#    Simulador do Mercado Livre (SPEC-0024; perfil ml-simulator, ligado no .env.example): imagem só local.
+dotnet publish tools/MercadoLivreSimulator/Vitrine.MercadoLivreSimulator.csproj -c Release -t:PublishContainer -p:ContainerRepository=vitrine-ml-simulator -p:ContainerImageTag=local
 
-# 2. Configuração (dados sintéticos)
+# 2. Configuração (dados sintéticos; Api apontada para o simulador)
 cp deploy/local/.env.example deploy/local/.env
 
 # 3. Deploy
@@ -29,8 +31,30 @@ deploy/deploy.sh $TAG --env-file deploy/local/.env
 
 # 4. Conferir (CA interna do Caddy: -k; *.localhost pode não resolver no seu sistema)
 curl -fsSk --resolve vitrine.localhost:443:127.0.0.1 https://vitrine.localhost/health/live
+curl -fsSk --resolve ml-simulador.vitrine.localhost:443:127.0.0.1 https://ml-simulador.vitrine.localhost/health
 docker compose -p vitrine ps
 ```
+
+### Simulador do Mercado Livre no ambiente local (SPEC-0024, ADR-0016)
+O `deploy/local/.env.example` liga o perfil `ml-simulator` e aponta a Api para o simulador, para testar a jornada
+"conectar conta" em `https://vitrine.localhost` sem conta nem app no ML:
+
+- o navegador abre a autorização em `https://ml-simulador.vitrine.localhost` (Caddy, mesma CA interna; adicione o host ao
+  `/etc/hosts` se `*.localhost` não resolver) — a página se identifica como "Simulador do Mercado Livre — ambiente de teste";
+- a Api fala com ele pela rede interna (`ML_API_BASE_URL=http://ml-simulator:8080`, aceito em Production só com
+  `ML_ALLOW_NON_OFFICIAL_ENDPOINTS=true`) e recebe as notificações do simulador no webhook `/api/v1/mercadolivre/notifications`
+  (serviço `api`, porta interna 8080);
+- `ML_CLIENT_ID`/`ML_CLIENT_SECRET` do exemplo são sintéticos e públicos, usados pelos dois lados; nunca coloque ali os do
+  app real do DevCenter;
+- o site do Caddy vem de `deploy/local/caddy-sites/` (`CADDY_EXTRA_SITES_DIR`); sem a variável, o Caddy importa
+  `deploy/caddy-sites/` (vazio) — staging e produção nunca ligam o perfil nem a variável;
+- estado só em memória: reiniciar o container volta à massa inicial (`VENDEDOR_TESTE`, `VENDEDOR_AR`); `POST /__sim/*`
+  controla vendedores, anúncios, tokens e notificações (contrato na SPEC-0024, seção 6).
+
+**Quem já tem `deploy/local/.env`:** copie do `.env.example` as linhas novas (`COMPOSE_PROFILES`, `CADDY_EXTRA_SITES_DIR`,
+`ML_*`) e construa a imagem do simulador (passo 1) antes do próximo deploy — com o perfil ligado e sem a imagem
+`vitrine-ml-simulator:local`, o `docker compose up` falha (a imagem nunca é baixada de registry). Para desligar o
+simulador, tire `ml-simulator` de `COMPOSE_PROFILES`, remova `CADDY_EXTRA_SITES_DIR` e volte `ML_*` para vazio/`false`.
 
 Para o navegador confiar no certificado local, exporte a raiz da CA interna com
 `docker compose -p vitrine cp caddy:/data/caddy/pki/authorities/local/root.crt .` e importe-a no sistema/navegador. Se `vitrine.localhost`
@@ -52,7 +76,9 @@ docker compose -p vitrine down
 | `IMAGE_REPO` | `vitrine-api` (local) ou `ghcr.io/thomasravache/vitrine-api` |
 | `SITE_ADDRESS` | host público (Caddy + health check) |
 | `DB_CONNECTION_STRING` | connection string Npgsql do PostgreSQL (`ConnectionStrings__vitrine`). Produção: `tofu output -raw production_database_connection_string` (usuário `vitrine_app`, banco `vitrine`, VPC + TLS; nunca o `doadmin`) |
-| `COMPOSE_PROFILES` | `db-container` sobe o Postgres em container (local e staging) |
+| `COMPOSE_PROFILES` | `db-container` sobe o Postgres em container (local e staging); `ml-simulator` sobe o simulador do ML (**só local**) |
+| `CADDY_EXTRA_SITES_DIR` | diretório de sites extras do Caddy (`*.caddy`); só o local usa (`./local/caddy-sites`); padrão `deploy/caddy-sites` (vazio) |
+| `ML_*` | Mercado Livre (SPEC-0020): no local, o simulador com credenciais sintéticas; em servidor, o app do DevCenter (secrets) e URLs oficiais |
 | `POSTGRES_PASSWORD` | senha do Postgres em container |
 | `DEPLOY_HEALTH_INSECURE` | `true` só onde o certificado não é público (local) |
 | `DEPLOY_HEALTH_TIMEOUT` | segundos de espera do health (≤ 120) |

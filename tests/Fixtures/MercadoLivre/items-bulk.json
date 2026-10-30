@@ -4,7 +4,7 @@
     "format": "Contrato da SPEC-0021 (seção 6): [{ id, status_code, body }], body só com os campos de attributes.",
     "documentation": "https://developers.mercadolivre.com.br/pt_br/itens-e-buscas",
     "consulted_at": "2026-10-30",
-    "note": "A documentação respondeu HTTP 403 na consulta automatizada de 2026-10-30; valores fictícios no formato do contrato. Substituir pela cópia da documentação oficial (fixtures compartilhadas da SPEC-0024)."
+    "note": "A documentação respondeu HTTP 403 nas consultas automatizadas de 2026-10-30 (SPEC-0021/0023 e SPEC-0024); valores fictícios no formato documentado. Fixture compartilhada (SPEC-0024): substituir pela cópia da documentação oficial quando acessível."
   },
   "response": [
     {

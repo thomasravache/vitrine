@@ -1,0 +1,8 @@
+# SPEC-0024 — simulador do Mercado Livre no ambiente local prod-like (perfil `ml-simulator`, ADR-0016).
+# Importado pelo deploy/Caddyfile só quando CADDY_EXTRA_SITES_DIR aponta para este diretório
+# (deploy/local/.env.example). CA interna do Caddy para *.localhost, como vitrine.localhost.
+ml-simulador.vitrine.localhost {
+	encode zstd gzip
+	header -Server
+	reverse_proxy ml-simulator:8080
+}

@@ -4,7 +4,7 @@
     "format": "Contrato da SPEC-0023 (seção 6): { _id, resource, user_id, topic, application_id, attempts, sent, received, actions? }.",
     "documentation": "https://developers.mercadolivre.com.br/pt_br/produto-receba-notificacoes",
     "consulted_at": "2026-10-30",
-    "note": "A documentação respondeu HTTP 403 na consulta automatizada de 2026-10-30; exemplo no formato documentado, com valores fictícios (resource e user_id são trocados por teste). Substituir pela cópia da documentação oficial (fixtures compartilhadas da SPEC-0024)."
+    "note": "A documentação respondeu HTTP 403 nas consultas automatizadas de 2026-10-30 (SPEC-0021/0023 e SPEC-0024); valores fictícios no formato documentado. Fixture compartilhada (SPEC-0024): substituir pela cópia da documentação oficial quando acessível."
   },
   "notification": {
     "_id": "f9f08571-1f65-4c46-9e0a-c0f43faa1557e",

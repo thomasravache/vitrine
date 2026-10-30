@@ -17,3 +17,6 @@ e0e91328a5ac9390b506c52b26e237f75690a79d:tests/Vitrine.IntegrationTests/Identity
 
 # SPEC-0008: chave mestra SINTÉTICA e pública do ambiente local prod-like (decodifica para texto legível; nunca usada fora dele).
 10146e435e87c584ddf8428535b712d9eae35253:deploy/local/.env.example:generic-api-key:26
+
+# SPEC-0024: URL interna do webhook (não é segredo) em teste
+51a4263b0beb536c5cd51d2730ca4fcd21bfc8ee:tests/Vitrine.Tooling.Tests/MercadoLivreSimulatorDeployTests.cs:generic-api-key:73

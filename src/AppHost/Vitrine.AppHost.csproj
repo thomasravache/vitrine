@@ -18,6 +18,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Api\Vitrine.Api.csproj" />
+    <!-- Simulador do Mercado Livre (SPEC-0024): recurso só em modo run (nunca no aspire publish). -->
+    <ProjectReference Include="..\..\tools\MercadoLivreSimulator\Vitrine.MercadoLivreSimulator.csproj" />
   </ItemGroup>
 
 </Project>

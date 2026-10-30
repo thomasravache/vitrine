@@ -42,6 +42,11 @@
     <ProjectReference Include="..\..\src\ServiceDefaults\Vitrine.ServiceDefaults.csproj" />
   </ItemGroup>
 
+  <!-- Simulador do Mercado Livre (SPEC-0024): PKCE, emissor de tokens e busca de anúncios em memória. -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\tools\MercadoLivreSimulator\Vitrine.MercadoLivreSimulator.csproj" />
+  </ItemGroup>
+
   <ItemGroup>
     <Using Include="Xunit" />
   </ItemGroup>

@@ -1,0 +1,17 @@
+{
+  "_source": {
+    "endpoint": "GET /users/{id}/items/search?status=active&limit=50&offset=0",
+    "format": "{ seller_id, results: [ids], paging: { total, offset, limit } }; offset + limit acima de 1000 exige search_type=scan.",
+    "documentation": "https://developers.mercadolivre.com.br/pt_br/itens-e-buscas",
+    "consulted_at": "2026-10-30",
+    "note": "A documentação respondeu HTTP 403 nas consultas automatizadas de 2026-10-30 (WebFetch); exemplo no formato documentado e já consumido pela SPEC-0021, com valores fictícios. Substituir pela cópia da documentação oficial quando acessível."
+  },
+  "response": {
+    "seller_id": "3000000001",
+    "query": null,
+    "paging": { "limit": 50, "offset": 0, "total": 3 },
+    "results": ["MLB9000000001", "MLB9000000002", "MLB9000000003"],
+    "orders": [{ "id": "stop_time_asc", "name": "Order by stop time asc" }],
+    "available_orders": [{ "id": "stop_time_asc", "name": "Order by stop time asc" }]
+  }
+}
