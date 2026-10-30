@@ -6,7 +6,8 @@ namespace Vitrine.MercadoLivre.Infrastructure.Api;
 /// <summary>
 /// Percorre <c>GET /users/{id}/items/search</c> (SPEC-0021): por offset (0, 100, 200…) enquanto <c>paging.total</c> ≤ 1000;
 /// acima disso descarta a 1ª página e recomeça com <c>search_type=scan</c>, seguindo o <c>scroll_id</c> até
-/// <c>results</c> vazio ou <c>scroll_id</c> nulo. Um <c>scroll_id</c> repetido ou páginas demais lançam
+/// <c>results</c> vazio ou <c>scroll_id</c> nulo. Uma página que não avança (mesmo <c>scroll_id</c> e mesmos
+/// <c>results</c> da anterior) ou páginas demais lançam
 /// <see cref="MercadoLivreUnavailableException"/> (sem conta: quem chama a completa).
 /// </summary>
 internal static class ItemSearchPaginator
@@ -48,11 +49,12 @@ internal static class ItemSearchPaginator
             yield break;
         }
 
-        // Modo scan: a 1ª requisição sem scroll_id; termina com results vazio ou scroll_id nulo. Um scroll_id repetido
-        // com results ou páginas além do total (com folga) indicam um scan que não avança: falha em vez de laço.
+        // Modo scan: a 1ª requisição sem scroll_id; termina com results vazio ou scroll_id nulo. O scroll_id do ML
+        // (scroll do Elasticsearch) costuma ser o mesmo em todas as páginas: só uma página que não avança (mesmo
+        // scroll_id e os mesmos results da anterior) ou páginas além do total (com folga) indicam laço, e falham.
         var maxPages = (first.Total / PageSize) + ScanSlackPages;
-        var seen = new HashSet<string>(StringComparer.Ordinal);
         string? scrollId = null;
+        IReadOnlyList<string>? previous = null;
         for (var pages = 1; ; pages++)
         {
             if (pages > maxPages)
@@ -66,11 +68,14 @@ internal static class ItemSearchPaginator
                 yield break;
             }
 
-            if (page.ScrollId is not null && !seen.Add(page.ScrollId))
+            if (previous is not null
+                && string.Equals(page.ScrollId, scrollId, StringComparison.Ordinal)
+                && page.Results.SequenceEqual(previous, StringComparer.Ordinal))
             {
-                throw new MercadoLivreUnavailableException("a busca por scan repetiu o scroll_id");
+                throw new MercadoLivreUnavailableException("a busca por scan repetiu a mesma página");
             }
 
+            previous = page.Results;
             yield return page.Results;
             if (string.IsNullOrEmpty(page.ScrollId))
             {

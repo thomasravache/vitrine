@@ -107,7 +107,18 @@ internal sealed partial class MercadoLivreAccessTokenProvider(
             {
                 case TokenRefresh.Renewed renewed:
                     account.RenewTokens(renewed.Tokens, clock.GetUtcNow());
-                    await outbox.SaveChangesAndFlushMessagesAsync(CancellationToken.None);
+                    try
+                    {
+                        await outbox.SaveChangesAndFlushMessagesAsync(CancellationToken.None);
+                    }
+                    catch (Exception exception) when (exception is DbUpdateException or NpgsqlException)
+                    {
+                        // O ML já consumiu o refresh token antigo: sem gravar o novo, a conta não renova mais. Sem nova
+                        // tentativa aqui: depois do erro a transação (e o lock) do PostgreSQL ficou abortada.
+                        Log.RenewedButNotSaved(logger, accountId, exception);
+                        throw;
+                    }
+
                     metrics.TokenRefreshed(TokenRefreshOutcome.Renewed);
                     return account.AccessToken;
 
@@ -177,6 +188,9 @@ internal sealed partial class MercadoLivreAccessTokenProvider(
 
         [LoggerMessage(EventId = 22, Level = LogLevel.Warning, Message = "Conta do Mercado Livre {AccountId} precisa ser reconectada: o ML recusou o refresh token.")]
         public static partial void RefreshRejected(ILogger logger, Guid accountId);
+
+        [LoggerMessage(EventId = 24, Level = LogLevel.Critical, Message = "Conta do Mercado Livre {AccountId}: renovação obtida mas não gravada; a conta exigirá reconexão.")]
+        public static partial void RenewedButNotSaved(ILogger logger, Guid accountId, Exception exception);
 
         [LoggerMessage(EventId = 23, Level = LogLevel.Error, Message = "Renovação do token da conta do Mercado Livre {AccountId} falhou; a conta não mudou.")]
         public static partial void RefreshFailed(ILogger logger, Guid accountId);
