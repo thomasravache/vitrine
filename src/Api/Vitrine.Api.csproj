@@ -26,6 +26,8 @@
   <ItemGroup>
     <ProjectReference Include="..\Modules\Identity\Vitrine.Identity.Infrastructure\Vitrine.Identity.Infrastructure.csproj" />
     <ProjectReference Include="..\Modules\Identity\Vitrine.Identity.Presentation\Vitrine.Identity.Presentation.csproj" />
+    <ProjectReference Include="..\Modules\MercadoLivre\Vitrine.MercadoLivre.Infrastructure\Vitrine.MercadoLivre.Infrastructure.csproj" />
+    <ProjectReference Include="..\Modules\MercadoLivre\Vitrine.MercadoLivre.Presentation\Vitrine.MercadoLivre.Presentation.csproj" />
     <ProjectReference Include="..\Common\Vitrine.Common.Security\Vitrine.Common.Security.csproj" />
     <ProjectReference Include="..\ServiceDefaults\Vitrine.ServiceDefaults.csproj" />
   </ItemGroup>

@@ -16,6 +16,15 @@
     <Project Path="src/Modules/Identity/Vitrine.Identity.Infrastructure/Vitrine.Identity.Infrastructure.csproj" />
     <Project Path="src/Modules/Identity/Vitrine.Identity.IntegrationEvents/Vitrine.Identity.IntegrationEvents.csproj" />
     <Project Path="src/Modules/Identity/Vitrine.Identity.Presentation/Vitrine.Identity.Presentation.csproj" />
+    <Project Path="src/Modules/Identity/Vitrine.Identity.PublicApi/Vitrine.Identity.PublicApi.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/MercadoLivre/">
+    <Project Path="src/Modules/MercadoLivre/Vitrine.MercadoLivre.Application/Vitrine.MercadoLivre.Application.csproj" />
+    <Project Path="src/Modules/MercadoLivre/Vitrine.MercadoLivre.Domain/Vitrine.MercadoLivre.Domain.csproj" />
+    <Project Path="src/Modules/MercadoLivre/Vitrine.MercadoLivre.Infrastructure/Vitrine.MercadoLivre.Infrastructure.csproj" />
+    <Project Path="src/Modules/MercadoLivre/Vitrine.MercadoLivre.IntegrationEvents/Vitrine.MercadoLivre.IntegrationEvents.csproj" />
+    <Project Path="src/Modules/MercadoLivre/Vitrine.MercadoLivre.Presentation/Vitrine.MercadoLivre.Presentation.csproj" />
+    <Project Path="src/Modules/MercadoLivre/Vitrine.MercadoLivre.PublicApi/Vitrine.MercadoLivre.PublicApi.csproj" />
   </Folder>
   <Folder Name="/src/ServiceDefaults/">
     <Project Path="src/ServiceDefaults/Vitrine.ServiceDefaults.csproj" />

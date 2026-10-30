@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Casos de uso do módulo MercadoLivre (SPEC-0020). Não referencia Infrastructure nem Presentation (ADR-0001). -->
+
+  <ItemGroup>
+    <ProjectReference Include="..\Vitrine.MercadoLivre.Domain\Vitrine.MercadoLivre.Domain.csproj" />
+    <ProjectReference Include="..\Vitrine.MercadoLivre.IntegrationEvents\Vitrine.MercadoLivre.IntegrationEvents.csproj" />
+    <ProjectReference Include="..\..\Identity\Vitrine.Identity.PublicApi\Vitrine.Identity.PublicApi.csproj" />
+  </ItemGroup>
+
+</Project>

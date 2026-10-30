@@ -5,6 +5,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Vitrine.Identity.Domain\Vitrine.Identity.Domain.csproj" />
     <ProjectReference Include="..\Vitrine.Identity.IntegrationEvents\Vitrine.Identity.IntegrationEvents.csproj" />
+    <ProjectReference Include="..\Vitrine.Identity.PublicApi\Vitrine.Identity.PublicApi.csproj" />
   </ItemGroup>
 
 </Project>

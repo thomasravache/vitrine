@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Contrato público síncrono do módulo Identity (ADR-0001, SPEC-0020): leitura de workspace e papel do usuário.
+       Não referencia projetos internos do Identity. -->
+
+</Project>

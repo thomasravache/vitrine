@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "dependencies": {
+    "net10.0": {
+      "vitrine.identity.publicapi": {
+        "type": "Project"
+      },
+      "vitrine.mercadolivre.domain": {
+        "type": "Project"
+      },
+      "vitrine.mercadolivre.integrationevents": {
+        "type": "Project"
+      }
+    }
+  }
+}

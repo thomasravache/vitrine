@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Persistência no schema "mercadolivre" (ADR-0011), cliente HTTP do ML e publicação via outbox (ADR-0014). -->
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Vitrine.MercadoLivre.Application\Vitrine.MercadoLivre.Application.csproj" />
+    <ProjectReference Include="..\Vitrine.MercadoLivre.Domain\Vitrine.MercadoLivre.Domain.csproj" />
+    <ProjectReference Include="..\Vitrine.MercadoLivre.IntegrationEvents\Vitrine.MercadoLivre.IntegrationEvents.csproj" />
+  </ItemGroup>
+
+</Project>

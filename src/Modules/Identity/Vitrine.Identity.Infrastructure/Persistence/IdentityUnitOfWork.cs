@@ -20,6 +20,9 @@ internal sealed class IdentityUnitOfWork(IDbContextOutbox<IdentityModuleDbContex
 
     public void Add(Workspace workspace) => outbox.DbContext.Workspaces.Add(workspace);
 
+    public Task<Workspace?> FindByMemberAsync(Guid userId, CancellationToken cancellationToken) =>
+        throw new NotImplementedException("SPEC-0020: implementado na fase Green.");
+
     private sealed class Transaction(IDbContextOutbox<IdentityModuleDbContext> outbox, IDbContextTransaction transaction)
         : IIdentityTransaction
     {
