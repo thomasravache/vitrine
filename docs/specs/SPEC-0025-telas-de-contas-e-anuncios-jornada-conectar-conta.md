@@ -11,7 +11,7 @@ depends_on: [SPEC-0024]
 consumes_contract: [SPEC-0020@1, SPEC-0022@1]
 contract_version: 1
 # breaking: "o que quebra para consumidores e como migrar"   # só se houver quebra; vai para o PR e pede `!` no título
-touches: [web/src/features/**, web/src/router.tsx, web/src/ui/**, web/src/App.tsx, web/e2e/**, web/package.json, web/package-lock.json, src/Api/Security/SecurityHeaders.cs, tests/Vitrine.IntegrationTests/Security/**, .gitleaksignore]
+touches: [web/src/features/**, web/src/router.tsx, web/src/ui/**, web/src/App.tsx, web/e2e/**, web/package.json, web/package-lock.json, src/Api/Security/SecurityHeaders.cs, tests/Vitrine.IntegrationTests/Security/**, .gitleaksignore, docs/runbooks/deploy.md]
 adrs: [ADR-0007, ADR-0013]
 external: []
 size: M
@@ -375,3 +375,4 @@ Ambiente local prod-like, `ghcr.io/thomasravache/vitrine-api:162fdc9` + `vitrine
 |---|---|---|---|---|---|
 | v1.1 (esclarecimento, contrato inalterado) | 2026-10-30 | (1) Member em `/contas`: "Só o dono do workspace pode conectar ou desconectar contas." (texto do §6 prevalece); no retorno com `FORBIDDEN`: "Só o dono do workspace pode conectar contas."; (2) "Tentar de novo" só em `OAUTH_*` e `ML_UNAVAILABLE`; code desconhecido mostra alerta genérico sem o code cru; (3) página de Anúncios com 20 itens (padrão da SPEC-0022) e "Carregar mais"; (4) E2E-05: o 2º "Sincronizar agora" acontece logo após a 1ª sincronização manual concluir (o `SYNC_TOO_SOON` conta a partir da conclusão); (5) E2E intercepta `*.mlstatic.com` com PNG fixo | Pontos em aberto apontados pelo Test-writer no G1 | nenhuma | thomas (piloto automático do épico SPEC-0019) |
 | v1.2 (contrato inalterado) | 2026-10-30 | `touches` inclui `.gitleaksignore`: fingerprint do falso positivo `generic-api-key` na senha fixa de teste do E2E (`web/e2e/support/vitrine.ts`, o mesmo valor já ignorado em `acesso.spec.ts`), conforme a ADR-0006 | gitleaks do CI no PR #54 | nenhuma | thomas (piloto automático do épico SPEC-0019) |
+| v1.3 (contrato inalterado) | 2026-10-30 | `touches` inclui `docs/runbooks/deploy.md`: o smoke do ambiente local exporta a CA interna do Caddy para o Node (`NODE_EXTRA_CA_CERTS`), já que o E2E valida o certificado nas chamadas ao simulador (alerta do CodeQL `js/disabling-certificate-validation` corrigido, sem dispensa) | G6 da SPEC-0025 | nenhuma | thomas (piloto automático do épico SPEC-0019) |
