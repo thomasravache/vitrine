@@ -306,7 +306,7 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 | G4 Review | PASS | verify G1+G4: PASS; revisão: Reviewer independente: APPROVED (2ª rodada; notas do G4 corrigidas com testes; Sentry → SPEC-0030; critério de polling e limites do keepalive/dedupe como pendências) — 5150604 | 2026-10-30 |
 | G5 Integração & CI | PASS | build exit 0 (npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts a); test exit 0 (at least ~714ms faster with isolate: false — reuses workers across files instead of one pe); test_integration exit 0 (duration: 3m 46s 122ms); test_e2e exit 0 (40 passed (1.2m)); arch_test exit 0 (duration: 2s 158ms); security_scan exit 0 ([90m8:02PM[0m [32mINF[0m [1mno leaks found[0m); nota: PR #54 CI 8/8 verde + CodeQL (runs/41140692871) — 47121ac | 2026-10-30 |
 | H2 Integração aprovada | PASS | política auto-on-green (aprovada por thomas em 2026-10-13); G5 PASS | 2026-10-30 |
-| G6 Deploy | PENDING | | |
+| G6 Deploy | PASS | MANUAL: Deploy local prod-like (deploy/deploy.sh 162fdc9 + simulador, perfil ml-simulator): health 200 em 4 s; smoke do sdd-config contra https://vitrine.localhost com ML_SIMULATOR_URL=https://ml-simulador.vitrine.localhost → 4/4 (acesso + SPEC-0025:E2E-01 conectar-conta, desktop e mobile, 15 s) com o apoio de teste do commit 6d2c79f (resolução de *.localhost no Node); 0 logs Error/Critical; staging/produção na SPEC-0009 | 2026-10-30 |
 | G7 Pronto & Docs | PENDING | | |
 
 ## 13. Registro de Impedimentos
