@@ -104,6 +104,7 @@ Contratos entre as filhas:
 | SPEC-0027 | Teste de arquitetura passa localmente com assembly de módulo não referenciado | lite | fix | S | — | — |
 | SPEC-0028 | Handlers do Listings não são gerados pelo Wolverine com o gateway real do ML | lite | fix | S | SPEC-0022 | — |
 | SPEC-0029 | Notificação forjada grava anúncio de outro vendedor no catálogo da conta | lite | fix | S | SPEC-0022 | — |
+| SPEC-0030 | Code e state do OAuth podem chegar ao Sentry pelos breadcrumbs de navegação da SPA | lite | fix | S | SPEC-0025 | — |
 
 ## 5. Estratégia de Entrega
 - **Ambientes:**

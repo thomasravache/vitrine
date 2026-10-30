@@ -66,6 +66,9 @@ logs, traces, métricas e o endereço de cada recurso. A API responde `GET /heal
   (busca, filtros, cursor), `GET /api/v1/listings/summary` e `POST /api/v1/listings/sync` (no máximo a cada 5 min).
 - **Notificações do ML (SPEC-0023):** webhook anônimo `POST /api/v1/mercadolivre/notifications` (fora do OpenAPI,
   ≤ 16 KB, 600/min por IP) grava no inbox e atualiza o anúncio em segundo plano.
+- **Simulador do ML (SPEC-0024):** `tools/MercadoLivreSimulator` imita o OAuth, os anúncios e as notificações do ML
+  para testar sem conta real: sobe no `aspire run` e, no ambiente local, em `https://ml-simulador.vitrine.localhost`
+  (perfil `ml-simulator`; ver `docs/runbooks/deploy.md`). Nunca vai a staging/produção.
 
 ## Comandos
 

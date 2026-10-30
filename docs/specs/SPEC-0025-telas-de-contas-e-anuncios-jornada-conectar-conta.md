@@ -4,14 +4,14 @@ title: Telas de contas e anúncios (jornada conectar-conta)
 tier: full
 type: feature
 user_facing: true
-status: approved
+status: in-progress
 created: 2026-10-30
 parent: SPEC-0019
 depends_on: [SPEC-0024]
 consumes_contract: [SPEC-0020@1, SPEC-0022@1]
 contract_version: 1
 # breaking: "o que quebra para consumidores e como migrar"   # só se houver quebra; vai para o PR e pede `!` no título
-touches: [web/src/features/**, web/src/router.tsx, web/src/ui/**, web/src/App.tsx, web/e2e/**, web/package.json, web/package-lock.json, src/Api/Security/SecurityHeaders.cs, tests/Vitrine.IntegrationTests/Security/**]
+touches: [web/src/features/**, web/src/router.tsx, web/src/ui/**, web/src/App.tsx, web/e2e/**, web/package.json, web/package-lock.json, src/Api/Security/SecurityHeaders.cs, tests/Vitrine.IntegrationTests/Security/**, .gitleaksignore]
 adrs: [ADR-0007, ADR-0013]
 external: []
 size: M
@@ -277,20 +277,20 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 ## 11. Checklist de Implementação
 <!-- Preenchido na fase PLAN, após a aprovação. Cada fase começa pelos testes. -->
 **Fase 0: Caracterização**
-- [ ] CH-01 escrito, passando no código atual (rotas e CSP atuais da SPA), commitado antes de qualquer mudança
+- [x] CH-01 escrito, passando no código atual (rotas e CSP atuais da SPA), commitado antes de qualquer mudança
 
 **Fase 1: Componentes e CSP**
-- [ ] Red: escrever UT-01..UT-05, IT-01 e CT-01 com a tag `SPEC-0025:<ID>` e confirmar que falham pelo motivo certo
-- [ ] Green: telas Painel, Contas, retorno do OAuth e Anúncios (Stitch), CSP com `img-src https://*.mlstatic.com`
-- [ ] Refactor mantendo tudo verde
-- [ ] Validar: build + suíte completa + arquitetura (G2/G3)
+- [x] Red: escrever UT-01..UT-05, IT-01 e CT-01 com a tag `SPEC-0025:<ID>` e confirmar que falham pelo motivo certo
+- [x] Green: telas Painel, Contas, retorno do OAuth e Anúncios (Stitch), CSP com `img-src https://*.mlstatic.com`
+- [x] Refactor mantendo tudo verde
+- [x] Validar: build + suíte completa + arquitetura (G2/G3)
 
 **Fase 2: Jornada E2E**
-- [ ] Red: E2E-01..E2E-05 falhando pelo motivo certo
-- [ ] Green: jornada `conectar-conta` completa passando localmente contra o simulador
+- [x] Red: E2E-01..E2E-05 falhando pelo motivo certo
+- [x] Green: jornada `conectar-conta` completa passando localmente contra o simulador
 
 **Fase final: Integração, entrega e documentação**
-- [ ] Review independente (G4)
+- [x] Review independente (G4)
 - [ ] Integração + CI verde (G5) e aprovação (H2)
 - [ ] Deploy no ambiente local prod-like com smoke (G6)
 - [ ] Relatório de Entrega, docs raiz e CHANGELOG (G7)
@@ -300,10 +300,10 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 | Gate | Status | Evidência | Data |
 |---|---|---|---|
 | G0 Spec | PASS | validate: 0 erro(s) — ddc6ebd (árvore suja) | 2026-10-30 |
-| G1 Red | PENDING | | |
-| G2 Green | PENDING | | |
-| G3 Arquitetura | PENDING | | |
-| G4 Review | PENDING | | |
+| G1 Red | PASS | verify G1: PASS; `dotnet test tests/Vitrine.UnitTests && npm --prefix web run test` exit 1 (red: ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[32/34]⎯) — d65dfcb | 2026-10-30 |
+| G2 Green | PASS | build exit 0 (npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts a); test exit 0 (at least ~698ms faster with isolate: false — reuses workers across files instead of one pe); lint exit 0 ([0m[34mChecked 66 files in 40[0m[0m[2m[34mms[0m[0m[34m.[0m[0m[34m No fixes app); coverage exit 0 (Coverage: 100%) — 5150604 | 2026-10-30 |
+| G3 Arquitetura | PASS | arch_test exit 0 (duration: 1s 953ms) — 5150604 | 2026-10-30 |
+| G4 Review | PASS | verify G1+G4: PASS; revisão: Reviewer independente: APPROVED (2ª rodada; notas do G4 corrigidas com testes; Sentry → SPEC-0030; critério de polling e limites do keepalive/dedupe como pendências) — 5150604 | 2026-10-30 |
 | G5 Integração & CI | PENDING | | |
 | H2 Integração aprovada | PENDING | | |
 | G6 Deploy | PENDING | | |
@@ -354,3 +354,5 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 <!-- Mudança em spec aprovada: uma linha por emenda. Mudou o contrato? Incremente `contract_version` e rode `spec_graph.py impacted SPEC-0025`. -->
 | Versão do contrato | Data | Mudança | Motivo | Specs impactadas | Aprovado por |
 |---|---|---|---|---|---|
+| v1.1 (esclarecimento, contrato inalterado) | 2026-10-30 | (1) Member em `/contas`: "Só o dono do workspace pode conectar ou desconectar contas." (texto do §6 prevalece); no retorno com `FORBIDDEN`: "Só o dono do workspace pode conectar contas."; (2) "Tentar de novo" só em `OAUTH_*` e `ML_UNAVAILABLE`; code desconhecido mostra alerta genérico sem o code cru; (3) página de Anúncios com 20 itens (padrão da SPEC-0022) e "Carregar mais"; (4) E2E-05: o 2º "Sincronizar agora" acontece logo após a 1ª sincronização manual concluir (o `SYNC_TOO_SOON` conta a partir da conclusão); (5) E2E intercepta `*.mlstatic.com` com PNG fixo | Pontos em aberto apontados pelo Test-writer no G1 | nenhuma | thomas (piloto automático do épico SPEC-0019) |
+| v1.2 (contrato inalterado) | 2026-10-30 | `touches` inclui `.gitleaksignore`: fingerprint do falso positivo `generic-api-key` na senha fixa de teste do E2E (`web/e2e/support/vitrine.ts`, o mesmo valor já ignorado em `acesso.spec.ts`), conforme a ADR-0006 | gitleaks do CI no PR #54 | nenhuma | thomas (piloto automático do épico SPEC-0019) |

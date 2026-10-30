@@ -93,3 +93,58 @@ export const ListingsIcon = (props: SVGProps<SVGSVGElement>) => (
     <path d="M5 9v10h14V9M10 13h4" />
   </Icon>
 );
+
+export const AccountsIcon = (props: SVGProps<SVGSVGElement>) => (
+  <Icon {...props}>
+    <circle cx="9" cy="8" r="4" />
+    <path d="M3 20a6 6 0 0 1 9.5-4.9" />
+    <circle cx="18" cy="17" r="2.5" />
+    <path d="M18 13v1.5M18 19.5V21M14 17h1.5M20.5 17H22" />
+  </Icon>
+);
+
+export const SyncIcon = (props: SVGProps<SVGSVGElement>) => (
+  <Icon {...props}>
+    <path d="M20 11a8 8 0 0 0-14.3-4.9L4 8M4 4v4h4M4 13a8 8 0 0 0 14.3 4.9L20 16M20 20v-4h-4" />
+  </Icon>
+);
+
+export const ExternalLinkIcon = (props: SVGProps<SVGSVGElement>) => (
+  <Icon {...props}>
+    <path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" />
+  </Icon>
+);
+
+export const SearchIcon = (props: SVGProps<SVGSVGElement>) => (
+  <Icon {...props}>
+    <circle cx="11" cy="11" r="7" />
+    <path d="M20 20l-4-4" />
+  </Icon>
+);
+
+export const ImageIcon = (props: SVGProps<SVGSVGElement>) => (
+  <Icon {...props}>
+    <rect x="3" y="4" width="18" height="16" rx="2" />
+    <circle cx="9" cy="10" r="2" />
+    <path d="M21 16l-5-5-9 9" />
+  </Icon>
+);
+
+export const LogoutIcon = (props: SVGProps<SVGSVGElement>) => (
+  <Icon {...props}>
+    <path d="M10 4H5a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h5M15 8l4 4-4 4M19 12H9" />
+  </Icon>
+);
+
+export const WarningIcon = (props: SVGProps<SVGSVGElement>) => (
+  <Icon {...props}>
+    <path d="M12 3l10 18H2zM12 10v5M12 18h.01" />
+  </Icon>
+);
+
+export const CheckCircleIcon = (props: SVGProps<SVGSVGElement>) => (
+  <Icon {...props}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M8 12l3 3 5-6" />
+  </Icon>
+);
