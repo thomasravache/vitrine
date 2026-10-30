@@ -4,14 +4,14 @@ title: Telas de contas e anúncios (jornada conectar-conta)
 tier: full
 type: feature
 user_facing: true
-status: in-progress
+status: implemented
 created: 2026-10-30
 parent: SPEC-0019
 depends_on: [SPEC-0024]
 consumes_contract: [SPEC-0020@1, SPEC-0022@1]
 contract_version: 1
 # breaking: "o que quebra para consumidores e como migrar"   # só se houver quebra; vai para o PR e pede `!` no título
-touches: [web/src/features/**, web/src/router.tsx, web/src/ui/**, web/src/App.tsx, web/e2e/**, web/package.json, web/package-lock.json, src/Api/Security/SecurityHeaders.cs, tests/Vitrine.IntegrationTests/Security/**, .gitleaksignore]
+touches: [web/src/features/**, web/src/router.tsx, web/src/ui/**, web/src/App.tsx, web/e2e/**, web/package.json, web/package-lock.json, src/Api/Security/SecurityHeaders.cs, tests/Vitrine.IntegrationTests/Security/**, .gitleaksignore, docs/runbooks/deploy.md]
 adrs: [ADR-0007, ADR-0013]
 external: []
 size: M
@@ -291,9 +291,9 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 
 **Fase final: Integração, entrega e documentação**
 - [x] Review independente (G4)
-- [ ] Integração + CI verde (G5) e aprovação (H2)
-- [ ] Deploy no ambiente local prod-like com smoke (G6)
-- [ ] Relatório de Entrega, docs raiz e CHANGELOG (G7)
+- [x] Integração + CI verde (G5) e aprovação (H2)
+- [x] Deploy no ambiente local prod-like com smoke (G6)
+- [x] Relatório de Entrega, docs raiz e CHANGELOG (G7)
 
 ## 12. Registro de Gates
 <!-- Status: PENDING | PASS | FAIL | N/A. PASS e N/A exigem evidência (comando + resultado, SHA, execução de CI, veredito). -->
@@ -304,10 +304,10 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 | G2 Green | PASS | build exit 0 (npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts a); test exit 0 (at least ~698ms faster with isolate: false — reuses workers across files instead of one pe); lint exit 0 ([0m[34mChecked 66 files in 40[0m[0m[2m[34mms[0m[0m[34m.[0m[0m[34m No fixes app); coverage exit 0 (Coverage: 100%) — 5150604 | 2026-10-30 |
 | G3 Arquitetura | PASS | arch_test exit 0 (duration: 1s 953ms) — 5150604 | 2026-10-30 |
 | G4 Review | PASS | verify G1+G4: PASS; revisão: Reviewer independente: APPROVED (2ª rodada; notas do G4 corrigidas com testes; Sentry → SPEC-0030; critério de polling e limites do keepalive/dedupe como pendências) — 5150604 | 2026-10-30 |
-| G5 Integração & CI | PENDING | | |
-| H2 Integração aprovada | PENDING | | |
-| G6 Deploy | PENDING | | |
-| G7 Pronto & Docs | PENDING | | |
+| G5 Integração & CI | PASS | build exit 0 (npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts a); test exit 0 (at least ~714ms faster with isolate: false — reuses workers across files instead of one pe); test_integration exit 0 (duration: 3m 46s 122ms); test_e2e exit 0 (40 passed (1.2m)); arch_test exit 0 (duration: 2s 158ms); security_scan exit 0 ([90m8:02PM[0m [32mINF[0m [1mno leaks found[0m); nota: PR #54 CI 8/8 verde + CodeQL (runs/41140692871) — 47121ac | 2026-10-30 |
+| H2 Integração aprovada | PASS | política auto-on-green (aprovada por thomas em 2026-10-13); G5 PASS | 2026-10-30 |
+| G6 Deploy | PASS | MANUAL: Deploy local prod-like (deploy/deploy.sh 162fdc9 + simulador, perfil ml-simulator): health 200 em 4 s; smoke do sdd-config contra https://vitrine.localhost com ML_SIMULATOR_URL=https://ml-simulador.vitrine.localhost → 4/4 (acesso + SPEC-0025:E2E-01 conectar-conta, desktop e mobile, 15 s) com o apoio de teste do commit 6d2c79f (resolução de *.localhost no Node); 0 logs Error/Critical; staging/produção na SPEC-0009 | 2026-10-30 |
+| G7 Pronto & Docs | PASS | Relatório de Entrega e Definição de Pronto: ok — 4de390d | 2026-10-30 |
 
 ## 13. Registro de Impedimentos
 <!-- Toda parada é registrada pelo Architect com `spec_graph.py impede` e fechada com `resolve` — não edite à mão. Tipos: spec (spec errada/incompleta → resolve com Emenda) | decisão (só o humano decide → resposta ou ADR) | trabalho (falta algo que exige código → SPEC-NNNN nova) | externo (acesso, ambiente, terceiro → ação tomada) | falha (3 FAILs seguidos no mesmo gate → diagnóstico e decisão). Com impedimento aberto a spec aparece como parada no INDEX e não pode ser fechada. -->
@@ -318,37 +318,56 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 <!-- Preenchido no CLOSE (G7). Diz o que foi feito, como, e prova que foi resolvido. Para status implemented o validate exige todas as subseções preenchidas, todo teste do plano com PASS + evidência e a Definição de Pronto toda marcada. -->
 
 ### O que foi entregue
-<!-- comportamento entregue do ponto de vista do usuário/sistema -->
+As telas da jornada `conectar-conta`, no celular e no desktop, conforme o Stitch: Painel (vazio com "Conectar conta", resumo, importando, reconectar), Contas (contas conectadas, selos, reconectar, desconectar com confirmação, regra de Member), retorno da autorização do ML e Anúncios (busca, filtros por status e conta na URL, cartões/tabela, "Carregar mais", "Sincronizar agora" com o limite de 5 min). A CSP passou a liberar só as miniaturas do CDN do ML.
 
 ### Como foi feito
-<!-- decisões de implementação, módulos/arquivos principais, desvios e emendas (com versão), dívidas assumidas -->
+- `web/src/features/` (dashboard, accounts, listings) com o cliente orval; rota de layout autenticada; search params como texto simples; polling do resumo a cada 5 s (React Query) enquanto há importação; diálogo `alertdialog` com foco preso e devolvido; URL de autorização aceita só `https:` (`http:` só em DEV, para o simulador local).
+- `src/Api/Security/SecurityHeaders.cs`: `img-src 'self' https://*.mlstatic.com`.
+- E2E contra o simulador da SPEC-0024, com `*.mlstatic.com` interceptado e vendedor próprio por teste; chamadas de controle do simulador resolvem `*.localhost` no Node (commit `6d2c79f`) para o smoke do ambiente local; sem `ML_SIMULATOR_URL` e com `BASE_URL` externo a jornada é pulada com motivo explícito.
+- Emendas: v1.1 (textos, tentar de novo, página de 20, E2E-05) e v1.2 (`.gitleaksignore` para a senha fixa de teste).
+- G4 em 2 rodadas: corrigidas a corrida do E2E (sync abortado pela navegação; importação ainda em curso), o aviso de sucesso que reaparecia, a região viva do "Importando…", os botões do diálogo durante o DELETE e a validação da URL de autorização.
+- Bundle: +8,15 KB gzip (limite +40 KB).
 
 ### Prova de Correção
-<!-- type fix: o teste de regressão falhou antes da correção (commit red + saída) e passa depois (commit green + execução). Outros tipos: "N/A". -->
+N/A — `type: feature`.
 
 ### Verificação
-<!-- Uma linha por teste do plano (todos os IDs da seção 7). Resultado: PASS. Evidência: execução de CI, commit ou relatório. -->
 | Teste | Comportamento | Resultado | Evidência |
 |---|---|---|---|
+| CH-01 | Jornada `acesso` continua verde (só o texto do cartão do painel mudou) | PASS | CI PR #54 runs/41140692871 (47121ac); main 162fdc9 |
+| UT-01 | Mensagens de erro do §6 por código; genérica para código desconhecido | PASS | CI PR #54 runs/41140692871 (47121ac); main 162fdc9 |
+| UT-02 | Retorno do OAuth: conclusão única, limpeza da URL, sucesso, cancelamento e erros | PASS | CI PR #54 runs/41140692871 (47121ac); main 162fdc9 |
+| UT-03 | Filtros de Anúncios na URL (status, conta, busca com debounce) | PASS | CI PR #54 runs/41140692871 (47121ac); main 162fdc9 |
+| UT-04 | Painel e lista de Anúncios: vazio, importando (região viva), reconectar, paginação | PASS | CI PR #54 runs/41140692871 (47121ac); main 162fdc9 |
+| UT-05 | Contas: cartões, selos, Member, diálogo acessível, aviso único, URL de autorização só https | PASS | CI PR #54 runs/41140692871 (47121ac); main 162fdc9 |
+| IT-01 | CSP com `img-src 'self' https://*.mlstatic.com` e demais diretivas inalteradas | PASS | CI PR #54 runs/41140692871 (47121ac); main 162fdc9 |
+| CT-01 | Telas usam só o cliente gerado e as 7 operações do contrato | PASS | CI PR #54 runs/41140692871 (47121ac); main 162fdc9 |
+| E2E-01 | Conectar conta pelo simulador, ver conta e anúncios, filtrar, buscar e carregar mais (`@smoke`) | PASS | CI PR #54 runs/41140692871 (47121ac); main 162fdc9 |
+| E2E-02 | Conta revogada no ML vira "Reconectar necessário" e reconecta | PASS | CI PR #54 runs/41140692871 (47121ac); main 162fdc9 |
+| E2E-03 | Desconectar remove a conta e os anúncios | PASS | CI PR #54 runs/41140692871 (47121ac); main 162fdc9 |
+| E2E-04 | Cancelar a autorização no ML volta com a mensagem certa | PASS | CI PR #54 runs/41140692871 (47121ac); main 162fdc9 |
+| E2E-05 | Sincronizar agora e o limite de 5 min (429) | PASS | CI PR #54 runs/41140692871 (47121ac); main 162fdc9 |
 
 ### Definição de Pronto
-- [ ] Todos os testes do plano passando e listados na Verificação
-- [ ] Todo comportamento do Mapa de Comportamentos coberto e verificado
-- [ ] Suíte completa, arquitetura e CI verdes no resultado integrado (G5)
-- [ ] Review independente sem achados blocker/major (G4)
-- [ ] Padrão arquitetural existente mantido, ou desvio coberto por ADR aprovado
-- [ ] Requisitos não-funcionais medidos com evidência (ou N/A justificado)
-- [ ] Disponível no ambiente-alvo via pipeline, com smoke/E2E passando no ambiente (G6)
-- [ ] Observabilidade e rollback prontos conforme o Plano de Rollout
-- [ ] Documentação raiz e CHANGELOG atualizados (G7)
-- [ ] Guia de jornadas e mapa do sistema atualizados quando a entrega muda uma jornada ou um componente (G7)
-- [ ] Pendências registradas como novas specs (ou nenhuma)
+- [x] Todos os testes do plano passando e listados na Verificação
+- [x] Todo comportamento do Mapa de Comportamentos coberto e verificado
+- [x] Suíte completa, arquitetura e CI verdes no resultado integrado (G5)
+- [x] Review independente sem achados blocker/major (G4)
+- [x] Padrão arquitetural existente mantido, ou desvio coberto por ADR aprovado
+- [x] Requisitos não-funcionais medidos com evidência (ou N/A justificado) — bundle +8 KB; axe sem violações sérias/críticas; mobile e desktop no E2E
+- [x] Disponível no ambiente-alvo via pipeline, com smoke/E2E passando no ambiente (G6) — ambiente local prod-like, smoke 4/4
+- [x] Observabilidade e rollback prontos conforme o Plano de Rollout — Sentry da SPA existente (máscara do OAuth na SPEC-0030); rollback por revert
+- [x] Documentação raiz e CHANGELOG atualizados (G7)
+- [x] Guia de jornadas e mapa do sistema atualizados quando a entrega muda uma jornada ou um componente (G7) — N/A: sem `living_docs`; README atualizado e jornada `conectar-conta` ativa no `sdd-config.yml`
+- [x] Pendências registradas como novas specs (ou nenhuma)
 
 ### Deploy
-<!-- ambiente(s), versão/tag, data, estratégia, estado da feature flag, execução do pipeline -->
+Ambiente local prod-like, `ghcr.io/thomasravache/vitrine-api:162fdc9` + `vitrine-ml-simulator:local`, 2026-10-30 (health 200, smoke 4/4 com a jornada `conectar-conta`, 0 logs Error/Critical). Staging/produção na SPEC-0009.
 
 ### Pendências
-<!-- specs criadas para o que ficou de fora, ou "Nenhuma" -->
+- SPEC-0030 — `code`/`state` do OAuth fora dos breadcrumbs do Sentry.
+- Go-live (SPEC-0009): o `smoke_test` do `sdd-config.yml` usa `ML_SIMULATOR_URL` com padrão local; em staging a variável deve ficar sem valor para a jornada `conectar-conta` ser pulada (não há simulador), e a jornada com o ML real fica no teste manual com usuário de teste.
+- Notas do G4 aceitas: o polling também cobre conta conectada ainda sem sincronização (pode exibir "Importando…" se a 1ª sincronização nunca entrar na fila); o foco cai no `body` enquanto os botões do diálogo estão desabilitados; "Última sincronização falhou" mostra a hora da anterior bem-sucedida (o resumo não traz a hora da falha).
 
 ## 15. Emendas
 <!-- Mudança em spec aprovada: uma linha por emenda. Mudou o contrato? Incremente `contract_version` e rode `spec_graph.py impacted SPEC-0025`. -->
@@ -356,3 +375,4 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 |---|---|---|---|---|---|
 | v1.1 (esclarecimento, contrato inalterado) | 2026-10-30 | (1) Member em `/contas`: "Só o dono do workspace pode conectar ou desconectar contas." (texto do §6 prevalece); no retorno com `FORBIDDEN`: "Só o dono do workspace pode conectar contas."; (2) "Tentar de novo" só em `OAUTH_*` e `ML_UNAVAILABLE`; code desconhecido mostra alerta genérico sem o code cru; (3) página de Anúncios com 20 itens (padrão da SPEC-0022) e "Carregar mais"; (4) E2E-05: o 2º "Sincronizar agora" acontece logo após a 1ª sincronização manual concluir (o `SYNC_TOO_SOON` conta a partir da conclusão); (5) E2E intercepta `*.mlstatic.com` com PNG fixo | Pontos em aberto apontados pelo Test-writer no G1 | nenhuma | thomas (piloto automático do épico SPEC-0019) |
 | v1.2 (contrato inalterado) | 2026-10-30 | `touches` inclui `.gitleaksignore`: fingerprint do falso positivo `generic-api-key` na senha fixa de teste do E2E (`web/e2e/support/vitrine.ts`, o mesmo valor já ignorado em `acesso.spec.ts`), conforme a ADR-0006 | gitleaks do CI no PR #54 | nenhuma | thomas (piloto automático do épico SPEC-0019) |
+| v1.3 (contrato inalterado) | 2026-10-30 | `touches` inclui `docs/runbooks/deploy.md`: o smoke do ambiente local exporta a CA interna do Caddy para o Node (`NODE_EXTRA_CA_CERTS`), já que o E2E valida o certificado nas chamadas ao simulador (alerta do CodeQL `js/disabling-certificate-validation` corrigido, sem dispensa) | G6 da SPEC-0025 | nenhuma | thomas (piloto automático do épico SPEC-0019) |
