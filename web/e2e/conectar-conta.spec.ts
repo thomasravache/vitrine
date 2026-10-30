@@ -62,11 +62,16 @@ async function expectConnected(page: Page, seller: SimSeller): Promise<void> {
   expect(page.url()).not.toContain("code=");
 }
 
-/** Espera, em /contas (que consulta o resumo a cada 5 s enquanto importa), a importação dos 25 anúncios. */
+/**
+ * Espera, em /contas (que consulta o resumo a cada 5 s enquanto importa), a importação dos 25 anúncios terminar:
+ * "Anúncios: 25 · sincronizado …", não "Anúncios: 25 · Importando…" (com a conta ainda em running, o próximo
+ * "Sincronizar agora" não enfileira nada novo).
+ */
 async function waitForImport(page: Page, seller: SimSeller, total = 25): Promise<void> {
-  await expect(accountCard(page, seller)).toContainText(`Anúncios: ${total}`, {
-    timeout: IMPORT_TIMEOUT,
-  });
+  await expect(accountCard(page, seller)).toContainText(
+    new RegExp(`Anúncios: ${total} · sincronizado`),
+    { timeout: IMPORT_TIMEOUT },
+  );
 }
 
 /** Clica em "Sincronizar agora" e espera a resposta do POST /listings/sync (navegar antes abortaria o pedido). */
