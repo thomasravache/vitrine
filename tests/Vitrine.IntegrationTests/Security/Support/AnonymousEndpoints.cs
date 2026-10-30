@@ -33,6 +33,10 @@ internal static class AnonymousEndpoints
         new(null, "{*path:nonfile}"),
         new(null, "/api/{**path}"),
         new(null, "/health/{**path}"),
+
+        // Webhook de notificações do Mercado Livre (SPEC-0023; emenda v5 da SPEC-0008): chamado pelo servidor do ML,
+        // sem cookie nem antiforgery; o payload não é confiável e só dispara releitura autenticada.
+        new("POST", "/api/v1/mercadolivre/notifications"),
     ];
 
     /// <summary>Endpoints anônimos fora da lista, como "MÉTODO padrão" (vazio = regra cumprida).</summary>
