@@ -1,25 +1,12 @@
-using System.Diagnostics.CodeAnalysis;
-
 namespace Vitrine.Listings.Domain.Listings;
 
 /// <summary>
 /// Cópia local de um anúncio do Mercado Livre (SPEC-0022), por conta (<c>PK(account_id, item_id)</c>) e marcada com a
-/// execução de sincronização que a gravou por último (<c>sync_run_id</c>, base do marcar e varrer).
+/// execução de sincronização que a gravou por último (<c>sync_run_id</c>, base do marcar e varrer). A gravação é feita em
+/// lote no banco, aplicando <see cref="ListingUpdatePolicy"/>; esta classe é o modelo de leitura e de mapeamento.
 /// </summary>
 public sealed class Listing
 {
-    public Listing(Guid accountId, string itemId, Guid workspaceId, ListingSnapshot snapshot, Guid? syncRunId, DateTimeOffset now)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(itemId);
-        ArgumentNullException.ThrowIfNull(snapshot);
-
-        AccountId = accountId;
-        ItemId = itemId;
-        WorkspaceId = workspaceId;
-        SyncRunId = syncRunId;
-        Copy(snapshot, now);
-    }
-
     // Materialização pelo EF Core.
     private Listing()
     {
@@ -58,47 +45,4 @@ public sealed class Listing
     public Guid? SyncRunId { get; private set; }
 
     public DateTimeOffset UpdatedAt { get; private set; }
-
-    /// <summary>
-    /// Aplica uma leitura do ML se ela não for mais antiga que a cópia (<see cref="ListingUpdatePolicy"/>); falso quando
-    /// a leitura foi ignorada.
-    /// </summary>
-    public bool Refresh(ListingSnapshot snapshot, DateTimeOffset now)
-    {
-        ArgumentNullException.ThrowIfNull(snapshot);
-        if (!ListingUpdatePolicy.ShouldApply(MlLastUpdated, snapshot.LastUpdated))
-        {
-            return false;
-        }
-
-        Copy(snapshot, now);
-        return true;
-    }
-
-    [MemberNotNull(nameof(Title), nameof(CurrencyId), nameof(Status))]
-    private void Copy(ListingSnapshot snapshot, DateTimeOffset now)
-    {
-        Title = snapshot.Title;
-        Price = snapshot.Price;
-        CurrencyId = snapshot.CurrencyId;
-        AvailableQuantity = snapshot.AvailableQuantity;
-        SoldQuantity = snapshot.SoldQuantity;
-        Status = snapshot.Status;
-        Permalink = snapshot.Permalink;
-        ThumbnailUrl = snapshot.ThumbnailUrl;
-        MlLastUpdated = snapshot.LastUpdated.ToUniversalTime();
-        UpdatedAt = now.ToUniversalTime();
-    }
 }
-
-/// <summary>Dados de um anúncio lidos do ML, como a cópia local os guarda.</summary>
-public sealed record ListingSnapshot(
-    string Title,
-    decimal Price,
-    string CurrencyId,
-    int AvailableQuantity,
-    int SoldQuantity,
-    string Status,
-    string? Permalink,
-    string? ThumbnailUrl,
-    DateTimeOffset LastUpdated);

@@ -3,7 +3,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Vitrine.Listings.Application.Sync;
-using Vitrine.Listings.Domain.Listings;
 using Vitrine.Listings.Domain.Sync;
 using Vitrine.Listings.Infrastructure.Diagnostics;
 using Vitrine.Listings.Infrastructure.Persistence;
@@ -127,18 +126,6 @@ public static partial class SyncListingsHandler
         Completed(logger, accountId, command.Trigger, itemCount, stopwatch.Elapsed.TotalMilliseconds);
     }
 
-    /// <summary>Dados do anúncio lido do ML como a cópia local os guarda.</summary>
-    internal static ListingSnapshot Snapshot(MercadoLivreItem item) => new(
-        item.Title,
-        item.Price,
-        item.CurrencyId,
-        item.AvailableQuantity,
-        item.SoldQuantity,
-        item.Status,
-        item.Permalink?.ToString(),
-        item.ThumbnailUrl?.ToString(),
-        item.LastUpdated);
-
     // Encerra a execução em curso (sem cancelamento: o estado não pode ficar preso em running).
     private static Task<int> FinishAsync(ListingsModuleDbContext db, Guid accountId, string status, string? lastError) =>
         db.SyncStates
@@ -166,7 +153,7 @@ public static partial class SyncListingsHandler
 /// <summary>
 /// Reconciliação pelo estado persistido (ADR-0010, emenda v1.3): enfileira <see cref="SyncListings"/> com
 /// <see cref="SyncTriggers.Reconciliation"/> para cada conta que não está em <c>paused</c> e cuja última sincronização
-/// (<c>coalesce(completed_at, started_at)</c>) é mais antiga que <see cref="ListingsOptions.ReconciliationInterval"/>.
+/// (<c>greatest(completed_at, started_at)</c>, ignorando nulos: a conclusão ou a tentativa mais recente) é mais antiga que <see cref="ListingsOptions.ReconciliationInterval"/>.
 /// Publicações repetidas (timer curto, várias instâncias) não duplicam trabalho.
 /// </summary>
 public static class ReconcileListingsHandler
@@ -185,7 +172,11 @@ public static class ReconcileListingsHandler
 
         var due = clock.GetUtcNow() - options.Value.ReconciliationInterval;
         var accounts = await db.SyncStates.AsNoTracking()
-            .Where(state => state.Status != SyncStatuses.Paused && (state.CompletedAt ?? state.StartedAt) < due)
+            // greatest(completed_at, started_at) < due, ignorando nulos (conta sem nenhuma das duas não entra).
+            .Where(state => state.Status != SyncStatuses.Paused
+                && (state.CompletedAt != null || state.StartedAt != null)
+                && (state.CompletedAt == null || state.CompletedAt < due)
+                && (state.StartedAt == null || state.StartedAt < due))
             .OrderBy(state => state.AccountId)
             .Select(state => state.AccountId)
             .ToListAsync(cancellationToken);
