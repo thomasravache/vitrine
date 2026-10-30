@@ -81,6 +81,10 @@ public static class MercadoLivreModule
             options.LocalQueueFor<MercadoLivreAccountConnected>().UseDurableInbox();
             options.LocalQueueFor<MercadoLivreAccountDisconnected>().UseDurableInbox();
             options.LocalQueueFor<MercadoLivreAccountReauthorizationRequired>().UseDurableInbox();
+
+            // O gateway (implementação interna do módulo) é resolvido do contêiner nos handlers que o recebem (ex.:
+            // MercadoLivreItemChanged no Listings): sem isso o código gerado pelo Wolverine recusa o tipo não público.
+            options.CodeGeneration.AlwaysUseServiceLocationFor<IMercadoLivreItems>();
             options.Discovery.IncludeType(typeof(CleanupPendingAuthorizationsHandler));
         });
 
