@@ -68,6 +68,26 @@ internal sealed class IdentityApi : IDisposable
         return await _client.SendAsync(request, timeout.Token);
     }
 
+    /// <summary>DELETE com token antiforgery recém-obtido.</summary>
+    public async Task<HttpResponseMessage> DeleteAsync(string path, CancellationToken cancellationToken)
+    {
+        var token = await GetAntiforgeryTokenAsync(cancellationToken);
+        return await DeleteWithTokenAsync(path, token, cancellationToken);
+    }
+
+    /// <summary>DELETE com o token informado (ou sem token, quando <paramref name="token"/> é nulo).</summary>
+    public async Task<HttpResponseMessage> DeleteWithTokenAsync(string path, AntiforgeryToken? token, CancellationToken cancellationToken)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Delete, new Uri(path, UriKind.Relative));
+        if (token is not null)
+        {
+            request.Headers.Add(token.HeaderName, token.Value);
+        }
+
+        using var timeout = Timeout(cancellationToken);
+        return await _client.SendAsync(request, timeout.Token);
+    }
+
     /// <summary>POST com token antiforgery válido e corpo bruto (ex.: JSON malformado).</summary>
     public async Task<HttpResponseMessage> PostRawJsonAsync(string path, string rawBody, CancellationToken cancellationToken)
     {
