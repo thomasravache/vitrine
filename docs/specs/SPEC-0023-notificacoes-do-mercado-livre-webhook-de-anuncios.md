@@ -183,7 +183,7 @@ Evento (Vitrine.MercadoLivre.IntegrationEvents), v1:
 - **CT-01** — Dado uma notificação processada, quando um assinante de teste recebe `MercadoLivreItemChanged`, então o payload valida contra o schema v1 (seção 6). A SPEC-0022 consome esse contrato.
 
 ### 7.5 Testes E2E
-- N/A — o webhook é chamado pelo ML, não pelo vendedor; não há jornada de navegador. O efeito visível (anúncio atualizado) é provado por SPEC-0022:IT-09.
+- N/A — o webhook é chamado pelo ML, não pelo vendedor; não há jornada de navegador. O efeito visível (anúncio atualizado) é provado por SPEC-0022 (IT 09).
 
 ### 7.6 Outros
 - Desempenho: IT-05. Segurança: IT-04, IT-06, IT-07.

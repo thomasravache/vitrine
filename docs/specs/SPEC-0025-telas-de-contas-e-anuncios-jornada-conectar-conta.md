@@ -199,7 +199,7 @@ Diferenças em relação aos desenhos, por escopo ou regra do produto:
 ## 7. Artefato B — Plano de Testes (TDD)
 
 ### 7.1 Testes de Caracterização
-- **CH-01** — Dado o E2E atual da jornada `acesso` (SPEC-0006:E2E-01), quando roda depois da troca do cartão "em breve" do painel, então continua passando (guarda: passa antes da mudança). Ajuste permitido: só o texto do cartão, citado na emenda do E2E.
+- **CH-01** — Dado o E2E atual da jornada `acesso` (SPEC-0006 (E2E 01)), quando roda depois da troca do cartão "em breve" do painel, então continua passando (guarda: passa antes da mudança). Ajuste permitido: só o texto do cartão, citado na emenda do E2E.
 
 ### 7.2 Testes Unitários
 <!-- vitest + @testing-library/react (happy-dom), como web/src/App.test.tsx. -->

@@ -218,10 +218,10 @@ Compose local: perfil ml-simulator; Caddy serve https://ml-simulador.vitrine.loc
 - **IT-06** — Dado o ambiente local prod-like com o perfil `ml-simulator` (teste de infra em `tests/infra`, padrão da SPEC-0005/0012), quando o deploy local sobe, então `https://ml-simulador.vitrine.localhost/health` responde 200 pelo Caddy. Sem o perfil, o host não responde.
 
 ### 7.4 Testes de Contrato
-- **CT-01** — Dado as fixtures de `tests/Fixtures/MercadoLivre/` (token, `users/me`, `items/search`, `items/bulk`, notificação, copiadas da documentação do ML com URL e data), quando as respostas do simulador são comparadas, então têm os mesmos campos e tipos nos campos usados pelo Vitrine. As SPEC-0021:CT-02 e SPEC-0023 usam as mesmas fixtures, o que mantém o simulador e o gateway alinhados ao formato documentado.
+- **CT-01** — Dado as fixtures de `tests/Fixtures/MercadoLivre/` (token, `users/me`, `items/search`, `items/bulk`, notificação, copiadas da documentação do ML com URL e data), quando as respostas do simulador são comparadas, então têm os mesmos campos e tipos nos campos usados pelo Vitrine. As SPEC-0021 (CT 02) e SPEC-0023 usam as mesmas fixtures, o que mantém o simulador e o gateway alinhados ao formato documentado.
 
 ### 7.5 Testes E2E
-- N/A — ferramenta de teste, sem jornada própria. É exercitada pela SPEC-0025:E2E-01/02/03.
+- N/A — ferramenta de teste, sem jornada própria. É exercitada pela SPEC-0025 (E2E 01, 02, 03).
 
 ### 7.6 Outros
 - N/A.

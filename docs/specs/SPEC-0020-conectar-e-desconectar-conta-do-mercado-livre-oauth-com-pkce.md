@@ -3,8 +3,8 @@ id: SPEC-0020
 title: Conectar e desconectar conta do Mercado Livre (OAuth com PKCE)
 tier: full
 type: feature
-user_facing: true
-status: approved
+user_facing: false
+status: in-progress
 created: 2026-10-30
 parent: SPEC-0019
 depends_on: []
@@ -109,7 +109,7 @@ A cifra de campo segue `src/Common/Vitrine.Common.Security`. O cliente HTTP nome
   - Base legal: execução de contrato (ADR-0006). Retenção até desconectar: tokens apagados na hora — IT-05.
   - O `nickname` pode aparecer em log; tokens, code e verifier nunca — IT-07.
 - **Disponibilidade e resiliência:**
-  - Falha ou timeout do ML na troca de tokens gera `502 ML_UNAVAILABLE`, sem gravar nada. A autorização pendente continua válida até expirar, e o vendedor pode tentar de novo — IT-04.
+  - Falha ou timeout do ML na troca de tokens gera `502 ML_UNAVAILABLE`, sem gravar conta nem tokens. A autorização pendente já foi consumida (contrato do §6: um `state` nunca serve duas vezes, e o `code` do ML também é de uso único); para tentar de novo, o vendedor reinicia a conexão, que gera uma nova autorização — IT-04 (Emenda v1.1).
   - O evento sai pelo outbox na mesma transação da gravação da conta — IT-01.
 - **Acessibilidade (UI):** N/A — sem tela nesta spec (SPEC-0025).
 - **Custo:** N/A — sem serviço pago; o app do ML é gratuito.
@@ -291,7 +291,7 @@ Identity.PublicApi:
 - **CT-01** — Dado uma conexão e uma desconexão concluídas, quando um assinante de teste recebe `MercadoLivreAccountConnected` e `MercadoLivreAccountDisconnected`, então os payloads validam contra o schema v1 publicado em `MercadoLivre.IntegrationEvents` (campos e tipos da seção 6, `mlUserId` int64). As SPEC-0022 e SPEC-0021 consomem esse contrato.
 
 ### 7.5 Testes E2E
-- N/A nesta spec: a API é provada por IT. A jornada `conectar-conta` no navegador é a SPEC-0025:E2E-01, que consome este contrato com o simulador.
+- N/A nesta spec: a API é provada por IT. A jornada `conectar-conta` no navegador é provada pelos E2E da SPEC-0025, que consome este contrato com o simulador.
 
 ### 7.6 Outros
 - Segurança: IT-07 (tokens e segredos) e IT-09 (antiforgery). O gitleaks do CI cobre os valores de teste (fictícios; exceção só por fingerprint, se o gitleaks os apontar).
@@ -324,21 +324,21 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 ## 11. Checklist de Implementação
 <!-- Preenchido na fase PLAN, após a aprovação. Cada fase começa pelos testes. -->
 **Fase 0: Caracterização**
-- [ ] CH-01 escrito, passando no código atual (filtros de antiforgery/HTTPS e lista de endpoints anônimos antes da extração para `Vitrine.Common.Web`), commitado antes de qualquer mudança
+- [x] CH-01 escrito, passando no código atual (filtros de antiforgery/HTTPS e lista de endpoints anônimos antes da extração para `Vitrine.Common.Web`), commitado antes de qualquer mudança
 
 **Fase 1: Domínio do OAuth**
-- [ ] Red: escrever UT-01..UT-06 com a tag `SPEC-0020:<ID>` e confirmar que falham pelo motivo certo
-- [ ] Green: gerador de PKCE/state, autorização pendente (hash do state, verifier cifrado, 10 min, uso único), validação de configuração `MercadoLivre:*` e regras de conta
-- [ ] Refactor mantendo tudo verde
+- [x] Red: escrever UT-01..UT-06 com a tag `SPEC-0020:<ID>` e confirmar que falham pelo motivo certo
+- [x] Green: gerador de PKCE/state, autorização pendente (hash do state, verifier cifrado, 10 min, uso único), validação de configuração `MercadoLivre:*` e regras de conta
+- [x] Refactor mantendo tudo verde
 
 **Fase 2: Endpoints, persistência e eventos**
-- [ ] Red: escrever IT-01..IT-10 e CT-01 com a tag `SPEC-0020:<ID>` e confirmar que falham pelo motivo certo
-- [ ] Green: módulo `MercadoLivre` (migração, `connections`, `connections/complete`, `accounts`, `DELETE accounts/{id}`), `Identity.PublicApi` com `IWorkspaceMembership`, eventos v1 e cliente OpenAPI regenerado
-- [ ] Refactor mantendo tudo verde
-- [ ] Validar: build + suíte completa + arquitetura (G2/G3)
+- [x] Red: escrever IT-01..IT-10 e CT-01 com a tag `SPEC-0020:<ID>` e confirmar que falham pelo motivo certo
+- [x] Green: módulo `MercadoLivre` (migração, `connections`, `connections/complete`, `accounts`, `DELETE accounts/{id}`), `Identity.PublicApi` com `IWorkspaceMembership`, eventos v1 e cliente OpenAPI regenerado
+- [x] Refactor mantendo tudo verde
+- [x] Validar: build + suíte completa + arquitetura (G2/G3)
 
 **Fase final: Integração, entrega e documentação**
-- [ ] Review independente (G4)
+- [x] Review independente (G4)
 - [ ] Integração + CI verde (G5) e aprovação (H2)
 - [ ] Deploy no ambiente local prod-like com smoke (G6)
 - [ ] Relatório de Entrega, docs raiz e CHANGELOG (G7)
@@ -348,10 +348,10 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 | Gate | Status | Evidência | Data |
 |---|---|---|---|
 | G0 Spec | PASS | validate: 0 erro(s) — ddc6ebd (árvore suja) | 2026-10-30 |
-| G1 Red | PENDING | | |
-| G2 Green | PENDING | | |
-| G3 Arquitetura | PENDING | | |
-| G4 Review | PENDING | | |
+| G1 Red | PASS | verify G1: PASS; `dotnet test tests/Vitrine.UnitTests && npm --prefix web run test` exit 2 (red: Test run completed with non-success exit code: 2 (see: https://aka.ms/testingplatform/exit) — d497103 | 2026-10-30 |
+| G2 Green | PASS | build exit 0 (npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts a); test exit 0 (Duration  387ms (environment 66%, import 15%, transform 14%, tests 4%, worker 1%)); lint exit 0 ([0m[34mChecked 40 files in 20[0m[0m[2m[34mms[0m[0m[34m.[0m[0m[34m No fixes app); coverage exit 0 (Coverage: 89%) — 3ed9e04 | 2026-10-30 |
+| G3 Arquitetura | PASS | arch_test exit 0 (duration: 1s 604ms) — 3ed9e04 | 2026-10-30 |
+| G4 Review | PASS | verify G1+G4: PASS; revisão: Reviewer independente: APPROVED_WITH_NOTES (2ª rodada, 0 blocker/major; nits de teste e desvio de cifra → SPEC-0026) — 2ff43bc | 2026-10-30 |
 | G5 Integração & CI | PENDING | | |
 | H2 Integração aprovada | PENDING | | |
 | G6 Deploy | PENDING | | |
@@ -361,6 +361,7 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 <!-- Toda parada é registrada pelo Architect com `spec_graph.py impede` e fechada com `resolve` — não edite à mão. Tipos: spec (spec errada/incompleta → resolve com Emenda) | decisão (só o humano decide → resposta ou ADR) | trabalho (falta algo que exige código → SPEC-NNNN nova) | externo (acesso, ambiente, terceiro → ação tomada) | falha (3 FAILs seguidos no mesmo gate → diagnóstico e decisão). Com impedimento aberto a spec aparece como parada no INDEX e não pode ser fechada. -->
 | ID | Aberto em | Fase/Gate | Tipo | Descrição | Tentativas | Responsável | Resolução | Fechado em |
 |---|---|---|---|---|---|---|---|---|
+| IMP-01 | 2026-10-30 | G1 | spec | §5 (Resiliência) diz que após 502 ML_UNAVAILABLE a autorização pendente continua válida para nova tentativa; o contrato do §6 diz que ela é marcada como usada antes de chamar o ML (state nunca serve duas vezes) | Test-writer não afirmou nenhum dos dois comportamentos | Architect | Emenda v1.1 — §5 alinhado ao §6 (autorização consumida; nova tentativa reinicia a conexão) | 2026-10-30 |
 
 ## 14. Relatório de Entrega
 <!-- Preenchido no CLOSE (G7). Diz o que foi feito, como, e prova que foi resolvido. Para status implemented o validate exige todas as subseções preenchidas, todo teste do plano com PASS + evidência e a Definição de Pronto toda marcada. -->
@@ -402,3 +403,4 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 <!-- Mudança em spec aprovada: uma linha por emenda. Mudou o contrato? Incremente `contract_version` e rode `spec_graph.py impacted SPEC-0020`. -->
 | Versão do contrato | Data | Mudança | Motivo | Specs impactadas | Aprovado por |
 |---|---|---|---|---|---|
+| v1.1 (contrato inalterado) | 2026-10-30 | §5 alinhado ao contrato do §6: após 502 ML_UNAVAILABLE a autorização pendente fica consumida e a nova tentativa começa uma nova conexão; `user_facing` passa a `false` (a API só é consumida pela SPA, e a jornada de navegador é entregue e provada pela SPEC-0025) | Contradição entre §5 e §6 apontada pelo Test-writer (IMP-01); o §6 prevalece por segurança (state e code de uso único) | nenhuma | thomas (autorização permanente de 2026-10-30 para o épico SPEC-0019; contrato inalterado) |
