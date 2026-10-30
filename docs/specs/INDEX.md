@@ -5,7 +5,7 @@
 ## Saúde
 
 - Validação (G0): **0 erro(s), 38 aviso(s)** — rode `spec_graph.py validate`
-- Specs: approved 1, in-progress 1, implemented 25
+- Specs: approved 2, in-progress 1, implemented 25
 - Impedimentos: **0 aberto(s)**, 11 resolvido(s)
 
 ## Cobertura de Pilares
@@ -44,13 +44,14 @@ Perfil: **padrao**
 |---|---|---|---|---|---|---|
 | 1 | SPEC-0025 | Telas de contas e anúncios (jornada conectar-conta) | full/M | in-progress | 🔄 em andamento |  |
 | 1 | SPEC-0009 | Provisionamento na nuvem e go-live | full/M | approved | ✅ pronta |  |
+| 2 | SPEC-0030 | Code e state do OAuth podem chegar ao Sentry pelos breadcrumbs de navegação da SPA | lite/S | approved | ⛔ aguarda implementação de SPEC-0025 |  |
 
 ## Épicos
 
 | Épico | Título | Status | Progresso |
 |---|---|---|---|
 | SPEC-0001 | Fundação da plataforma Vitrine | approved | 16/17 implementadas |
-| SPEC-0019 | Conectar conta do Mercado Livre e ver os anúncios | approved | 9/10 implementadas |
+| SPEC-0019 | Conectar conta do Mercado Livre e ver os anúncios | approved | 9/11 implementadas |
 
 ## Grafo de Dependências
 
@@ -70,6 +71,7 @@ flowchart LR
     S0022["SPEC-0022<br/>Importação e sincronização de anúncios …"]:::implemented
     S0024["SPEC-0024<br/>Simulador do Mercado Livre para desenvo…"]:::implemented
     S0025["SPEC-0025<br/>Telas de contas e anúncios (jornada con…"]:::inprogress
+    S0030["SPEC-0030<br/>Code e state do OAuth podem chegar ao S…"]:::approved
   end
   S0005 --> S0006
   S0006 --> S0007
@@ -84,6 +86,7 @@ flowchart LR
   S0024 --> S0025
   S0020 -. contrato v1 .-> S0025
   S0022 -. contrato v1 .-> S0025
+  S0025 --> S0030
   classDef proposed fill:#fef3c7,stroke:#d97706,color:#111
   classDef approved fill:#dbeafe,stroke:#2563eb,color:#111
   classDef inprogress fill:#ede9fe,stroke:#7c3aed,color:#111
@@ -124,6 +127,7 @@ flowchart LR
 | [SPEC-0027](SPEC-0027-teste-de-arquitetura-passa-localmente-com-assembly-de-modulo.md) | Teste de arquitetura passa localmente com assembly de módulo não referenciado | lite | fix | implemented | 2026-10-30 | SPEC-0019 | — | — |
 | [SPEC-0028](SPEC-0028-handlers-do-listings-nao-sao-gerados-pelo-wolverine-com-o-ga.md) | Handlers do Listings não são gerados pelo Wolverine com o gateway real do ML | lite | fix | implemented | 2026-10-30 | SPEC-0019 | SPEC-0022 | — |
 | [SPEC-0029](SPEC-0029-notificacao-forjada-grava-anuncio-de-outro-vendedor-no-catal.md) | Notificação forjada grava anúncio de outro vendedor no catálogo da conta | lite | fix | implemented | 2026-10-30 | SPEC-0019 | SPEC-0022 | — |
+| [SPEC-0030](SPEC-0030-code-e-state-do-oauth-podem-chegar-ao-sentry-pelos-breadcrum.md) | Code e state do OAuth podem chegar ao Sentry pelos breadcrumbs de navegação da SPA | lite | fix | approved | 2026-10-30 | SPEC-0019 | SPEC-0025 | — |
 
 ## ADRs
 

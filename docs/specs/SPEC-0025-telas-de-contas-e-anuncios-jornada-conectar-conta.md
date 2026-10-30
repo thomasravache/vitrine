@@ -277,20 +277,20 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 ## 11. Checklist de Implementação
 <!-- Preenchido na fase PLAN, após a aprovação. Cada fase começa pelos testes. -->
 **Fase 0: Caracterização**
-- [ ] CH-01 escrito, passando no código atual (rotas e CSP atuais da SPA), commitado antes de qualquer mudança
+- [x] CH-01 escrito, passando no código atual (rotas e CSP atuais da SPA), commitado antes de qualquer mudança
 
 **Fase 1: Componentes e CSP**
-- [ ] Red: escrever UT-01..UT-05, IT-01 e CT-01 com a tag `SPEC-0025:<ID>` e confirmar que falham pelo motivo certo
-- [ ] Green: telas Painel, Contas, retorno do OAuth e Anúncios (Stitch), CSP com `img-src https://*.mlstatic.com`
-- [ ] Refactor mantendo tudo verde
-- [ ] Validar: build + suíte completa + arquitetura (G2/G3)
+- [x] Red: escrever UT-01..UT-05, IT-01 e CT-01 com a tag `SPEC-0025:<ID>` e confirmar que falham pelo motivo certo
+- [x] Green: telas Painel, Contas, retorno do OAuth e Anúncios (Stitch), CSP com `img-src https://*.mlstatic.com`
+- [x] Refactor mantendo tudo verde
+- [x] Validar: build + suíte completa + arquitetura (G2/G3)
 
 **Fase 2: Jornada E2E**
-- [ ] Red: E2E-01..E2E-05 falhando pelo motivo certo
-- [ ] Green: jornada `conectar-conta` completa passando localmente contra o simulador
+- [x] Red: E2E-01..E2E-05 falhando pelo motivo certo
+- [x] Green: jornada `conectar-conta` completa passando localmente contra o simulador
 
 **Fase final: Integração, entrega e documentação**
-- [ ] Review independente (G4)
+- [x] Review independente (G4)
 - [ ] Integração + CI verde (G5) e aprovação (H2)
 - [ ] Deploy no ambiente local prod-like com smoke (G6)
 - [ ] Relatório de Entrega, docs raiz e CHANGELOG (G7)
@@ -300,10 +300,10 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 | Gate | Status | Evidência | Data |
 |---|---|---|---|
 | G0 Spec | PASS | validate: 0 erro(s) — ddc6ebd (árvore suja) | 2026-10-30 |
-| G1 Red | PENDING | | |
-| G2 Green | PENDING | | |
-| G3 Arquitetura | PENDING | | |
-| G4 Review | PENDING | | |
+| G1 Red | PASS | verify G1: PASS; `dotnet test tests/Vitrine.UnitTests && npm --prefix web run test` exit 1 (red: ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[32/34]⎯) — d65dfcb | 2026-10-30 |
+| G2 Green | PASS | build exit 0 (npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts a); test exit 0 (at least ~698ms faster with isolate: false — reuses workers across files instead of one pe); lint exit 0 ([0m[34mChecked 66 files in 40[0m[0m[2m[34mms[0m[0m[34m.[0m[0m[34m No fixes app); coverage exit 0 (Coverage: 100%) — 5150604 | 2026-10-30 |
+| G3 Arquitetura | PASS | arch_test exit 0 (duration: 1s 953ms) — 5150604 | 2026-10-30 |
+| G4 Review | PASS | verify G1+G4: PASS; revisão: Reviewer independente: APPROVED (2ª rodada; notas do G4 corrigidas com testes; Sentry → SPEC-0030; critério de polling e limites do keepalive/dedupe como pendências) — 5150604 | 2026-10-30 |
 | G5 Integração & CI | PENDING | | |
 | H2 Integração aprovada | PENDING | | |
 | G6 Deploy | PENDING | | |
