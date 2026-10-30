@@ -278,8 +278,8 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 | G2 Green | PASS | build exit 0 (npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts a); test exit 0 (Duration  403ms (environment 66%, transform 14%, import 13%, tests 5%, worker 1%)); lint exit 0 ([0m[34mChecked 40 files in 32[0m[0m[2m[34mms[0m[0m[34m.[0m[0m[34m No fixes app); coverage exit 0 (Coverage: 88%) — d36d604 | 2026-10-30 |
 | G3 Arquitetura | PASS | arch_test exit 0 (duration: 2s 124ms) — d36d604 | 2026-10-30 |
 | G4 Review | PASS | verify G1+G4: PASS; revisão: Reviewer independente: APPROVED (2ª rodada; gitleaks 0 no histórico; notas: caddy-sites no deploy.yml, miniaturas externas no E2E, contrato do lado da requisição coberto pela SPEC-0025) — d36d604 | 2026-10-30 |
-| G5 Integração & CI | PENDING | | |
-| H2 Integração aprovada | PENDING | | |
+| G5 Integração & CI | PASS | build exit 0 (npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts a); test exit 0 (Duration  415ms (environment 61%, import 18%, transform 17%, tests 4%, worker 1%)); test_integration exit 0 (duration: 3m 47s 180ms); test_e2e exit 0 (30 passed (30.9s)); arch_test exit 0 (duration: 2s 069ms); security_scan exit 0 ([90m6:09PM[0m [32mINF[0m [1mno leaks found[0m); nota: PR #53 CI 8/8 verde + CodeQL (runs/41127127131) — 0986fb1 | 2026-10-30 |
+| H2 Integração aprovada | PASS | política auto-on-green (aprovada por thomas em 2026-10-13); G5 PASS | 2026-10-30 |
 | G6 Deploy | PENDING | | |
 | G7 Pronto & Docs | PENDING | | |
 
