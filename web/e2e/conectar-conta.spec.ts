@@ -69,6 +69,18 @@ async function waitForImport(page: Page, seller: SimSeller, total = 25): Promise
   });
 }
 
+/** Clica em "Sincronizar agora" e espera a resposta do POST /listings/sync (navegar antes abortaria o pedido). */
+async function clickSyncNow(page: Page): Promise<number> {
+  const [response] = await Promise.all([
+    page.waitForResponse(
+      (r) =>
+        new URL(r.url()).pathname === "/api/v1/listings/sync" && r.request().method() === "POST",
+    ),
+    page.getByRole("button", { name: "Sincronizar agora", exact: true }).click(),
+  ]);
+  return response.status();
+}
+
 async function openListings(page: Page): Promise<void> {
   await mainNav(page).getByRole("link", { name: "Anúncios", exact: true }).click();
   await expect(page).toHaveURL(/\/anuncios(?:[?#].*)?$/);
@@ -174,7 +186,7 @@ test("SPEC-0025:E2E-02 — conta revogada no ML aparece como 'Reconectar necess�
   // Quando o simulador revoga os tokens e expira o access token, e o usuário clica em "Sincronizar agora"
   await revokeSeller(request, seller.id);
   await openListings(page);
-  await page.getByRole("button", { name: "Sincronizar agora", exact: true }).click();
+  expect(await clickSyncNow(page), "POST /listings/sync").toBe(202);
 
   // Então a conta aparece em Contas com "Reconectar necessário"
   await page.goto("/contas");
@@ -319,7 +331,7 @@ test("SPEC-0025:E2E-05 — anúncio alterado no ML aparece após a notificação
 
   // Quando sincroniza agora e a sincronização manual termina
   const syncedAfter = Date.now();
-  await page.getByRole("button", { name: "Sincronizar agora", exact: true }).click();
+  expect(await clickSyncNow(page), "1º POST /listings/sync").toBe(202);
   await expect
     .poll(
       async () => {
@@ -341,6 +353,6 @@ test("SPEC-0025:E2E-05 — anúncio alterado no ML aparece após a notificação
 
   // E clica de novo em "Sincronizar agora"; então a tela pede para esperar
   await page.reload();
-  await page.getByRole("button", { name: "Sincronizar agora", exact: true }).click();
+  expect(await clickSyncNow(page), "2º POST /listings/sync").toBe(429);
   await expect(page.getByText(/Tente de novo em \d+ min/)).toBeVisible();
 });
