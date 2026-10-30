@@ -53,6 +53,8 @@ internal sealed class MercadoLivreFake(WireMockServer server)
 
     private int _bulkCalls;
 
+    private int _tokenCalls;
+
     /// <summary>Requisições recebidas pelo ML simulado.</summary>
     public IReadOnlyList<ILogEntry> Calls => [.. server.LogEntries];
 
@@ -228,6 +230,49 @@ internal sealed class MercadoLivreFake(WireMockServer server)
             },
             entry: null,
             requiredToken: null);
+
+    /// <summary>
+    /// Toda chamada de <c>/items/bulk</c> responde 401; antes de responder, <paramref name="beforeRespond"/> recebe o
+    /// cabeçalho <c>Authorization</c> da requisição (ex.: para outra renovação trocar o token da conta nesse meio-tempo).
+    /// </summary>
+    public void BulkAlwaysRejects(Action<string?> beforeRespond)
+    {
+        ArgumentNullException.ThrowIfNull(beforeRespond);
+        Interlocked.Exchange(ref _bulkCalls, 0);
+        server.Given(Request.Create().WithPath(BulkPath).UsingGet()).RespondWith(Response.Create().WithCallback(request =>
+        {
+            Interlocked.Increment(ref _bulkCalls);
+            beforeRespond(request.Headers is { } headers && headers.TryGetValue("Authorization", out var value) ? value.ToString() : null);
+            return ErrorResponse(401, null);
+        }));
+    }
+
+    /// <summary>Chamadas de <c>POST /oauth/token</c> contadas na chegada desde <see cref="TokenRespondsSlowly"/>.</summary>
+    public int TokenArrivals => Volatile.Read(ref _tokenCalls);
+
+    /// <summary>
+    /// <c>POST /oauth/token</c> responde 200 com <paramref name="tokens"/> só depois de <paramref name="delay"/>; cada
+    /// chamada é contada na chegada (<see cref="TokenArrivals"/>), antes da espera.
+    /// </summary>
+    public void TokenRespondsSlowly(MlTokens tokens, long userId, TimeSpan delay)
+    {
+        ArgumentNullException.ThrowIfNull(tokens);
+        Interlocked.Exchange(ref _tokenCalls, 0);
+        server.Given(TokenRequest()).RespondWith(Response.Create().WithCallback(_ =>
+        {
+            Interlocked.Increment(ref _tokenCalls);
+            Thread.Sleep(delay);
+            return Message(200, new Dictionary<string, object>
+            {
+                ["access_token"] = tokens.AccessToken,
+                ["token_type"] = "Bearer",
+                ["expires_in"] = tokens.ExpiresIn,
+                ["scope"] = "offline_access read write",
+                ["user_id"] = userId,
+                ["refresh_token"] = tokens.RefreshToken,
+            }, null);
+        }));
+    }
 
     /// <summary>Toda chamada de <c>/items/bulk</c> responde <paramref name="status"/>.</summary>
     public void BulkAlwaysFails(int status) => Bulk(_ => ErrorResponse(status, null), entry: null, requiredToken: null);

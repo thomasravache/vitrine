@@ -62,6 +62,22 @@ internal static class MercadoLivreGateway
         return await db.Accounts.AsNoTracking().FirstOrDefaultAsync(account => account.Id == accountId, cancellationToken);
     }
 
+    /// <summary>
+    /// Troca os tokens da conta direto pela persistência do módulo, como faria outra renovação concorrente (validade
+    /// nova de <c>tokens.ExpiresIn</c>).
+    /// </summary>
+    public static async Task ReplaceTokensAsync(ApiFactory factory, Guid accountId, MlTokens tokens, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(factory);
+        ArgumentNullException.ThrowIfNull(tokens);
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<MercadoLivreModuleDbContext>();
+        var account = await db.Accounts.FirstAsync(a => a.Id == accountId, cancellationToken);
+        account.RenewTokens(
+            new MercadoLivreTokens(tokens.AccessToken, tokens.RefreshToken, TimeSpan.FromSeconds(tokens.ExpiresIn)), DateTimeOffset.UtcNow);
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
     /// <summary><see cref="IMercadoLivreItems.GetItemsAsync"/> num escopo de DI próprio.</summary>
     public static async Task<IReadOnlyList<MercadoLivreItemResult>> GetItemsAsync(
         ApiFactory factory, Guid accountId, IReadOnlyList<string> itemIds, CancellationToken cancellationToken)

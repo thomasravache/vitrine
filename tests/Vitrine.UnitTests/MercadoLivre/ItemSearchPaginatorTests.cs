@@ -1,5 +1,6 @@
 using System.Globalization;
 using Vitrine.MercadoLivre.Infrastructure.Api;
+using Vitrine.MercadoLivre.PublicApi;
 
 namespace Vitrine.UnitTests.MercadoLivre;
 
@@ -125,6 +126,43 @@ public sealed class ItemSearchPaginatorTests
         // Então termina na primeira página vazia
         Assert.Equal(["MLB50001"], pages.SelectMany(page => page));
         Assert.Equal(3, search.Requests.Count);
+    }
+
+    [Fact]
+    [Trait("spec", "SPEC-0021:UT-02")]
+    public async Task Scan_nao_entra_em_laco_quando_o_scroll_id_se_repete_com_results_nao_vazios()
+    {
+        // Dado um scan que devolve sempre o mesmo scroll_id com a mesma página não vazia
+        var search = new FakeSearch(request => request switch
+        {
+            { Scan: false } => new ItemSearchPage([.. Ids("MLB6", 100)], 5000, null),
+            _ => new ItemSearchPage(["MLB60001", "MLB60002"], 0, "scroll-repetido"),
+        });
+
+        // Quando o paginador percorre (com limite de tempo e de páginas)
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+        timeout.CancelAfter(TimeSpan.FromSeconds(5));
+        Exception? failure = null;
+        try
+        {
+            await foreach (var page in ItemSearchPaginator.PaginateAsync(search.FetchAsync, timeout.Token))
+            {
+                Assert.NotNull(page);
+            }
+        }
+        catch (Exception exception) when (exception is not Xunit.Sdk.XunitException)
+        {
+            failure = exception;
+        }
+
+        // Então termina (normalmente ou com a falha do contrato) em poucas páginas, sem laço infinito
+        Assert.False(
+            failure is OperationCanceledException || search.Requests.Count >= 1000,
+            $"O paginador entrou em laço com scroll_id repetido ({search.Requests.Count} páginas pedidas).");
+        Assert.True(
+            failure is null or MercadoLivreUnavailableException,
+            $"Falha inesperada ao detectar o scroll_id repetido: {failure}");
+        Assert.InRange(search.Requests.Count, 2, 10);
     }
 
     private static async Task<List<IReadOnlyList<string>>> CollectAsync(FakeSearch search, CancellationToken? cancellationToken = null)
