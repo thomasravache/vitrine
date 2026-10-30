@@ -4,9 +4,9 @@ using Microsoft.Extensions.Options;
 namespace Vitrine.MercadoLivre.Infrastructure;
 
 /// <summary>
-/// Validação de <see cref="MercadoLivreOptions"/> na subida (SPEC-0020): URLs absolutas e em HTTPS fora de Development;
-/// em Production, só as oficiais,
-/// salvo <c>AllowNonOfficialEndpoints</c>; <c>RedirectUri</c> em HTTPS fora de Development. Sem <c>ClientId</c>,
+/// Validação de <see cref="MercadoLivreOptions"/> na subida (SPEC-0020): URLs absolutas e em HTTPS fora de Development
+/// (salvo <c>AllowNonOfficialEndpoints</c>, Emenda v1.2); em Production, só as oficiais, salvo
+/// <c>AllowNonOfficialEndpoints</c>; <c>RedirectUri</c> em HTTPS fora de Development. Sem <c>ClientId</c>,
 /// <c>ClientSecret</c> ou <c>RedirectUri</c> a subida continua: os endpoints respondem 503 <c>ML_NOT_CONFIGURED</c>.
 /// </summary>
 public sealed class MercadoLivreOptionsValidator(IHostEnvironment environment) : IValidateOptions<MercadoLivreOptions>
@@ -58,10 +58,13 @@ public sealed class MercadoLivreOptionsValidator(IHostEnvironment environment) :
             return;
         }
 
-        // Tokens, code e client secret nunca trafegam sem TLS; http:// só no simulador local em Development.
-        if (uri.Scheme != Uri.UriSchemeHttps && !environment.IsDevelopment())
+        // Tokens, code e client secret nunca trafegam sem TLS até o ML; http:// só com o simulador (SPEC-0024): em
+        // Development ou, fora dele, com AllowNonOfficialEndpoints=true (rede interna do Compose local — Emenda v1.2).
+        if (uri.Scheme != Uri.UriSchemeHttps && !environment.IsDevelopment() && !options.AllowNonOfficialEndpoints)
         {
-            failures.Add($"{MercadoLivreOptions.SectionName}:{key} precisa usar HTTPS fora de Development.");
+            failures.Add(
+                $"{MercadoLivreOptions.SectionName}:{key} precisa usar HTTPS fora de Development "
+                + $"(http:// só com {MercadoLivreOptions.SectionName}:AllowNonOfficialEndpoints=true).");
             return;
         }
 
