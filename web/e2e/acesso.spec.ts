@@ -33,12 +33,15 @@ async function fillCredentials(page: Page, seller: Seller): Promise<void> {
 async function expectEmptyDashboard(page: Page, seller: Seller): Promise<void> {
   await expect(page).toHaveURL(PAINEL);
   await expect(page.getByRole("heading", { name: new RegExp(seller.name) })).toBeVisible();
-  await expect(page.getByText("Conectar conta do Mercado Livre").first()).toBeVisible();
-  await expect(page.getByText(/em breve/i).first()).toBeVisible();
+  // SPEC-0025:CH-01 — só o texto do cartão de conexão muda: "Conectar conta do Mercado Livre (em breve)" virou o
+  // cartão "Conecte sua conta do Mercado Livre", que vale antes e depois da troca (sem contas conectadas).
+  await expect(
+    page.getByRole("heading", { name: "Conecte sua conta do Mercado Livre", exact: true }),
+  ).toBeVisible();
   await expect(page.getByRole("button", { name: "Sair", exact: true })).toBeVisible();
 }
 
-test("SPEC-0006:E2E-01 — vendedor se cadastra, vê o painel vazio, sai e entra de novo [jornada: acesso] @smoke", async ({
+test("SPEC-0006:E2E-01 SPEC-0025:CH-01 — vendedor se cadastra, vê o painel vazio, sai e entra de novo [jornada: acesso] @smoke", async ({
   page,
 }) => {
   const seller = newSeller();
@@ -53,7 +56,7 @@ test("SPEC-0006:E2E-01 — vendedor se cadastra, vê o painel vazio, sai e entra
   await fillCredentials(page, seller);
   await page.getByRole("button", { name: "Criar conta", exact: true }).click();
 
-  // Então vê o painel vazio com seu nome e o cartão "Conectar conta do Mercado Livre (em breve)"
+  // Então vê o painel vazio com seu nome e o cartão "Conecte sua conta do Mercado Livre"
   await expectEmptyDashboard(page, seller);
   await expectNoSeriousA11yViolations(page);
 
