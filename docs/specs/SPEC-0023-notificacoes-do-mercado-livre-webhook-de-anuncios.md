@@ -85,7 +85,7 @@ O endpoint:
 - **Segurança:**
   - anônimo e sem antiforgery: chamado por servidor, sem cookie;
   - corpo ≤ 16 KB (413);
-  - rate limit de 600/min por IP (`RateLimiting:MercadoLivreNotificationsPerIp`), com 429;
+  - rate limit de 600/min por IP (`RateLimiting:MercadoLivreNotificationsPerIp:PermitLimit`, no padrão de `AuthPerIp`), com 429;
   - nada do corpo é gravado além de `_id`, `topic`, `resource`, `user_id`, `application_id`, `attempts`, `sent` e `received`;
   - `resource` aceito só no formato documentado;
   - nunca reflete o corpo na resposta — IT-04, IT-06, IT-07.
@@ -152,6 +152,8 @@ Evento (Vitrine.MercadoLivre.IntegrationEvents), v1:
 | Abuso | > limite por IP | 429 com `Retry-After` | IT-06 |
 | Anônimo e fora do OpenAPI | sem cookie nem antiforgery | aceito; endpoint na lista `AnonymousEndpoints`; ausente do documento OpenAPI | IT-07 |
 | ML não configurado | sem `ClientId` | 503 ML_NOT_CONFIGURED | IT-04 |
+| `_id` longo | `_id` com mais de 64 caracteres | 400 VALIDATION_FAILED (`errors._id`), nada gravado | UT-02 |
+| Retenção do inbox | linhas processadas há mais de 7 dias | apagadas pelo job diário; as mais recentes e as não processadas ficam | IT-08 |
 
 ## 7. Artefato B — Plano de Testes (TDD)
 
@@ -179,6 +181,7 @@ Evento (Vitrine.MercadoLivre.IntegrationEvents), v1:
   - o teste de autorização por padrão passa com a entrada `POST /api/v1/mercadolivre/notifications` na lista `AnonymousEndpoints`;
   - o documento OpenAPI gerado não contém esse caminho.
 
+- **IT-08** — Dado linhas do inbox processadas há 8 dias, há 1 dia e uma não processada antiga, quando a limpeza diária do módulo roda (mensagem recorrente do Wolverine, como `CleanupPendingAuthorizations`), então só a processada há 8 dias é apagada.
 ### 7.4 Testes de Contrato
 - **CT-01** — Dado uma notificação processada, quando um assinante de teste recebe `MercadoLivreItemChanged`, então o payload valida contra o schema v1 (seção 6). A SPEC-0022 consome esse contrato.
 
@@ -235,7 +238,7 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 | Gate | Status | Evidência | Data |
 |---|---|---|---|
 | G0 Spec | PASS | validate: 0 erro(s) — ddc6ebd (árvore suja) | 2026-10-30 |
-| G1 Red | PENDING | | |
+| G1 Red | PASS | verify G1: PASS; `dotnet test tests/Vitrine.UnitTests && npm --prefix web run test` exit 2 (red: Test run completed with non-success exit code: 2 (see: https://aka.ms/testingplatform/exit) — 189a02e | 2026-10-30 |
 | G2 Green | PENDING | | |
 | G3 Arquitetura | PENDING | | |
 | G4 Review | PENDING | | |
@@ -289,3 +292,4 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 <!-- Mudança em spec aprovada: uma linha por emenda. Mudou o contrato? Incremente `contract_version` e rode `spec_graph.py impacted SPEC-0023`. -->
 | Versão do contrato | Data | Mudança | Motivo | Specs impactadas | Aprovado por |
 |---|---|---|---|---|---|
+| v1.1 (contrato esclarecido) | 2026-10-30 | (1) IT-08 cobre a retenção de 7 dias do inbox; (2) `outcome` de sucesso = `item_changed`; (3) métrica: `accepted`/`duplicate`/`ignored_app`/`ignored_topic` contados no recebimento, `invalid` no 400 e no processamento de resource inválido, `unknown_user` no processamento — uma notificação aceita pode contar `accepted` e depois `unknown_user`/`invalid`; (4) `_id` com mais de 64 caracteres → 400 VALIDATION_FAILED; (5) chave `RateLimiting:MercadoLivreNotificationsPerIp:PermitLimit`; (6) fixture no formato documentado com valores fictícios até a SPEC-0024 trazer a cópia oficial | Lacunas apontadas pelo Test-writer no G1 | SPEC-0024 (fixture) | thomas (piloto automático do épico SPEC-0019) |
