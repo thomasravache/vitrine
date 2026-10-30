@@ -49,6 +49,7 @@ public sealed class NotificationPayloadTests
         { "_id", "\"   \"" },
         { "_id", "123" },
         { "_id", "null" },
+        { "_id", "\"" + new string('a', 65) + "\"" },
         { "resource", "42" },
         { "topic", "true" },
         { "application_id", "\"2069392825111111\"" },
@@ -79,6 +80,23 @@ public sealed class NotificationPayloadTests
         Assert.Equal(new DateTimeOffset(2026, 10, 30, 13, 58, 23, 347, TimeSpan.Zero), notification.Sent);
         Assert.Equal(TimeSpan.Zero, notification.Sent.Offset);
         Assert.Equal(new DateTimeOffset(2026, 10, 30, 13, 58, 23, 329, TimeSpan.Zero), notification.Received);
+    }
+
+    [Fact]
+    [Trait("spec", "SPEC-0023:UT-02")]
+    public void Id_com_64_caracteres_e_aceito_e_com_65_e_recusado_apontando_o_id()
+    {
+        // Dado _id no limite da coluna notification_id varchar(64) (emenda v1.1)
+        var atLimit = Payload();
+        atLimit["_id"] = new string('a', 64);
+        var overLimit = Payload();
+        overLimit["_id"] = new string('a', 65);
+
+        // Quando validados; então 64 é aceito (com o _id intacto) e 65 é recusado com erro em _id
+        var valid = Assert.IsType<NotificationPayloadResult.Valid>(Parse(atLimit));
+        Assert.Equal(new string('a', 64), valid.Notification.NotificationId);
+        var invalid = Assert.IsType<NotificationPayloadResult.Invalid>(Parse(overLimit));
+        Assert.Contains("_id", invalid.Errors.Keys);
     }
 
     [Fact]

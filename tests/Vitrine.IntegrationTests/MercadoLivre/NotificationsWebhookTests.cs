@@ -80,11 +80,9 @@ public sealed class NotificationsWebhookTests(PostgresFixture postgres)
         Assert.Equal(notificationId, changed.NotificationId);
         Assert.Equal(sent, changed.OccurredAt);
 
-        // E a linha é marcada processada, sem desfecho de recusa
+        // E a linha é marcada processada com outcome item_changed (emenda v1.1)
         var processed = await MercadoLivreNotifications.WaitProcessedAsync(connectionString, notificationId, cancellationToken);
-        Assert.False(string.IsNullOrEmpty(processed.Outcome), "A notificação processada deveria ter outcome.");
-        Assert.NotEqual("unknown_user", processed.Outcome);
-        Assert.NotEqual("invalid", processed.Outcome);
+        Assert.Equal("item_changed", processed.Outcome);
 
         // E nada do corpo além dos campos do contrato é gravado
         var dump = await MercadoLivreDatabase.DumpAsync(connectionString, "notifications", cancellationToken);
@@ -184,14 +182,19 @@ public sealed class NotificationsWebhookTests(PostgresFixture postgres)
 
         Assert.Empty(MercadoLivreEventsTestHandler.ReceivedFor<Vitrine.MercadoLivre.IntegrationEvents.MercadoLivreItemChanged>(account.AccountId));
 
-        // E a métrica conta cada desfecho
-        foreach (var result in new[] { "ignored_app", "ignored_topic", "unknown_user", "invalid" })
-        {
-            Assert.True(metrics.Total(MercadoLivreNotifications.Metric, result) >= 1, $"Sem medição result={result}. {metrics.Describe()}");
-        }
-
+        // E a métrica conta cada desfecho (emenda v1.1): ignored_app e ignored_topic no recebimento; as duas aceitas contam
+        // accepted no recebimento e depois unknown_user e invalid no processamento
+        await Eventually.TrueAsync(
+            () => metrics.Total(MercadoLivreNotifications.Metric, "unknown_user") >= 1 && metrics.Total(MercadoLivreNotifications.Metric, "invalid") >= 1,
+            TimeSpan.FromSeconds(10),
+            "sem medições unknown_user e invalid do processamento. " + metrics.Describe(),
+            cancellationToken);
         Assert.True(metrics.Total(MercadoLivreNotifications.Metric, "ignored_app") == 1, metrics.Describe());
         Assert.True(metrics.Total(MercadoLivreNotifications.Metric, "ignored_topic") == 1, metrics.Describe());
+        Assert.True(metrics.Total(MercadoLivreNotifications.Metric, "accepted") == 2, metrics.Describe());
+        Assert.True(metrics.Total(MercadoLivreNotifications.Metric, "unknown_user") == 1, metrics.Describe());
+        Assert.True(metrics.Total(MercadoLivreNotifications.Metric, "invalid") == 1, metrics.Describe());
+        Assert.True(metrics.Total(MercadoLivreNotifications.Metric, "duplicate") == 0, metrics.Describe());
     }
 
     [Fact]
@@ -201,6 +204,7 @@ public sealed class NotificationsWebhookTests(PostgresFixture postgres)
         var cancellationToken = TestContext.Current.CancellationToken;
         var connectionString = await postgres.CreateDatabaseAsync(cancellationToken);
         await using var factory = MercadoLivreHost.Create(connectionString);
+        using var metrics = new AuthMetricsListener(factory.Services.GetRequiredService<IMeterFactory>(), MercadoLivreModule.MeterName);
         using var client = MercadoLivreNotifications.Client(factory);
         var marker = "marcador-" + Guid.NewGuid().ToString("N");
 
@@ -221,6 +225,22 @@ public sealed class NotificationsWebhookTests(PostgresFixture postgres)
                 problem.TryGetProperty("errors", out var errors) && errors.TryGetProperty("user_id", out _),
                 "O 400 deveria apontar o campo user_id em errors: " + problem);
         }
+
+        // Dado _id com 65 caracteres (a coluna é varchar(64)); então 400 VALIDATION_FAILED apontando _id (emenda v1.1)
+        var longId = MercadoLivreNotifications.Items(MlSeller.New().Id, MercadoLivreNotifications.NewItemId());
+        var longMarker = (marker + new string('x', 65))[..65];
+        longId["_id"] = longMarker;
+        using (var tooLong = await MercadoLivreNotifications.PostAsync(client, longId, cancellationToken))
+        {
+            var problem = await AssertValidationFailedAsync(tooLong, longMarker, cancellationToken);
+            Assert.True(
+                problem.TryGetProperty("errors", out var errors) && errors.TryGetProperty("_id", out _),
+                "O 400 deveria apontar o campo _id em errors: " + problem);
+        }
+
+        // E cada 400 conta result=invalid (emenda v1.1), sem contar como aceita
+        Assert.True(metrics.Total(MercadoLivreNotifications.Metric, "invalid") == 3, metrics.Describe());
+        Assert.True(metrics.Total(MercadoLivreNotifications.Metric, "accepted") == 0, metrics.Describe());
 
         // Dado corpo de 17 KB (com e sem Content-Length); então 413
         var large = Padded(MercadoLivreNotifications.Items(MlSeller.New().Id, MercadoLivreNotifications.NewItemId()), 17 * 1024, marker);
