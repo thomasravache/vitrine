@@ -15,7 +15,7 @@ test_integration: "dotnet test tests/Vitrine.IntegrationTests"
 # E2E da jornada do usuário. Exemplos: "npx playwright test" | "npx cypress run" | "maestro test flows/"
 test_e2e: "npm --prefix web run e2e"
 # Subconjunto rápido rodado após cada deploy (G6).
-smoke_test: "curl -fsSk --resolve vitrine.localhost:443:127.0.0.1 $BASE_URL/health/live && BASE_URL=$BASE_URL npm --prefix web run e2e -- --grep @smoke --pass-with-no-tests"
+smoke_test: "curl -fsSk --resolve vitrine.localhost:443:127.0.0.1 $BASE_URL/health/live && BASE_URL=$BASE_URL ML_SIMULATOR_URL=${ML_SIMULATOR_URL:-https://ml-simulador.vitrine.localhost} npm --prefix web run e2e -- --grep @smoke --pass-with-no-tests"
 lint: "dotnet format Vitrine.slnx --verify-no-changes && npm --prefix web run lint"
 # G2 — cobertura das linhas alteradas (ex: diff-cover, coverlet + reportgenerator). Opcional.
 coverage: 'rm -rf TestResults/coverage && dotnet test --solution Vitrine.slnx --coverlet --coverlet-output-format cobertura --results-directory TestResults/coverage && dnx -y dotnet-reportgenerator-globaltool@5.5.11 "-reports:TestResults/coverage/**/*.xml" -targetdir:TestResults/coverage/report "-reporttypes:Cobertura;TextSummary" && if command -v uvx >/dev/null 2>&1; then uvx diff-cover@10.6.0 TestResults/coverage/report/Cobertura.xml --compare-branch=origin/main --fail-under=80; elif [ "${CI:-}" = "true" ]; then echo "ERRO: uvx ausente no CI; diff-cover é obrigatório" >&2; exit 1; else echo "AVISO: uvx não encontrado; diff-cover (>= 80% das linhas alteradas) NÃO foi verificado localmente; no CI é obrigatório (SPEC-0004)" >&2; fi'
@@ -95,7 +95,7 @@ tracker:
 critical_journeys:
   acesso: "Vendedor se cadastra, entra e vê o painel"
   # Jornadas de produto (adicionadas pelos épicos de produto):
-  # conectar-conta: "Vendedor conecta conta do Mercado Livre e vê os anúncios"
+  conectar-conta: "Vendedor conecta conta do Mercado Livre e vê os anúncios"
   # aprovar-melhoria: "Vendedor compara antes/depois e aprova a melhoria de um anúncio"
   # responder-pergunta: "Pergunta chega e é respondida (aprovação ou automático) em até 2 minutos"
 

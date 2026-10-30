@@ -9,7 +9,7 @@ created: 2026-10-13
 parent: SPEC-0001
 depends_on: [SPEC-0006]
 consumes_contract: [SPEC-0006@1]
-contract_version: 4
+contract_version: 5
 touches: [src/Api/Security/**, src/Api/Program.cs, src/Api/Vitrine.Api.csproj, src/Api/appsettings*.json, src/ServiceDefaults/**, src/Common/Vitrine.Common.Security/**, src/Modules/Identity/Vitrine.Identity.Presentation/**, src/Modules/Identity/Vitrine.Identity.Infrastructure/**, Vitrine.slnx, Directory.Packages.props, "**/packages.lock.json", deploy/compose.yaml, deploy/compose.override.yaml, deploy/Caddyfile, deploy/local/.env.example, tests/Vitrine.UnitTests/Security/**, tests/Vitrine.UnitTests/Vitrine.UnitTests.csproj, tests/Vitrine.IntegrationTests/Security/**, tests/Vitrine.IntegrationTests/Support/**, tests/Vitrine.IntegrationTests/Vitrine.IntegrationTests.csproj, tests/Vitrine.ArchitectureTests/**, docs/runbooks/**, .gitleaksignore, web/vite.config.ts]
 adrs: [ADR-0007, ADR-0006]
 external: []
@@ -254,6 +254,7 @@ Ambiente local prod-like: imagem `ghcr.io/thomasravache/vitrine-api:443e943` (co
 <!-- Mudança em spec aprovada: uma linha por emenda. Mudou o contrato? Incremente `contract_version` e rode `spec_graph.py impacted SPEC-0008`. -->
 | Versão do contrato | Data | Mudança | Motivo | Specs impactadas | Aprovado por |
 |---|---|---|---|---|---|
+| v5 | 2026-10-30 | (1) CSP ganha `img-src 'self' https://*.mlstatic.com` (demais diretivas iguais); (2) lista `AnonymousEndpoints` ganha `POST /api/v1/mercadolivre/notifications` (webhook do ML, sem cookie, com rate limit por IP, fora do OpenAPI) — continua sendo a única forma de abrir um endpoint anônimo | Épico SPEC-0019: miniaturas dos anúncios vêm do CDN do ML (SPEC-0025) e o ML entrega notificações por POST de servidor, sem sessão (SPEC-0023) | SPEC-0023, SPEC-0025 | thomas, 2026-10-30 (H1 do épico SPEC-0019) |
 | v4.1 (contrato v4, esclarecimento) | 2026-10-29 | Limitador falha fechado (JSON ilegível -> 400), aceita BOM e normaliza o e-mail como o Identity; regressões no IT-03 | Re-review do G4: BOM UTF-8 escapava do limite por e-mail (reproduzido) | nenhuma | thomas (2026-10-29, piloto automático) |
 | v4 | 2026-10-29 | Limite decidido pelo endpoint roteado; `email` duplicado -> 400; teto de 4 KB no corpo de login/cadastro (413); chave mestra errada fora de Development impede a subida; IT-03 com regressões e IT-08 novo (rotação, chave ausente/errada); runbook de rotação sem corrida | G4 CHANGES_REQUESTED: barra final e `email` duplicado contornavam os limites (reproduzido), corpo lido sem teto, rotação/chave sem teste, chave errada subia em silêncio, corrida no runbook | nenhuma | thomas (2026-10-29, piloto automático) |
 | v3 | 2026-10-29 | Limite por IP só nos POST de cadastro/login (GET /antiforgery e logout fora); isenção de loopback em Development; rotação com `DataProtection__PreviousMasterKey`; chave mestra obrigatória fora de Development; `web/vite.config.ts` no escopo para não embutir fontes como `data:` (CSP estrita mantida) | Implementer: o smoke do deploy (2 projetos Playwright) estourava 10/min porque a SPA busca o token antiforgery antes de cada POST — mesmo risco para usuários atrás de CGNAT; fonte embutida bloqueada pela CSP; rotação sem chave anterior perderia os dados cifrados | nenhuma | thomas (2026-10-29, piloto automático) |
