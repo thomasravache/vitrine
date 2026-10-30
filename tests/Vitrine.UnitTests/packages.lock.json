@@ -1052,9 +1052,14 @@
       "vitrine.mercadolivre.infrastructure": {
         "type": "Project",
         "dependencies": {
+          "Microsoft.Extensions.Http.Resilience": "[10.11.0, )",
+          "Npgsql.EntityFrameworkCore.PostgreSQL": "[10.0.3, )",
+          "Vitrine.Common.Security": "[1.0.0, )",
           "Vitrine.MercadoLivre.Application": "[1.0.0, )",
           "Vitrine.MercadoLivre.Domain": "[1.0.0, )",
-          "Vitrine.MercadoLivre.IntegrationEvents": "[1.0.0, )"
+          "Vitrine.MercadoLivre.IntegrationEvents": "[1.0.0, )",
+          "WolverineFx.EntityFrameworkCore": "[6.59.0, )",
+          "WolverineFx.Postgresql": "[6.59.0, )"
         }
       },
       "vitrine.mercadolivre.integrationevents": {

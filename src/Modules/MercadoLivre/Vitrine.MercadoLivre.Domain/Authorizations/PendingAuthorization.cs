@@ -2,7 +2,7 @@ namespace Vitrine.MercadoLivre.Domain.Authorizations;
 
 /// <summary>
 /// Autorização OAuth pendente (SPEC-0020): <c>state</c> guardado só como hash, <c>code_verifier</c> cifrado, válida por
-/// <see cref="Lifetime"/> e de uso único, amarrada ao usuário e ao workspace que a iniciaram. Scaffold do contrato.
+/// <see cref="Lifetime"/> e de uso único, amarrada ao usuário e ao workspace que a iniciaram.
 /// </summary>
 public sealed class PendingAuthorization
 {
@@ -29,12 +29,43 @@ public sealed class PendingAuthorization
     public DateTimeOffset? UsedAt { get; private set; }
 
     /// <summary>Cria a autorização pendente iniciada agora pelo usuário no workspace.</summary>
-    public static PendingAuthorization Create(Guid workspaceId, Guid userId, string stateHash, string codeVerifier, DateTimeOffset now) =>
-        throw new NotImplementedException("SPEC-0020: implementado na fase Green.");
+    public static PendingAuthorization Create(Guid workspaceId, Guid userId, string stateHash, string codeVerifier, DateTimeOffset now)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(stateHash);
+        ArgumentException.ThrowIfNullOrWhiteSpace(codeVerifier);
+
+        return new PendingAuthorization
+        {
+            Id = Guid.CreateVersion7(now),
+            WorkspaceId = workspaceId,
+            UserId = userId,
+            StateHash = stateHash,
+            CodeVerifier = codeVerifier,
+            ExpiresAt = now + Lifetime,
+        };
+    }
 
     /// <summary>Tenta consumir a autorização em nome de <paramref name="userId"/>; só a primeira, válida e do mesmo usuário, é aceita.</summary>
-    public PendingAuthorizationConsumption Consume(Guid userId, DateTimeOffset now) =>
-        throw new NotImplementedException("SPEC-0020: implementado na fase Green.");
+    public PendingAuthorizationConsumption Consume(Guid userId, DateTimeOffset now)
+    {
+        if (UsedAt is not null)
+        {
+            return PendingAuthorizationConsumption.AlreadyUsed;
+        }
+
+        if (userId != UserId)
+        {
+            return PendingAuthorizationConsumption.OtherUser;
+        }
+
+        if (now >= ExpiresAt)
+        {
+            return PendingAuthorizationConsumption.Expired;
+        }
+
+        UsedAt = now;
+        return PendingAuthorizationConsumption.Accepted;
+    }
 }
 
 /// <summary>Resultado de <see cref="PendingAuthorization.Consume"/>.</summary>

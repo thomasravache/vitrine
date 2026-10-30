@@ -8,12 +8,14 @@ using Microsoft.Extensions.DependencyInjection;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Infrastructure;
 using Vitrine.Identity.Application.Abstractions;
 using Vitrine.Identity.Application.CurrentUser;
+using Vitrine.Identity.Application.Membership;
 using Vitrine.Identity.Application.Register;
 using Vitrine.Identity.Infrastructure.Diagnostics;
 using Vitrine.Identity.Infrastructure.Persistence;
 using Vitrine.Identity.Infrastructure.Sessions;
 using Vitrine.Identity.Infrastructure.Users;
 using Vitrine.Identity.IntegrationEvents;
+using Vitrine.Identity.PublicApi;
 using Wolverine;
 using Wolverine.EntityFrameworkCore;
 
@@ -61,6 +63,9 @@ public static class IdentityModule
         services.AddScoped<IUserAccounts, UserAccounts>();
         services.AddScoped<ISessions, CookieSessions>();
         services.AddScoped<IMeQueries, MeQueries>();
+
+        // Contrato público síncrono (Identity.PublicApi — SPEC-0020): workspace e papel do usuário para outros módulos.
+        services.AddScoped<IWorkspaceMembership, WorkspaceMembershipQuery>();
 
         return services;
     }

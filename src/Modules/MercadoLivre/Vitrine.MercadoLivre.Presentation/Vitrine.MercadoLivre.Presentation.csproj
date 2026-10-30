@@ -8,6 +8,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Vitrine.MercadoLivre.Application\Vitrine.MercadoLivre.Application.csproj" />
+    <ProjectReference Include="..\..\..\Common\Vitrine.Common.Web\Vitrine.Common.Web.csproj" />
   </ItemGroup>
 
 </Project>

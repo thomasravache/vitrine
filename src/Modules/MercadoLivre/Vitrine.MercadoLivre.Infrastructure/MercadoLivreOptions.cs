@@ -24,4 +24,8 @@ public sealed class MercadoLivreOptions
 
     /// <summary>Em Production, só com <c>true</c> URLs diferentes das oficiais são aceitas (ex.: simulador — SPEC-0024).</summary>
     public bool AllowNonOfficialEndpoints { get; set; }
+
+    /// <summary>Verdadeiro quando <c>ClientId</c>, <c>ClientSecret</c> e <c>RedirectUri</c> estão preenchidos.</summary>
+    public bool IsConfigured =>
+        !string.IsNullOrWhiteSpace(ClientId) && !string.IsNullOrWhiteSpace(ClientSecret) && !string.IsNullOrWhiteSpace(RedirectUri);
 }

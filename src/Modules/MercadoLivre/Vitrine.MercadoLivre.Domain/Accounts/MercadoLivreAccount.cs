@@ -1,8 +1,8 @@
 namespace Vitrine.MercadoLivre.Domain.Accounts;
 
 /// <summary>
-/// Conta do Mercado Livre conectada a um workspace (SPEC-0020). Scaffold do contrato: o comportamento é entregue
-/// na fase Green.
+/// Conta do Mercado Livre conectada a um workspace (SPEC-0020): guarda só o id, o apelido e o site do vendedor, e os
+/// tokens (cifrados em repouso pela persistência; nunca saem da API).
 /// </summary>
 public sealed class MercadoLivreAccount
 {
@@ -42,10 +42,47 @@ public sealed class MercadoLivreAccount
     public void ClearDomainEvents() => _domainEvents.Clear();
 
     /// <summary>Conecta uma conta nova ao workspace.</summary>
-    public static MercadoLivreAccount Connect(Guid workspaceId, MercadoLivreSeller seller, MercadoLivreTokens tokens, DateTimeOffset now) =>
-        throw new NotImplementedException("SPEC-0020: implementado na fase Green.");
+    public static MercadoLivreAccount Connect(Guid workspaceId, MercadoLivreSeller seller, MercadoLivreTokens tokens, DateTimeOffset now)
+    {
+        ArgumentNullException.ThrowIfNull(seller);
+        ArgumentNullException.ThrowIfNull(tokens);
+
+        var account = new MercadoLivreAccount
+        {
+            Id = Guid.CreateVersion7(now),
+            WorkspaceId = workspaceId,
+            MlUserId = seller.MlUserId,
+            ConnectedAt = now,
+        };
+        account.Apply(seller, tokens, now, reconnected: false);
+        return account;
+    }
 
     /// <summary>Reconecta a mesma conta no mesmo workspace, trocando os tokens.</summary>
-    public void Reconnect(MercadoLivreSeller seller, MercadoLivreTokens tokens, DateTimeOffset now) =>
-        throw new NotImplementedException("SPEC-0020: implementado na fase Green.");
+    public void Reconnect(MercadoLivreSeller seller, MercadoLivreTokens tokens, DateTimeOffset now)
+    {
+        ArgumentNullException.ThrowIfNull(seller);
+        ArgumentNullException.ThrowIfNull(tokens);
+        if (seller.MlUserId != MlUserId)
+        {
+            throw new InvalidOperationException("Reconexão só da mesma conta do Mercado Livre.");
+        }
+
+        Apply(seller, tokens, now, reconnected: true);
+    }
+
+    private void Apply(MercadoLivreSeller seller, MercadoLivreTokens tokens, DateTimeOffset now, bool reconnected)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(tokens.AccessToken);
+        ArgumentException.ThrowIfNullOrWhiteSpace(tokens.RefreshToken);
+
+        Nickname = seller.Nickname;
+        SiteId = seller.SiteId;
+        Status = MercadoLivreAccountStatus.Connected;
+        AccessToken = tokens.AccessToken;
+        RefreshToken = tokens.RefreshToken;
+        AccessTokenExpiresAt = now + tokens.ExpiresIn;
+        UpdatedAt = now;
+        _domainEvents.Add(new MercadoLivreAccountConnectedDomainEvent(Id, WorkspaceId, MlUserId, SiteId, reconnected, now));
+    }
 }
