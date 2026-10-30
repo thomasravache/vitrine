@@ -4,7 +4,7 @@ title: Teste de arquitetura passa localmente com assembly de módulo não refere
 tier: lite
 type: fix
 user_facing: false
-status: approved
+status: in-progress
 created: 2026-10-30
 parent: SPEC-0019
 depends_on: []

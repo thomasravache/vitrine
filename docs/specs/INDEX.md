@@ -5,7 +5,7 @@
 ## Saúde
 
 - Validação (G0): **0 erro(s), 36 aviso(s)** — rode `spec_graph.py validate`
-- Specs: approved 4, implemented 23
+- Specs: approved 3, in-progress 1, implemented 23
 - Impedimentos: **0 aberto(s)**, 10 resolvido(s)
 
 ## Cobertura de Pilares
@@ -36,15 +36,15 @@ Perfil: **padrao**
 
 ## Plano de Execução
 
-**Em andamento:** —  
+**Em andamento:** SPEC-0027  
 **Paradas por impedimento:** —  
-**Próximo lote:** SPEC-0009, SPEC-0027
+**Próximo lote:** SPEC-0009
 
 | Onda | Spec | Título | Tier/Tam. | Status | Prontidão | Observação |
 |---|---|---|---|---|---|---|
+| 1 | SPEC-0027 | Teste de arquitetura passa localmente com assembly de módulo não referenciado | lite/S | in-progress | 🔄 em andamento |  |
 | 1 | SPEC-0009 | Provisionamento na nuvem e go-live | full/M | approved | ✅ pronta |  |
-| 1 | SPEC-0027 | Teste de arquitetura passa localmente com assembly de módulo não referenciado | lite/S | approved | ✅ pronta |  |
-| 2 | SPEC-0024 | Simulador do Mercado Livre para desenvolvimento e E2E | full/M | approved | ✅ pronta | saiu da onda 1: arquivos em comum com SPEC-0009 |
+| 2 | SPEC-0024 | Simulador do Mercado Livre para desenvolvimento e E2E | full/M | approved | ✅ pronta | saiu da onda 1: arquivos em comum com SPEC-0027, SPEC-0009 |
 | 3 | SPEC-0025 | Telas de contas e anúncios (jornada conectar-conta) | full/M | approved | ⛔ aguarda implementação de SPEC-0024 |  |
 
 ## Épicos
@@ -72,7 +72,7 @@ flowchart LR
     S0022["SPEC-0022<br/>Importação e sincronização de anúncios …"]:::implemented
     S0024["SPEC-0024<br/>Simulador do Mercado Livre para desenvo…"]:::approved
     S0025["SPEC-0025<br/>Telas de contas e anúncios (jornada con…"]:::approved
-    S0027["SPEC-0027<br/>Teste de arquitetura passa localmente c…"]:::approved
+    S0027["SPEC-0027<br/>Teste de arquitetura passa localmente c…"]:::inprogress
   end
   S0005 --> S0006
   S0006 --> S0007
@@ -124,7 +124,7 @@ flowchart LR
 | [SPEC-0024](SPEC-0024-simulador-do-mercado-livre-para-desenvolvimento-e-e2e.md) | Simulador do Mercado Livre para desenvolvimento e E2E | full | feature | approved | 2026-10-30 | SPEC-0019 | — | — |
 | [SPEC-0025](SPEC-0025-telas-de-contas-e-anuncios-jornada-conectar-conta.md) | Telas de contas e anúncios (jornada conectar-conta) | full | feature | approved | 2026-10-30 | SPEC-0019 | SPEC-0024 | SPEC-0020@1, SPEC-0022@1 |
 | [SPEC-0026](SPEC-0026-usefieldprotection-cria-um-provedor-interno-do-ef-por-protet.md) | UseFieldProtection cria um provedor interno do EF por protetor | lite | fix | implemented | 2026-10-30 | SPEC-0019 | SPEC-0020 | — |
-| [SPEC-0027](SPEC-0027-teste-de-arquitetura-passa-localmente-com-assembly-de-modulo.md) | Teste de arquitetura passa localmente com assembly de módulo não referenciado | lite | fix | approved | 2026-10-30 | SPEC-0019 | — | — |
+| [SPEC-0027](SPEC-0027-teste-de-arquitetura-passa-localmente-com-assembly-de-modulo.md) | Teste de arquitetura passa localmente com assembly de módulo não referenciado | lite | fix | in-progress | 2026-10-30 | SPEC-0019 | — | — |
 | [SPEC-0028](SPEC-0028-handlers-do-listings-nao-sao-gerados-pelo-wolverine-com-o-ga.md) | Handlers do Listings não são gerados pelo Wolverine com o gateway real do ML | lite | fix | implemented | 2026-10-30 | SPEC-0019 | SPEC-0022 | — |
 | [SPEC-0029](SPEC-0029-notificacao-forjada-grava-anuncio-de-outro-vendedor-no-catal.md) | Notificação forjada grava anúncio de outro vendedor no catálogo da conta | lite | fix | implemented | 2026-10-30 | SPEC-0019 | SPEC-0022 | — |
 
