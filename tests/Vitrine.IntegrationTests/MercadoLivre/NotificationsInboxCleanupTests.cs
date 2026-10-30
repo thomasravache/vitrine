@@ -22,10 +22,10 @@ public sealed class NotificationsInboxCleanupTests(PostgresFixture postgres)
     public async Task Limpeza_apaga_so_as_notificacoes_processadas_ha_mais_de_7_dias()
     {
         var cancellationToken = TestContext.Current.CancellationToken;
-        var message = CreateCleanupMessage();
         var connectionString = await postgres.CreateDatabaseAsync(cancellationToken);
         await using var factory = MercadoLivreHost.Create(connectionString);
-        _ = factory.Services; // sobe o host: schema mercadolivre migrado
+        _ = factory.Services; // sobe o host: schema mercadolivre migrado e assemblies do módulo carregados
+        var message = CreateCleanupMessage();
 
         // Dado linhas do inbox processadas há 8 dias, há 1 dia e uma não processada antiga (recebida há 30 dias)
         var now = DateTimeOffset.UtcNow;
@@ -70,6 +70,8 @@ public sealed class NotificationsInboxCleanupTests(PostgresFixture postgres)
     /// </summary>
     private static object CreateCleanupMessage()
     {
+        // O assembly de Infrastructure é referenciado pelo projeto de teste: carrega-o antes de procurar (o host já o carrega).
+        _ = typeof(Vitrine.MercadoLivre.Infrastructure.MercadoLivreModule).Assembly;
         var type = AppDomain.CurrentDomain.GetAssemblies()
             .Where(assembly => assembly.GetName().Name?.StartsWith("Vitrine.MercadoLivre", StringComparison.Ordinal) == true)
             .SelectMany(assembly => assembly.GetTypes())
