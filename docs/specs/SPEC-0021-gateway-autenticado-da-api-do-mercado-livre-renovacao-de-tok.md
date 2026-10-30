@@ -4,7 +4,7 @@ title: Gateway autenticado da API do Mercado Livre (renovação de token e resil
 tier: full
 type: feature
 user_facing: false
-status: approved
+status: in-progress
 created: 2026-10-30
 parent: SPEC-0019
 depends_on: [SPEC-0026]
