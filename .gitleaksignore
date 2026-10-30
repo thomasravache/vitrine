@@ -20,3 +20,6 @@ e0e91328a5ac9390b506c52b26e237f75690a79d:tests/Vitrine.IntegrationTests/Identity
 
 # SPEC-0024: URL interna do webhook (não é segredo) em teste
 51a4263b0beb536c5cd51d2730ca4fcd21bfc8ee:tests/Vitrine.Tooling.Tests/MercadoLivreSimulatorDeployTests.cs:generic-api-key:73
+
+# SPEC-0025: senha fixa de teste do E2E (valor falso, igual ao de acesso.spec.ts)
+dc2e42127f14f49e9e6fdef77c5f0e9d19efc0d2:web/e2e/support/vitrine.ts:generic-api-key:22
