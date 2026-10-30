@@ -22,6 +22,10 @@ updates:
       day: monday
     commit-message:
       prefix: "build(deps) [no-spec]"
+    # @types/node acompanha o major do Node em uso (web/.nvmrc, engines): sobe junto com o runtime, não sozinho.
+    ignore:
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
     groups:
       npm:
         applies-to: version-updates
