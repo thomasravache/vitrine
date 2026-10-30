@@ -9,6 +9,9 @@
 # SPEC-0012 (chamam este runner aninhado; fora da lista padrão, rodar à parte e sem stack no ar):
 #   tests/infra/run.sh SPEC-0012-UT-01 SPEC-0012-IT-01
 #   (UT-01 exige nenhuma stack `vitrine` no ar; SPEC0012_TAKE_DOWN=1 deixa o teste derrubá-la)
+# SPEC-0024 (simulador do ML; fora da lista padrão):
+#   tests/infra/run.sh SPEC-0024-CH-01            (estático: Compose/Caddy padrão sem o simulador; não sobe a stack)
+#   tests/infra/run.sh SPEC-0024-IT-06            (implanta o ambiente local com o perfil ml-simulator; portas 80/443)
 #
 # Limpeza (SPEC-0012): o runner devolve a stack local (projeto Compose `vitrine`, o do deploy/deploy.sh)
 # como a encontrou. Estado registrado no início, ação ao sair (EXIT, também após SIGINT/SIGTERM):

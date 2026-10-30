@@ -1,0 +1,23 @@
+{
+  "_source": {
+    "endpoint": "GET /users/me (Authorization: Bearer {access_token})",
+    "format": "Usuário dono do token; o Vitrine usa id, nickname e site_id (SPEC-0020) e não guarda dados pessoais.",
+    "documentation": "https://developers.mercadolivre.com.br/pt_br/usuarios-e-aplicativos",
+    "consulted_at": "2026-10-30",
+    "note": "A documentação respondeu HTTP 403 nas consultas automatizadas de 2026-10-30 (WebFetch); exemplo no formato documentado, com valores fictícios. Substituir pela cópia da documentação oficial quando acessível."
+  },
+  "response": {
+    "id": 3000000001,
+    "nickname": "VENDEDOR_TESTE",
+    "registration_date": "2026-01-15T10:20:30.000-03:00",
+    "first_name": "Vendedora",
+    "last_name": "Ficticia",
+    "country_id": "BR",
+    "email": "vendedor.teste@example.com",
+    "identification": { "type": "CPF", "number": "00000000000" },
+    "user_type": "normal",
+    "tags": ["normal", "test_user"],
+    "site_id": "MLB",
+    "permalink": "http://perfil.mercadolivre.com.br/VENDEDOR_TESTE"
+  }
+}

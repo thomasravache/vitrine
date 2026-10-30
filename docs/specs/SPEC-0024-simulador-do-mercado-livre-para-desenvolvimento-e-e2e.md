@@ -4,14 +4,14 @@ title: Simulador do Mercado Livre para desenvolvimento e E2E
 tier: full
 type: feature
 user_facing: false
-status: approved
+status: in-progress
 created: 2026-10-30
 parent: SPEC-0019
 depends_on: []
 consumes_contract: []
 contract_version: 1
 # breaking: "o que quebra para consumidores e como migrar"   # só se houver quebra; vai para o PR e pede `!` no título
-touches: [tools/MercadoLivreSimulator/**, src/AppHost/**, web/e2e/support/**, deploy/compose.override.yaml, deploy/compose.yaml, deploy/Caddyfile, deploy/caddy-sites/**, deploy/local/**, docs/runbooks/deploy.md, tests/Fixtures/MercadoLivre/**, tests/Vitrine.UnitTests/**, tests/Vitrine.IntegrationTests/**, tests/Vitrine.Tooling.Tests/**, tests/Vitrine.ArchitectureTests/**, tests/infra/**, Vitrine.slnx]
+touches: [tools/MercadoLivreSimulator/**, src/AppHost/**, web/e2e/support/**, deploy/compose.override.yaml, deploy/compose.yaml, deploy/Caddyfile, deploy/caddy-sites/**, deploy/local/**, docs/runbooks/deploy.md, tests/Fixtures/MercadoLivre/**, tests/Vitrine.UnitTests/**, tests/Vitrine.IntegrationTests/**, tests/Vitrine.Tooling.Tests/**, tests/Vitrine.ArchitectureTests/**, tests/infra/**, Vitrine.slnx, src/Modules/MercadoLivre/Vitrine.MercadoLivre.Infrastructure/MercadoLivreOptionsValidator.cs, .gitleaksignore]
 adrs: [ADR-0002, ADR-0004, ADR-0016]
 external: []
 size: M
@@ -250,21 +250,21 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 ## 11. Checklist de Implementação
 <!-- Preenchido na fase PLAN, após a aprovação. Cada fase começa pelos testes. -->
 **Fase 0: Caracterização**
-- [ ] CH-01 escrito, passando no código atual (AppHost e Compose local sem o simulador), commitado antes de qualquer mudança
+- [x] CH-01 escrito, passando no código atual (AppHost e Compose local sem o simulador), commitado antes de qualquer mudança
 
 **Fase 1: Estado do simulador**
-- [ ] Red: escrever UT-01..UT-04 com a tag `SPEC-0024:<ID>` e confirmar que falham pelo motivo certo
-- [ ] Green: PKCE, rotação de refresh token, busca com scan e bulk em memória
-- [ ] Refactor mantendo tudo verde
+- [x] Red: escrever UT-01..UT-04 com a tag `SPEC-0024:<ID>` e confirmar que falham pelo motivo certo
+- [x] Green: PKCE, rotação de refresh token, busca com scan e bulk em memória
+- [x] Refactor mantendo tudo verde
 
 **Fase 2: Simulador no AppHost e no Compose**
-- [ ] Red: escrever IT-01..IT-06 e CT-01 com a tag `SPEC-0024:<ID>` e confirmar que falham pelo motivo certo
-- [ ] Green: `tools/MercadoLivreSimulator`, endpoints `/__sim/*`, recurso no AppHost (modo run), perfil `ml-simulator` no Compose + Caddy e fixtures em `tests/Fixtures/MercadoLivre/`
-- [ ] Refactor mantendo tudo verde
-- [ ] Validar: build + suíte completa + arquitetura (G2/G3)
+- [x] Red: escrever IT-01..IT-06 e CT-01 com a tag `SPEC-0024:<ID>` e confirmar que falham pelo motivo certo
+- [x] Green: `tools/MercadoLivreSimulator`, endpoints `/__sim/*`, recurso no AppHost (modo run), perfil `ml-simulator` no Compose + Caddy e fixtures em `tests/Fixtures/MercadoLivre/`
+- [x] Refactor mantendo tudo verde
+- [x] Validar: build + suíte completa + arquitetura (G2/G3)
 
 **Fase final: Integração, entrega e documentação**
-- [ ] Review independente (G4)
+- [x] Review independente (G4)
 - [ ] Integração + CI verde (G5) e aprovação (H2)
 - [ ] Deploy no ambiente local prod-like com smoke (G6)
 - [ ] Relatório de Entrega, docs raiz e CHANGELOG (G7)
@@ -274,10 +274,10 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 | Gate | Status | Evidência | Data |
 |---|---|---|---|
 | G0 Spec | PASS | validate: 0 erro(s) — ddc6ebd (árvore suja) | 2026-10-30 |
-| G1 Red | PENDING | | |
-| G2 Green | PENDING | | |
-| G3 Arquitetura | PENDING | | |
-| G4 Review | PENDING | | |
+| G1 Red | PASS | verify G1: PASS; `dotnet test tests/Vitrine.UnitTests && npm --prefix web run test` exit 2 (red: Test run completed with non-success exit code: 2 (see: https://aka.ms/testingplatform/exit) — 8fdc08f | 2026-10-30 |
+| G2 Green | PASS | build exit 0 (npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts a); test exit 0 (Duration  403ms (environment 66%, transform 14%, import 13%, tests 5%, worker 1%)); lint exit 0 ([0m[34mChecked 40 files in 32[0m[0m[2m[34mms[0m[0m[34m.[0m[0m[34m No fixes app); coverage exit 0 (Coverage: 88%) — d36d604 | 2026-10-30 |
+| G3 Arquitetura | PASS | arch_test exit 0 (duration: 2s 124ms) — d36d604 | 2026-10-30 |
+| G4 Review | PASS | verify G1+G4: PASS; revisão: Reviewer independente: APPROVED (2ª rodada; gitleaks 0 no histórico; notas: caddy-sites no deploy.yml, miniaturas externas no E2E, contrato do lado da requisição coberto pela SPEC-0025) — d36d604 | 2026-10-30 |
 | G5 Integração & CI | PENDING | | |
 | H2 Integração aprovada | PENDING | | |
 | G6 Deploy | PENDING | | |
@@ -287,6 +287,7 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 <!-- Toda parada é registrada pelo Architect com `spec_graph.py impede` e fechada com `resolve` — não edite à mão. Tipos: spec (spec errada/incompleta → resolve com Emenda) | decisão (só o humano decide → resposta ou ADR) | trabalho (falta algo que exige código → SPEC-NNNN nova) | externo (acesso, ambiente, terceiro → ação tomada) | falha (3 FAILs seguidos no mesmo gate → diagnóstico e decisão). Com impedimento aberto a spec aparece como parada no INDEX e não pode ser fechada. -->
 | ID | Aberto em | Fase/Gate | Tipo | Descrição | Tentativas | Responsável | Resolução | Fechado em |
 |---|---|---|---|---|---|---|---|---|
+| IMP-01 | 2026-10-30 | G1 | spec | Compose local manda MercadoLivre__ApiBaseUrl=http://ml-simulator:8080 com ASPNETCORE_ENVIRONMENT=Production; o MercadoLivreOptionsValidator (SPEC-0020) exige https fora de Development mesmo com AllowNonOfficialEndpoints=true e a Api não sobe (ValidateOnStart) | Test-writer leu CheckEndpoint; IT-03 testa o valor do contrato | Architect | Emenda v1.2 da SPEC-0020 + v1.1 da SPEC-0024 — http só com AllowNonOfficialEndpoints=true | 2026-10-30 |
 
 ## 14. Relatório de Entrega
 <!-- Preenchido no CLOSE (G7). Diz o que foi feito, como, e prova que foi resolvido. Para status implemented o validate exige todas as subseções preenchidas, todo teste do plano com PASS + evidência e a Definição de Pronto toda marcada. -->
@@ -328,3 +329,5 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 <!-- Mudança em spec aprovada: uma linha por emenda. Mudou o contrato? Incremente `contract_version` e rode `spec_graph.py impacted SPEC-0024`. -->
 | Versão do contrato | Data | Mudança | Motivo | Specs impactadas | Aprovado por |
 |---|---|---|---|---|---|
+| v1.1 (contrato inalterado) | 2026-10-30 | (1) `touches` inclui `MercadoLivreOptionsValidator.cs` para a Emenda v1.2 da SPEC-0020 (`http://` só com `AllowNonOfficialEndpoints=true`); no Compose local o navegador usa `https://ml-simulador.vitrine.localhost` (Caddy) e a Api usa `http://ml-simulator:8080`; (2) form de decisão com `seller_id` e `decision=authorize|cancel`; nome da imagem lido do Compose; (3) o scan pode terminar com `scroll_id` nulo na última página com resultados ou numa página vazia; (4) `ML_SIMULATOR_URL` exportado por `web/e2e/support/app-host-fixture.ts`; (5) fixtures no formato documentado com valores sintéticos e `_source` (a documentação do ML responde 403 a acesso automatizado) — cópia oficial fica como pendência do usuário antes do go-live | SPEC_DEFECT e pontos em aberto do G1 (IMP-01) | SPEC-0020 (Emenda v1.2) | thomas (piloto automático do épico SPEC-0019) |
+| v1.2 (contrato inalterado) | 2026-10-30 | `touches` inclui `.gitleaksignore` (fingerprint de falso positivo `generic-api-key` na URL interna do webhook em teste, conforme a convenção da ADR-0006); a suíte de infra da SPEC-0005 desliga o perfil `ml-simulator` na cópia do `.env.example`; o estado do simulador usa um lock único (suficiente para dev/E2E) em vez de lock por vendedor | Achados do G4 | nenhuma | thomas (piloto automático do épico SPEC-0019) |

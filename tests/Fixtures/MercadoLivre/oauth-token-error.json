@@ -1,0 +1,15 @@
+{
+  "_source": {
+    "endpoint": "POST /oauth/token com code ou refresh_token inválido, usado ou expirado (400 invalid_grant)",
+    "format": "{ error, error_description, status, cause } (contrato da SPEC-0024, seção 6).",
+    "documentation": "https://developers.mercadolivre.com.br/pt_br/autenticacao-e-autorizacao",
+    "consulted_at": "2026-10-30",
+    "note": "A documentação respondeu HTTP 403 nas consultas automatizadas de 2026-10-30 (WebFetch); exemplo no formato do contrato da SPEC-0024, com valores fictícios. Substituir pela cópia da documentação oficial quando acessível."
+  },
+  "response": {
+    "error": "invalid_grant",
+    "error_description": "Error validating grant. Your authorization code or refresh token may be expired or it was already used",
+    "status": 400,
+    "cause": []
+  }
+}

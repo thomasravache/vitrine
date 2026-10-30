@@ -11,3 +11,7 @@
 	header -Via
 	reverse_proxy api:8080
 }
+
+# Sites extras do ambiente (*.caddy no diretório montado em /etc/caddy/sites; CADDY_EXTRA_SITES_DIR no Compose).
+# Vazio por padrão: staging e produção servem só {$SITE_ADDRESS}.
+import /etc/caddy/sites/*.caddy
