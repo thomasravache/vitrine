@@ -5,7 +5,10 @@ using Vitrine.IntegrationTests.Support;
 
 namespace Vitrine.IntegrationTests.Security;
 
-/// <summary>Cabeçalhos de segurança e HTTPS estrito (contrato da SPEC-0008).</summary>
+/// <summary>
+/// Cabeçalhos de segurança e HTTPS estrito (contrato da SPEC-0008). SPEC-0025:IT-01 — a CSP de toda resposta traz
+/// <c>img-src 'self' https://*.mlstatic.com</c> (miniaturas dos anúncios, emenda v5 da SPEC-0008), demais diretivas iguais.
+/// </summary>
 [Collection(PostgresTestGroup.Name)]
 public sealed class SecurityHeadersTests(PostgresFixture postgres)
 {
@@ -13,6 +16,7 @@ public sealed class SecurityHeadersTests(PostgresFixture postgres)
 
     [Fact]
     [Trait("spec", "SPEC-0008:IT-02")]
+    [Trait("spec", "SPEC-0025:IT-01")]
     public async Task Em_producao_GET_raiz_e_me_trazem_todos_os_cabecalhos_do_contrato_com_HSTS()
     {
         var cancellationToken = TestContext.Current.CancellationToken;
@@ -35,6 +39,7 @@ public sealed class SecurityHeadersTests(PostgresFixture postgres)
 
     [Fact]
     [Trait("spec", "SPEC-0008:IT-02")]
+    [Trait("spec", "SPEC-0025:IT-01")]
     public async Task Com_Sentry_configurado_a_CSP_libera_connect_src_so_para_a_origem_do_Sentry()
     {
         var cancellationToken = TestContext.Current.CancellationToken;
@@ -58,6 +63,7 @@ public sealed class SecurityHeadersTests(PostgresFixture postgres)
 
     [Fact]
     [Trait("spec", "SPEC-0008:IT-02")]
+    [Trait("spec", "SPEC-0025:IT-01")]
     public async Task Fora_de_producao_os_cabecalhos_saem_sem_HSTS()
     {
         var cancellationToken = TestContext.Current.CancellationToken;
@@ -79,6 +85,7 @@ public sealed class SecurityHeadersTests(PostgresFixture postgres)
 
     [Fact]
     [Trait("spec", "SPEC-0008:IT-02")]
+    [Trait("spec", "SPEC-0025:IT-01")]
     public async Task No_Kestrel_real_as_respostas_nao_trazem_Server_nem_X_Powered_By()
     {
         var cancellationToken = TestContext.Current.CancellationToken;
