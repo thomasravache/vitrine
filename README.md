@@ -61,6 +61,9 @@ logs, traces, métricas e o endereço de cada recurso. A API responde `GET /heal
   nunca chegam à SPA. Sem `MercadoLivre__ClientId`/`MercadoLivre__ClientSecret` a API responde 503
   `ML_NOT_CONFIGURED`. Módulo em `src/Modules/MercadoLivre/`; filtros web compartilhados em
   `src/Common/Vitrine.Common.Web`.
+- **Anúncios (SPEC-0022):** os anúncios das contas conectadas ficam numa cópia local (`src/Modules/Listings/`),
+  importada ao conectar, atualizada por notificação e reconciliada a cada 24 h; API `GET /api/v1/listings`
+  (busca, filtros, cursor), `GET /api/v1/listings/summary` e `POST /api/v1/listings/sync` (no máximo a cada 5 min).
 
 ## Comandos
 

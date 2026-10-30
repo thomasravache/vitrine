@@ -37,4 +37,5 @@ public static class MercadoLivreErrorCodes
     public const string Unavailable = "ML_UNAVAILABLE";
     public const string SiteNotSupported = "ML_SITE_NOT_SUPPORTED";
     public const string AccountInUse = "ML_ACCOUNT_IN_USE";
+    public const string PayloadTooLarge = "PAYLOAD_TOO_LARGE";
 }

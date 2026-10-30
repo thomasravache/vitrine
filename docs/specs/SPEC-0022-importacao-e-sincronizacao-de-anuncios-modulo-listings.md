@@ -4,7 +4,7 @@ title: Importação e sincronização de anúncios (módulo Listings)
 tier: full
 type: feature
 user_facing: false
-status: in-progress
+status: implemented
 created: 2026-10-30
 parent: SPEC-0019
 depends_on: []
@@ -281,9 +281,9 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 
 **Fase final: Integração, entrega e documentação**
 - [x] Review independente (G4)
-- [ ] Integração + CI verde (G5) e aprovação (H2)
-- [ ] Deploy no ambiente local prod-like com smoke (G6)
-- [ ] Relatório de Entrega, docs raiz e CHANGELOG (G7)
+- [x] Integração + CI verde (G5) e aprovação (H2)
+- [x] Deploy no ambiente local prod-like com smoke (G6)
+- [x] Relatório de Entrega, docs raiz e CHANGELOG (G7)
 
 ## 12. Registro de Gates
 <!-- Status: PENDING | PASS | FAIL | N/A. PASS e N/A exigem evidência (comando + resultado, SHA, execução de CI, veredito). -->
@@ -294,10 +294,10 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 | G2 Green | PASS | build exit 0 (npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts a); test exit 0 (Duration  689ms (environment 58%, import 17%, transform 16%, tests 6%, worker 3%)); lint exit 0 ([0m[34mChecked 40 files in 20[0m[0m[2m[34mms[0m[0m[34m.[0m[0m[34m No fixes app); coverage exit 0 (Coverage: 92%) — d366045 | 2026-10-30 |
 | G3 Arquitetura | PASS | arch_test exit 0 (duration: 1s 576ms) — d366045 | 2026-10-30 |
 | G4 Review | PASS | verify G1+G4: PASS; revisão: Reviewer independente: APPROVED (3ª rodada; achados major/minor do G4 corrigidos com regressões; 0 pendências) — d366045 | 2026-10-30 |
-| G5 Integração & CI | PENDING | | |
-| H2 Integração aprovada | PENDING | | |
-| G6 Deploy | PENDING | | |
-| G7 Pronto & Docs | PENDING | | |
+| G5 Integração & CI | PASS | build exit 0 (npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts a); test exit 0 (Duration  383ms (environment 58%, import 18%, transform 17%, tests 5%, worker 1%)); test_integration exit 0 (duration: 3m 33s 452ms); test_e2e exit 0 (30 passed (32.0s)); arch_test exit 0 (duration: 1s 672ms); security_scan exit 0 ([90m1:58PM[0m [32mINF[0m [1mno leaks found[0m); nota: PR #50 CI 8/8 verde + CodeQL (runs/41093001532) — 482706b | 2026-10-30 |
+| H2 Integração aprovada | PASS | política auto-on-green (aprovada por thomas em 2026-10-13); G5 PASS | 2026-10-30 |
+| G6 Deploy | PASS | MANUAL: Deploy local prod-like (deploy/deploy.sh e71eb85 --env-file deploy/local/.env): health 200 em 4 s; migração do schema listings (pg_trgm) aplicada; smoke @smoke 2/2; GET /api/v1/listings e /summary sem sessão → 401; 0 logs Error/Critical; staging/produção na SPEC-0009 | 2026-10-30 |
+| G7 Pronto & Docs | PASS | Relatório de Entrega e Definição de Pronto: ok — 5a8302c | 2026-10-30 |
 
 ## 13. Registro de Impedimentos
 <!-- Toda parada é registrada pelo Architect com `spec_graph.py impede` e fechada com `resolve` — não edite à mão. Tipos: spec (spec errada/incompleta → resolve com Emenda) | decisão (só o humano decide → resposta ou ADR) | trabalho (falta algo que exige código → SPEC-NNNN nova) | externo (acesso, ambiente, terceiro → ação tomada) | falha (3 FAILs seguidos no mesmo gate → diagnóstico e decisão). Com impedimento aberto a spec aparece como parada no INDEX e não pode ser fechada. -->
@@ -308,37 +308,61 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 <!-- Preenchido no CLOSE (G7). Diz o que foi feito, como, e prova que foi resolvido. Para status implemented o validate exige todas as subseções preenchidas, todo teste do plano com PASS + evidência e a Definição de Pronto toda marcada. -->
 
 ### O que foi entregue
-<!-- comportamento entregue do ponto de vista do usuário/sistema -->
+Módulo `Listings`: ao conectar uma conta do ML, o Vitrine importa todos os anúncios (inclusive acima de 1000, por `scan`), mantém a cópia atualizada pelas notificações de anúncio alterado e por uma reconciliação diária, e permite sincronizar sob demanda (no máximo a cada 5 min por conta). API para a SPA: `GET /api/v1/listings` (filtros por status e conta, busca por título ou ID MLB, paginação por cursor), `GET /api/v1/listings/summary` e `POST /api/v1/listings/sync` (202; 429 `SYNC_TOO_SOON`; 409 `ACCOUNT_REAUTHORIZATION_REQUIRED`; 404). Desconectar apaga os anúncios da conta.
 
 ### Como foi feito
-<!-- decisões de implementação, módulos/arquivos principais, desvios e emendas (com versão), dívidas assumidas -->
+- `src/Modules/Listings/` (Domain, Application, Infrastructure, Presentation, IntegrationEvents) no padrão do MercadoLivre; schema `listings` (migração `InitialListings`, extensão `pg_trgm` com índice GIN no título, `item_id` com collation `"C"` para o keyset).
+- Sincronização por marcar e varrer: upsert em lote (`unnest` + `ON CONFLICT`) compartilhado com o `ItemChanged`, que só atualiza dados quando `ml_last_updated` recebido >= gravado e não grava conta desconectada (`JOIN … FOR SHARE` em `sync_states`); varredura só apaga o que a execução não tocou e é anterior ao início dela; `Disconnected` em transação com `FOR UPDATE`.
+- Claim da conta por `ExecuteUpdate`; `running` há mais de 1 h é considerado travado; ML indisponível → `failed` + `ScheduleRetry(1, 5, 15 min)` durável; reautorização → `paused`.
+- Reconciliação: `BackgroundService` publica `ReconcileListings` logo após subir e a cada `min(intervalo, 1 h)`; o handler só enfileira contas não pausadas com `greatest(completed_at, started_at)` mais antigo que 24 h.
+- Métricas `vitrine.listings.sync.duration`, `vitrine.listings.sync.runs{trigger,result}`, `vitrine.listings.items_upserted`.
+- Emendas: v1.1 (record do `MercadoLivreItemChanged` criado aqui, conforme SPEC-0023@1), v1.2 (esclarecimentos de keyset, `lastSyncedAt` e IT-11), v1.3 (reconciliação por estado persistido e regras de varredura/upsert, após o G4).
+- G4 em 3 rodadas: corrigidas a varredura que apagava anúncio notificado durante a sincronização e a regressão de dado mais novo (major), a reconciliação que nunca rodaria com deploys frequentes (major), órfão na desconexão concorrente, conta presa em `running`, 400 sem `VALIDATION_FAILED` e reimportação horária de conta com falha persistente.
+- CI: a Application passou a referenciar o próprio IntegrationEvents (assembly ausente no job de arquitetura); causa raiz no harness tratada pela SPEC-0027.
 
 ### Prova de Correção
-<!-- type fix: o teste de regressão falhou antes da correção (commit red + saída) e passa depois (commit green + execução). Outros tipos: "N/A". -->
+N/A — `type: feature`.
 
 ### Verificação
-<!-- Uma linha por teste do plano (todos os IDs da seção 7). Resultado: PASS. Evidência: execução de CI, commit ou relatório. -->
 | Teste | Comportamento | Resultado | Evidência |
 |---|---|---|---|
+| UT-01 | Sincronizador: deduplica IDs, grava só `Found`, varre só no fim, propaga exceções do gateway | PASS | CI PR #50 runs/41093001532 (482706b); main e71eb85 |
+| UT-02 | Validação de `status`, `limit`, `q` e cursor; filtro padrão e `q` por ID MLB; cursor adulterado recusado | PASS | CI PR #50 runs/41093001532 (482706b); main e71eb85 |
+| UT-03 | Regra de atualização: aplica quando `lastUpdated` recebido >= gravado | PASS | CI PR #50 runs/41093001532 (482706b); main e71eb85 |
+| UT-04 | Arquitetura do módulo Listings: camadas, schema `listings`, sem referência a camadas internas do MercadoLivre | PASS | CI PR #50 runs/41093001532 (482706b); main e71eb85 |
+| IT-01 | Importação ao conectar grava os anúncios da conta | PASS | CI PR #50 runs/41093001532 (482706b); main e71eb85 |
+| IT-02 | Importação acima de 1000 anúncios (scan) completa | PASS | CI PR #50 runs/41093001532 (482706b); main e71eb85 |
+| IT-03 | Listagem com filtros, busca, cursor keyset e parâmetros inválidos → 400 VALIDATION_FAILED | PASS | CI PR #50 runs/41093001532 (482706b); main e71eb85 |
+| IT-04 | Resumo por status e última sincronização | PASS | CI PR #50 runs/41093001532 (482706b); main e71eb85 |
+| IT-05 | Reconciliação por estado persistido (logo após subir; só contas vencidas e não pausadas; ignora falha recente) | PASS | CI PR #50 runs/41093001532 (482706b); main e71eb85 |
+| IT-06 | Desconectar apaga anúncios e estado, sem órfãos mesmo com notificação em curso | PASS | CI PR #50 runs/41093001532 (482706b); main e71eb85 |
+| IT-07 | Isolamento entre workspaces e 401 sem sessão | PASS | CI PR #50 runs/41093001532 (482706b); main e71eb85 |
+| IT-08 | `POST /sync`: 202, 429 SYNC_TOO_SOON, 409, 404, 403, antiforgery e conta presa em `running` | PASS | CI PR #50 runs/41093001532 (482706b); main e71eb85 |
+| IT-09 | `MercadoLivreItemChanged`: atualiza, apaga ou ignora; sobrevive à varredura e não regride dado mais novo | PASS | CI PR #50 runs/41093001532 (482706b); main e71eb85 |
+| IT-10 | ML indisponível → `failed` com retry durável; reautorização → `paused` sem reenvio | PASS | CI PR #50 runs/41093001532 (482706b); main e71eb85 |
+| IT-11 | Listagem com busca por título sobre 10.000 anúncios com p95 < 150 ms | PASS | CI PR #50 runs/41093001532 (482706b); main e71eb85 |
+| CT-01 | Payloads dos eventos consumidos (SPEC-0020/0021/0023) desserializam no contrato v1 | PASS | CI PR #50 runs/41093001532 (482706b); main e71eb85 |
+| CT-02 | OpenAPI de `/listings`, `/summary` e `/sync` com tipos e respostas problem+json do contrato | PASS | CI PR #50 runs/41093001532 (482706b); main e71eb85 |
 
 ### Definição de Pronto
-- [ ] Todos os testes do plano passando e listados na Verificação
-- [ ] Todo comportamento do Mapa de Comportamentos coberto e verificado
-- [ ] Suíte completa, arquitetura e CI verdes no resultado integrado (G5)
-- [ ] Review independente sem achados blocker/major (G4)
-- [ ] Padrão arquitetural existente mantido, ou desvio coberto por ADR aprovado
-- [ ] Requisitos não-funcionais medidos com evidência (ou N/A justificado)
-- [ ] Disponível no ambiente-alvo via pipeline, com smoke/E2E passando no ambiente (G6)
-- [ ] Observabilidade e rollback prontos conforme o Plano de Rollout
-- [ ] Documentação raiz e CHANGELOG atualizados (G7)
-- [ ] Guia de jornadas e mapa do sistema atualizados quando a entrega muda uma jornada ou um componente (G7)
-- [ ] Pendências registradas como novas specs (ou nenhuma)
+- [x] Todos os testes do plano passando e listados na Verificação
+- [x] Todo comportamento do Mapa de Comportamentos coberto e verificado
+- [x] Suíte completa, arquitetura e CI verdes no resultado integrado (G5)
+- [x] Review independente sem achados blocker/major (G4)
+- [x] Padrão arquitetural existente mantido, ou desvio coberto por ADR aprovado
+- [x] Requisitos não-funcionais medidos com evidência (ou N/A justificado) — p95 < 150 ms na listagem com busca (IT-11)
+- [x] Disponível no ambiente-alvo via pipeline, com smoke/E2E passando no ambiente (G6) — ambiente local prod-like; staging/produção na SPEC-0009
+- [x] Observabilidade e rollback prontos conforme o Plano de Rollout — métricas `vitrine.listings.*`; rollback por revert (schema novo, sem dado de outros módulos)
+- [x] Documentação raiz e CHANGELOG atualizados (G7)
+- [x] Guia de jornadas e mapa do sistema atualizados quando a entrega muda uma jornada ou um componente (G7) — N/A: sem `living_docs`; README atualizado
+- [x] Pendências registradas como novas specs (ou nenhuma)
 
 ### Deploy
-<!-- ambiente(s), versão/tag, data, estratégia, estado da feature flag, execução do pipeline -->
+Ambiente local prod-like, imagem `ghcr.io/thomasravache/vitrine-api:e71eb85`, 2026-10-30, `deploy/deploy.sh` (health 200 em 4 s, smoke 2/2, migração `listings` aplicada, 0 logs Error/Critical). A importação real depende de uma conta conectada: no ambiente local, pelo simulador da SPEC-0024. Staging/produção na SPEC-0009.
 
 ### Pendências
-<!-- specs criadas para o que ficou de fora, ou "Nenhuma" -->
+- SPEC-0027 — teste de arquitetura igual ao CI (assembly não referenciado).
+- Banco gerenciado no futuro: o papel do banco precisa poder criar a extensão `pg_trgm` (trusted; basta CREATE no banco) — registrar no go-live (SPEC-0009).
 
 ## 15. Emendas
 <!-- Mudança em spec aprovada: uma linha por emenda. Mudou o contrato? Incremente `contract_version` e rode `spec_graph.py impacted SPEC-0022`. -->

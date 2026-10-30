@@ -11,8 +11,10 @@ using Vitrine.Common.Security;
 using Vitrine.MercadoLivre.Application.Abstractions;
 using Vitrine.MercadoLivre.Application.Accounts;
 using Vitrine.MercadoLivre.Application.Connections;
+using Vitrine.MercadoLivre.Application.Notifications;
 using Vitrine.MercadoLivre.Infrastructure.Api;
 using Vitrine.MercadoLivre.Infrastructure.Diagnostics;
+using Vitrine.MercadoLivre.Infrastructure.Notifications;
 using Vitrine.MercadoLivre.Infrastructure.OAuth;
 using Vitrine.MercadoLivre.Infrastructure.Persistence;
 using Vitrine.MercadoLivre.IntegrationEvents;
@@ -53,7 +55,7 @@ public static class MercadoLivreModule
     /// <summary>Tempo máximo de uma chamada ao ML, com as tentativas (contrato da SPEC-0020: 10 s).</summary>
     public static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(10);
 
-    /// <summary>Cron (UTC) da limpeza diária das autorizações pendentes: todo dia às 03:00.</summary>
+    /// <summary>Cron (UTC) das limpezas diárias (autorizações pendentes e inbox das notificações): todo dia às 03:00.</summary>
     public const string CleanupSchedule = "0 3 * * *";
 
     /// <summary>Registra os serviços do módulo MercadoLivre.</summary>
@@ -81,7 +83,14 @@ public static class MercadoLivreModule
             options.LocalQueueFor<MercadoLivreAccountConnected>().UseDurableInbox();
             options.LocalQueueFor<MercadoLivreAccountDisconnected>().UseDurableInbox();
             options.LocalQueueFor<MercadoLivreAccountReauthorizationRequired>().UseDurableInbox();
+
+            // O gateway (implementação interna do módulo) é resolvido do contêiner nos handlers que o recebem (ex.:
+            // MercadoLivreItemChanged no Listings): sem isso o código gerado pelo Wolverine recusa o tipo não público.
+            options.CodeGeneration.AlwaysUseServiceLocationFor<IMercadoLivreItems>();
+            options.LocalQueueFor<ProcessMercadoLivreNotification>().UseDurableInbox();
             options.Discovery.IncludeType(typeof(CleanupPendingAuthorizationsHandler));
+            options.Discovery.IncludeType(typeof(CleanupNotificationsInboxHandler));
+            options.Discovery.IncludeType(typeof(ProcessMercadoLivreNotificationHandler));
         });
 
         // Cliente HTTP do ML: URLs oficiais por padrão; até 10 s por chamada, com as tentativas. O POST /oauth/token
@@ -137,18 +146,25 @@ public static class MercadoLivreModule
         services.AddScoped<ListAccountsHandler>();
         services.AddScoped<DisconnectAccountHandler>();
 
+        // Webhook de notificações (SPEC-0023): recebimento barato (inbox + outbox); o processamento é durável.
+        services.AddSingleton<INotificationMetrics>(provider => provider.GetRequiredService<MercadoLivreMetrics>());
+        services.AddSingleton<IMercadoLivreApplication, MercadoLivreApplication>();
+        services.AddScoped<INotificationsInbox, NotificationsInbox>();
+        services.AddScoped<ReceiveNotificationHandler>();
+
         return services;
     }
 
     /// <summary>
     /// Mensagens recorrentes do módulo (ADR-0014), registradas pelo host no <c>UseWolverine</c> (o agendamento registra
     /// serviços, o que uma extensão <c>ConfigureWolverine</c> não pode fazer): limpeza diária das autorizações
-    /// pendentes, durável e disparada uma vez por cluster.
+    /// pendentes e do inbox das notificações (SPEC-0023), duráveis e disparadas uma vez por cluster.
     /// </summary>
     public static WolverineOptions AddMercadoLivreSchedules(this WolverineOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
         options.Schedules.ScheduleRecurring<CleanupPendingAuthorizations>(CleanupSchedule);
+        options.Schedules.ScheduleRecurring<CleanupNotificationsInbox>(CleanupSchedule);
         return options;
     }
 

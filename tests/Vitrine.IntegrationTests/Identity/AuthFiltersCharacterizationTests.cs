@@ -31,6 +31,9 @@ public sealed class AuthFiltersCharacterizationTests(PostgresFixture postgres)
         "GET /health/ready",
         "POST /api/v1/auth/login",
         "POST /api/v1/auth/register",
+
+        // Webhook de notificações do ML (SPEC-0023; emenda v5 da SPEC-0008).
+        "POST /api/v1/mercadolivre/notifications",
     ];
 
     [Fact]

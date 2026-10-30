@@ -46,6 +46,7 @@ public sealed class ListingsEventsContractTests(PostgresFixture postgres)
         var accountId = Guid.NewGuid();
         const long MlUserId = 3_400_000_001; // maior que int32: o contrato é int64
         var item = ListingItem.New("active", price: 80m);
+        gateway.SetSeller(accountId, MlUserId); // anúncios do próprio vendedor (SPEC-0029: alheio é recusado)
         gateway.Put(accountId, item, ListingItem.New("closed"));
 
         // Dado o payload de MercadoLivreAccountConnected v1; quando desserializado e entregue: a conta é importada

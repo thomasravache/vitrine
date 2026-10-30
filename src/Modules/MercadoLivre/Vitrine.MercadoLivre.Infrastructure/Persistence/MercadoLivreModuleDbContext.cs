@@ -2,11 +2,13 @@ using Microsoft.EntityFrameworkCore;
 using Vitrine.Common.Security;
 using Vitrine.MercadoLivre.Domain.Accounts;
 using Vitrine.MercadoLivre.Domain.Authorizations;
+using Vitrine.MercadoLivre.Domain.Notifications;
 
 namespace Vitrine.MercadoLivre.Infrastructure.Persistence;
 
 /// <summary>
-/// DbContext do módulo MercadoLivre: contas conectadas e autorizações OAuth pendentes, no schema <c>mercadolivre</c>
+/// DbContext do módulo MercadoLivre: contas conectadas, autorizações OAuth pendentes e o inbox das notificações do ML
+/// (SPEC-0023), no schema <c>mercadolivre</c>
 /// (ADR-0001, ADR-0011). Tokens e <c>code_verifier</c> são gravados cifrados (<c>IsProtected</c> com o
 /// <see cref="IFieldProtector"/> ligado por <c>UseFieldProtection</c>, propósito
 /// <see cref="MercadoLivreModule.TokensProtectionPurpose"/> — SPEC-0008, SPEC-0026).
@@ -18,6 +20,8 @@ public sealed class MercadoLivreModuleDbContext(DbContextOptions<MercadoLivreMod
     public DbSet<MercadoLivreAccount> Accounts => Set<MercadoLivreAccount>();
 
     public DbSet<PendingAuthorization> PendingAuthorizations => Set<PendingAuthorization>();
+
+    public DbSet<InboxNotification> Notifications => Set<InboxNotification>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -67,6 +71,31 @@ public sealed class MercadoLivreModuleDbContext(DbContextOptions<MercadoLivreMod
             authorization.HasIndex(p => p.StateHash).IsUnique();
             authorization.HasIndex(p => p.ExpiresAt);
         });
+
+        // Inbox do webhook (SPEC-0023, §6): dedupe pelo _id (notification_id UNIQUE; INSERT ... ON CONFLICT DO NOTHING).
+        modelBuilder.Entity<InboxNotification>(notification =>
+        {
+            notification.ToTable("notifications");
+            notification.HasKey(n => n.Id);
+            notification.Property(n => n.Id).HasColumnName("id").ValueGeneratedNever();
+            notification.Property(n => n.NotificationId).HasColumnName("notification_id").HasMaxLength(64).IsRequired();
+            notification.Property(n => n.Topic).HasColumnName("topic").HasMaxLength(64).IsRequired();
+            notification.Property(n => n.Resource).HasColumnName("resource").IsRequired();
+            notification.Property(n => n.MlUserId).HasColumnName("ml_user_id");
+            notification.Property(n => n.ApplicationId).HasColumnName("application_id");
+            notification.Property(n => n.Attempts).HasColumnName("attempts");
+            notification.Property(n => n.SentAt).HasColumnName("sent_at");
+            notification.Property(n => n.ReceivedAt).HasColumnName("received_at");
+            notification.Property(n => n.AcceptedAt).HasColumnName("accepted_at");
+            notification.Property(n => n.ProcessedAt).HasColumnName("processed_at");
+            notification.Property(n => n.Outcome).HasColumnName("outcome").HasMaxLength(20)
+                .HasConversion(
+                    outcome => outcome == null ? null : NotificationOutcomeNames.ToName(outcome.Value),
+                    name => name == null ? null : NotificationOutcomeNames.FromName(name));
+            notification.Ignore(n => n.IsProcessed);
+            notification.HasIndex(n => n.NotificationId).IsUnique();
+            notification.HasIndex(n => n.ProcessedAt);
+        });
     }
 
 }
@@ -88,6 +117,30 @@ internal static class AccountStatusNames
     {
         Connected => MercadoLivreAccountStatus.Connected,
         ReauthorizationRequired => MercadoLivreAccountStatus.ReauthorizationRequired,
+        _ => throw new ArgumentOutOfRangeException(nameof(name), name, null),
+    };
+}
+
+/// <summary>Valores de <c>notifications.outcome</c> (emenda v1.1 da SPEC-0023).</summary>
+internal static class NotificationOutcomeNames
+{
+    public const string ItemChanged = "item_changed";
+    public const string UnknownUser = "unknown_user";
+    public const string Invalid = "invalid";
+
+    public static string ToName(InboxNotificationOutcome outcome) => outcome switch
+    {
+        InboxNotificationOutcome.ItemChanged => ItemChanged,
+        InboxNotificationOutcome.UnknownUser => UnknownUser,
+        InboxNotificationOutcome.Invalid => Invalid,
+        _ => throw new ArgumentOutOfRangeException(nameof(outcome), outcome, null),
+    };
+
+    public static InboxNotificationOutcome FromName(string name) => name switch
+    {
+        ItemChanged => InboxNotificationOutcome.ItemChanged,
+        UnknownUser => InboxNotificationOutcome.UnknownUser,
+        Invalid => InboxNotificationOutcome.Invalid,
         _ => throw new ArgumentOutOfRangeException(nameof(name), name, null),
     };
 }

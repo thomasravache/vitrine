@@ -177,7 +177,7 @@ public sealed class ConnectionTests(PostgresFixture postgres)
             await IdentityApi.AssertProblemAsync(HttpStatusCode.ServiceUnavailable, "ML_NOT_CONFIGURED", complete, cancellationToken);
         }
 
-        Assert.Empty(fake.Calls);
+        Assert.Empty(fake.CallsExceptListingsImport);
     }
 
     public static TheoryData<string, string[]> InvalidCompleteBodies() => new()
@@ -209,7 +209,7 @@ public sealed class ConnectionTests(PostgresFixture postgres)
         var problem = await IdentityApi.AssertProblemAsync(HttpStatusCode.BadRequest, "VALIDATION_FAILED", response, cancellationToken);
         Assert.True(problem.TryGetProperty("errors", out var errors), $"Problem sem errors: {problem}");
         Assert.Equal(invalidFields.Order(StringComparer.Ordinal), errors.EnumerateObject().Select(field => field.Name).Order(StringComparer.Ordinal));
-        Assert.Empty(fake.Calls);
+        Assert.Empty(fake.CallsExceptListingsImport);
     }
 
     /// <summary>Como o state chega inválido em <c>POST /complete</c>.</summary>
@@ -261,7 +261,7 @@ public sealed class ConnectionTests(PostgresFixture postgres)
 
         // Então 400 OAUTH_STATE_INVALID, o ML não recebeu nenhuma chamada e nenhuma conta nova foi gravada
         await IdentityApi.AssertProblemAsync(HttpStatusCode.BadRequest, "OAUTH_STATE_INVALID", response, cancellationToken);
-        Assert.Empty(fake.Calls);
+        Assert.Empty(fake.CallsExceptListingsImport);
         var expectedAccounts = variant == InvalidState.AlreadyUsed ? 1 : 0;
         Assert.Equal(expectedAccounts, await MercadoLivreDatabase.CountAccountsAsync(connectionString, cancellationToken));
     }

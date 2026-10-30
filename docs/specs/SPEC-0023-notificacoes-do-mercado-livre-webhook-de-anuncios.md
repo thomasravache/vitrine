@@ -4,7 +4,7 @@ title: Notificações do Mercado Livre (webhook de anúncios)
 tier: full
 type: feature
 user_facing: false
-status: approved
+status: in-progress
 created: 2026-10-30
 parent: SPEC-0019
 depends_on: []
@@ -85,7 +85,7 @@ O endpoint:
 - **Segurança:**
   - anônimo e sem antiforgery: chamado por servidor, sem cookie;
   - corpo ≤ 16 KB (413);
-  - rate limit de 600/min por IP (`RateLimiting:MercadoLivreNotificationsPerIp`), com 429;
+  - rate limit de 600/min por IP (`RateLimiting:MercadoLivreNotificationsPerIp:PermitLimit`, no padrão de `AuthPerIp`), com 429;
   - nada do corpo é gravado além de `_id`, `topic`, `resource`, `user_id`, `application_id`, `attempts`, `sent` e `received`;
   - `resource` aceito só no formato documentado;
   - nunca reflete o corpo na resposta — IT-04, IT-06, IT-07.
@@ -152,6 +152,9 @@ Evento (Vitrine.MercadoLivre.IntegrationEvents), v1:
 | Abuso | > limite por IP | 429 com `Retry-After` | IT-06 |
 | Anônimo e fora do OpenAPI | sem cookie nem antiforgery | aceito; endpoint na lista `AnonymousEndpoints`; ausente do documento OpenAPI | IT-07 |
 | ML não configurado | sem `ClientId` | 503 ML_NOT_CONFIGURED | IT-04 |
+| `_id` longo | `_id` com mais de 64 caracteres | 400 VALIDATION_FAILED (`errors._id`), nada gravado | UT-02 |
+| Retenção do inbox | processadas há mais de 7 dias; `unknown_user`/`invalid` há mais de 1 dia; não processadas (retentativas esgotadas) aceitas (`accepted_at`) há mais de 7 dias | apagadas pelo job diário; as demais ficam | IT-08 |
+| Chave duplicada | JSON com a mesma chave duas vezes | 400 VALIDATION_FAILED | UT-02 |
 
 ## 7. Artefato B — Plano de Testes (TDD)
 
@@ -179,6 +182,7 @@ Evento (Vitrine.MercadoLivre.IntegrationEvents), v1:
   - o teste de autorização por padrão passa com a entrada `POST /api/v1/mercadolivre/notifications` na lista `AnonymousEndpoints`;
   - o documento OpenAPI gerado não contém esse caminho.
 
+- **IT-08** — Dado linhas do inbox: processada com sucesso há 8 dias e há 1 dia; processada como `unknown_user`/`invalid` há 2 dias e há 1 hora; não processada recebida há 8 dias e há 1 dia — quando a limpeza diária do módulo roda (mensagem recorrente do Wolverine, como `CleanupPendingAuthorizations`), então são apagadas a de sucesso de 8 dias, a `unknown_user`/`invalid` de 2 dias e a não processada de 8 dias; as demais ficam (Emenda v1.2).
 ### 7.4 Testes de Contrato
 - **CT-01** — Dado uma notificação processada, quando um assinante de teste recebe `MercadoLivreItemChanged`, então o payload valida contra o schema v1 (seção 6). A SPEC-0022 consome esse contrato.
 
@@ -211,21 +215,21 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 ## 11. Checklist de Implementação
 <!-- Preenchido na fase PLAN, após a aprovação. Cada fase começa pelos testes. -->
 **Fase 0: Caracterização**
-- [ ] CH-01 escrito, passando no código atual (lista `AnonymousEndpoints` e rate limit por IP atuais), commitado antes de qualquer mudança
+- [x] CH-01 escrito, passando no código atual (lista `AnonymousEndpoints` e rate limit por IP atuais), commitado antes de qualquer mudança
 
 **Fase 1: Validação do payload**
-- [ ] Red: escrever UT-01..UT-02 com a tag `SPEC-0023:<ID>` e confirmar que falham pelo motivo certo
-- [ ] Green: validação do payload e mapeamento de tópicos
-- [ ] Refactor mantendo tudo verde
+- [x] Red: escrever UT-01..UT-02 com a tag `SPEC-0023:<ID>` e confirmar que falham pelo motivo certo
+- [x] Green: validação do payload e mapeamento de tópicos
+- [x] Refactor mantendo tudo verde
 
 **Fase 2: Webhook e inbox**
-- [ ] Red: escrever IT-01..IT-07 e CT-01 com a tag `SPEC-0023:<ID>` e confirmar que falham pelo motivo certo
-- [ ] Green: `POST /api/v1/mercadolivre/notifications` anônimo fora do OpenAPI, 16 KB, 600/min por IP, dedupe por `_id`, inbox e evento `MercadoLivreItemChanged` v1
-- [ ] Refactor mantendo tudo verde
-- [ ] Validar: build + suíte completa + arquitetura (G2/G3)
+- [x] Red: escrever IT-01..IT-07 e CT-01 com a tag `SPEC-0023:<ID>` e confirmar que falham pelo motivo certo
+- [x] Green: `POST /api/v1/mercadolivre/notifications` anônimo fora do OpenAPI, 16 KB, 600/min por IP, dedupe por `_id`, inbox e evento `MercadoLivreItemChanged` v1
+- [x] Refactor mantendo tudo verde
+- [x] Validar: build + suíte completa + arquitetura (G2/G3)
 
 **Fase final: Integração, entrega e documentação**
-- [ ] Review independente (G4)
+- [x] Review independente (G4)
 - [ ] Integração + CI verde (G5) e aprovação (H2)
 - [ ] Deploy no ambiente local prod-like com smoke (G6)
 - [ ] Relatório de Entrega, docs raiz e CHANGELOG (G7)
@@ -235,10 +239,10 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 | Gate | Status | Evidência | Data |
 |---|---|---|---|
 | G0 Spec | PASS | validate: 0 erro(s) — ddc6ebd (árvore suja) | 2026-10-30 |
-| G1 Red | PENDING | | |
-| G2 Green | PENDING | | |
-| G3 Arquitetura | PENDING | | |
-| G4 Review | PENDING | | |
+| G1 Red | PASS | verify G1: PASS; `dotnet test tests/Vitrine.UnitTests && npm --prefix web run test` exit 2 (red: Test run completed with non-success exit code: 2 (see: https://aka.ms/testingplatform/exit) — 189a02e | 2026-10-30 |
+| G2 Green | PASS | build exit 0 (npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts a); test exit 0 (Duration  349ms (environment 55%, transform 22%, import 18%, tests 5%, worker 1%)); lint exit 0 ([0m[34mChecked 40 files in 23[0m[0m[2m[34mms[0m[0m[34m.[0m[0m[34m No fixes app); coverage exit 0 (Coverage: 97%) — 374860e | 2026-10-30 |
+| G3 Arquitetura | PASS | arch_test exit 0 (duration: 1s 587ms) — 374860e | 2026-10-30 |
+| G4 Review | PASS | verify G1+G4: PASS; revisão: Reviewer independente: APPROVED (2ª rodada; notificação forjada → SPEC-0029; retenção v1.2 pelo accepted_at; nit: comparar seller com o ml_user_id lido da conta) — 374860e | 2026-10-30 |
 | G5 Integração & CI | PENDING | | |
 | H2 Integração aprovada | PENDING | | |
 | G6 Deploy | PENDING | | |
@@ -289,3 +293,5 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 <!-- Mudança em spec aprovada: uma linha por emenda. Mudou o contrato? Incremente `contract_version` e rode `spec_graph.py impacted SPEC-0023`. -->
 | Versão do contrato | Data | Mudança | Motivo | Specs impactadas | Aprovado por |
 |---|---|---|---|---|---|
+| v1.1 (contrato esclarecido) | 2026-10-30 | (1) IT-08 cobre a retenção de 7 dias do inbox; (2) `outcome` de sucesso = `item_changed`; (3) métrica: `accepted`/`duplicate`/`ignored_app`/`ignored_topic` contados no recebimento, `invalid` no 400 e no processamento de resource inválido, `unknown_user` no processamento — uma notificação aceita pode contar `accepted` e depois `unknown_user`/`invalid`; (4) `_id` com mais de 64 caracteres → 400 VALIDATION_FAILED; (5) chave `RateLimiting:MercadoLivreNotificationsPerIp:PermitLimit`; (6) fixture no formato documentado com valores fictícios até a SPEC-0024 trazer a cópia oficial | Lacunas apontadas pelo Test-writer no G1 | SPEC-0024 (fixture) | thomas (piloto automático do épico SPEC-0019) |
+| v1.2 | 2026-10-30 | Retenção: `unknown_user`/`invalid` por 1 dia e não processadas (retentativas esgotadas) por 7 dias pelo `accepted_at` (hora do servidor; o `received` vem do payload e pode ser forjado), para limitar o volume do inbox sob abuso; UT-02 cobre JSON com chave duplicada | Achados 2–4 do G4 | nenhuma | thomas (piloto automático do épico SPEC-0019) |

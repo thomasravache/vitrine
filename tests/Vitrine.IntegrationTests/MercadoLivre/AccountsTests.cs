@@ -183,7 +183,7 @@ public sealed class AccountsTests(PostgresFixture postgres)
 
         // Então 403 FORBIDDEN, sem chamar o ML e sem mexer na conta
         await IdentityApi.AssertProblemAsync(HttpStatusCode.Forbidden, "FORBIDDEN", response, cancellationToken);
-        Assert.Empty(fake.Calls);
+        Assert.Empty(fake.CallsExceptListingsImport);
         Assert.Equal(account.AccountId, Assert.Single(await MercadoLivreDatabase.ReadAccountsAsync(connectionString, cancellationToken)).Id);
 
         // E GET /accounts responde 200 ao Member, com a conta do workspace
@@ -288,7 +288,7 @@ public sealed class AccountsTests(PostgresFixture postgres)
 
         // Então nada mudou: nenhuma autorização nova, o ML não foi chamado e a conta continua conectada
         Assert.Equal(pendingBefore, (await MercadoLivreDatabase.ReadPendingAuthorizationsAsync(connectionString, cancellationToken)).Count);
-        Assert.Empty(fake.Calls);
+        Assert.Empty(fake.CallsExceptListingsImport);
         Assert.Equal(account.AccountId, Assert.Single(await MercadoLivreDatabase.ReadAccountsAsync(connectionString, cancellationToken)).Id);
     }
 }

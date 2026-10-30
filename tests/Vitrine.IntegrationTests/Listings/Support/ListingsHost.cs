@@ -42,6 +42,7 @@ internal static class ListingsHost
         ArgumentNullException.ThrowIfNull(factory);
         ArgumentNullException.ThrowIfNull(gateway);
         var account = new ListingsAccount(Guid.NewGuid(), workspaceId, Interlocked.Increment(ref _nextMlUserId));
+        gateway.SetSeller(account.AccountId, account.MlUserId);
         gateway.Put(account.AccountId, items);
         await PublishAsync(factory, Connected(account));
         await ListingsDatabase.WaitForIdleAsync(factory.ConnectionString, account.AccountId, after: null, cancellationToken);
@@ -53,6 +54,7 @@ internal static class ListingsHost
     {
         ArgumentNullException.ThrowIfNull(gateway);
         var account = new ListingsAccount(Guid.NewGuid(), workspaceId, Interlocked.Increment(ref _nextMlUserId));
+        gateway.SetSeller(account.AccountId, account.MlUserId);
         gateway.Put(account.AccountId, items);
         return account;
     }

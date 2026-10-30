@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Vitrine.Listings.Domain.Sync;
+using Vitrine.Listings.Infrastructure.Diagnostics;
 using Vitrine.Listings.Infrastructure.Persistence;
 using Vitrine.MercadoLivre.IntegrationEvents;
 using Vitrine.MercadoLivre.PublicApi;
@@ -10,7 +11,9 @@ namespace Vitrine.Listings.Infrastructure.Messaging;
 
 /// <summary>
 /// Notificação de anúncio alterado (contrato SPEC-0023@1): relê o anúncio no ML e atualiza a cópia (se a leitura não for
-/// mais antiga que ela), apaga (404) ou ignora (conta desconhecida ou em reautorização).
+/// mais antiga que ela), apaga (404) ou ignora (conta desconhecida ou em reautorização). A notificação não é assinada
+/// pelo ML: anúncio de outro vendedor (<c>SellerId</c> diferente do <c>MlUserId</c> da conta) nunca é gravado, e a cópia
+/// local com esse id é apagada (SPEC-0029).
 /// </summary>
 public static class ItemChangedHandler
 {
@@ -26,12 +29,14 @@ public static class ItemChangedHandler
         ListingsModuleDbContext db,
         IMercadoLivreItems items,
         TimeProvider clock,
+        ListingsMetrics metrics,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(message);
         ArgumentNullException.ThrowIfNull(db);
         ArgumentNullException.ThrowIfNull(items);
         ArgumentNullException.ThrowIfNull(clock);
+        ArgumentNullException.ThrowIfNull(metrics);
 
         var state = await db.SyncStates.AsNoTracking()
             .Where(candidate => candidate.AccountId == message.AccountId)
@@ -56,16 +61,25 @@ public static class ItemChangedHandler
 
         switch (result)
         {
+            // Anúncio de outro vendedor (notificação forjada): não entra no catálogo da conta, e uma cópia antiga sai.
+            case MercadoLivreItemResult.Found { Item: var foreign } when foreign.SellerId != message.MlUserId:
+                await DeleteAsync(db, message, cancellationToken);
+                metrics.ItemChange(ItemChangeResults.ForeignItem);
+                break;
+
             // Grava só se a conta ainda existe (linha de sync_states travada) e a leitura não é mais antiga que a cópia.
             case MercadoLivreItemResult.Found { Item: var item } when item.Id == message.ItemId:
                 await ListingsUpsert.ExecuteAsync(db, message.AccountId, syncRunId: null, [item], clock.GetUtcNow(), cancellationToken);
                 break;
 
             case MercadoLivreItemResult.NotFound:
-                await db.Listings
-                    .Where(candidate => candidate.AccountId == message.AccountId && candidate.ItemId == message.ItemId)
-                    .ExecuteDeleteAsync(cancellationToken);
+                await DeleteAsync(db, message, cancellationToken);
                 break;
         }
     }
+
+    private static Task<int> DeleteAsync(ListingsModuleDbContext db, MercadoLivreItemChanged message, CancellationToken cancellationToken) =>
+        db.Listings
+            .Where(candidate => candidate.AccountId == message.AccountId && candidate.ItemId == message.ItemId)
+            .ExecuteDeleteAsync(cancellationToken);
 }

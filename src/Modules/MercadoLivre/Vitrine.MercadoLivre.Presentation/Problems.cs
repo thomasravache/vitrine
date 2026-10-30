@@ -40,6 +40,9 @@ internal static class Problems
     public static ProblemHttpResult AccountInUse() =>
         Problem(StatusCodes.Status409Conflict, MercadoLivreErrorCodes.AccountInUse, "Esta conta do Mercado Livre já está conectada em outro workspace.");
 
+    public static ProblemHttpResult PayloadTooLarge() =>
+        Problem(StatusCodes.Status413PayloadTooLarge, MercadoLivreErrorCodes.PayloadTooLarge, "Corpo da requisição grande demais.");
+
     private static ProblemHttpResult Problem(int status, string code, string title) =>
         TypedResults.Problem(title: title, statusCode: status, extensions: new Dictionary<string, object?> { ["code"] = code });
 }
