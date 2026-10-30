@@ -20,6 +20,7 @@ Cada entrada cita a spec de origem (`SPEC-NNNN`); gere-as com `spec_graph.py rep
 - Gateway interno da API do Mercado Livre: renovação automática do token sem repetir o refresh, reconexão sinalizada por evento, busca de anúncios com `scan` e leitura em lote pelo `/items/bulk` (SPEC-0021)
 - Importação e sincronização dos anúncios do Mercado Livre: importação ao conectar, atualização por notificação, reconciliação diária e sincronização manual; listagem com busca, filtros e paginação e resumo por status (SPEC-0022)
 - Webhook de notificações do Mercado Livre: anúncios alterados no ML são atualizados no Vitrine em instantes, com deduplicação, limite por IP e retenção do registro (SPEC-0023)
+- Simulador do Mercado Livre para desenvolvimento, E2E e ambiente local (`https://ml-simulador.vitrine.localhost`), sem conta real do ML (SPEC-0024)
 
 ### Fixed
 - Testes de arquitetura dão o mesmo resultado localmente e no CI quando um projeto não é referenciado (SPEC-0027)

@@ -265,9 +265,9 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 
 **Fase final: Integração, entrega e documentação**
 - [x] Review independente (G4)
-- [ ] Integração + CI verde (G5) e aprovação (H2)
-- [ ] Deploy no ambiente local prod-like com smoke (G6)
-- [ ] Relatório de Entrega, docs raiz e CHANGELOG (G7)
+- [x] Integração + CI verde (G5) e aprovação (H2)
+- [x] Deploy no ambiente local prod-like com smoke (G6)
+- [x] Relatório de Entrega, docs raiz e CHANGELOG (G7)
 
 ## 12. Registro de Gates
 <!-- Status: PENDING | PASS | FAIL | N/A. PASS e N/A exigem evidência (comando + resultado, SHA, execução de CI, veredito). -->
@@ -280,7 +280,7 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 | G4 Review | PASS | verify G1+G4: PASS; revisão: Reviewer independente: APPROVED (2ª rodada; gitleaks 0 no histórico; notas: caddy-sites no deploy.yml, miniaturas externas no E2E, contrato do lado da requisição coberto pela SPEC-0025) — d36d604 | 2026-10-30 |
 | G5 Integração & CI | PASS | build exit 0 (npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts a); test exit 0 (Duration  415ms (environment 61%, import 18%, transform 17%, tests 4%, worker 1%)); test_integration exit 0 (duration: 3m 47s 180ms); test_e2e exit 0 (30 passed (30.9s)); arch_test exit 0 (duration: 2s 069ms); security_scan exit 0 ([90m6:09PM[0m [32mINF[0m [1mno leaks found[0m); nota: PR #53 CI 8/8 verde + CodeQL (runs/41127127131) — 0986fb1 | 2026-10-30 |
 | H2 Integração aprovada | PASS | política auto-on-green (aprovada por thomas em 2026-10-13); G5 PASS | 2026-10-30 |
-| G6 Deploy | PENDING | | |
+| G6 Deploy | PASS | MANUAL: Deploy local prod-like (deploy/deploy.sh ff46f26 --env-file deploy/local/.env, perfil ml-simulator): health 200 em 4 s; vitrine-ml-simulator-1 no ar; https://ml-simulador.vitrine.localhost/health → 200 pelo Caddy; smoke @smoke 2/2; webhook com ML configurado → 400 para corpo vazio; 0 logs Error/Critical; IT-06 (deploy com o simulador) PASS no worktree; simulador nunca vai a staging/produção (ADR-0016) | 2026-10-30 |
 | G7 Pronto & Docs | PENDING | | |
 
 ## 13. Registro de Impedimentos
@@ -293,37 +293,54 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 <!-- Preenchido no CLOSE (G7). Diz o que foi feito, como, e prova que foi resolvido. Para status implemented o validate exige todas as subseções preenchidas, todo teste do plano com PASS + evidência e a Definição de Pronto toda marcada. -->
 
 ### O que foi entregue
-<!-- comportamento entregue do ponto de vista do usuário/sistema -->
+Simulador do Mercado Livre (`tools/MercadoLivreSimulator`) para testar a jornada inteira sem conta real: página de autorização com vendedores de teste, `/oauth/token` com PKCE e refresh de uso único rotacionado, `/users/me`, busca por offset e scan, `/items/bulk`, notificações e controle `/__sim/*` para os testes. Roda no `aspire run` (recurso `ml-simulator`), na fixture do E2E (`ML_SIMULATOR_URL`) e no ambiente local prod-like em `https://ml-simulador.vitrine.localhost` (perfil `ml-simulator` do Compose + site extra do Caddy). Nunca vai a staging/produção.
 
 ### Como foi feito
-<!-- decisões de implementação, módulos/arquivos principais, desvios e emendas (com versão), dívidas assumidas -->
+- Minimal API em memória, sem pacote novo; massa inicial `VENDEDOR_TESTE` (MLB, 15/6/4 anúncios) e `VENDEDOR_AR` (MLA); página HTML com todo valor escapado e redirect só para `AllowedRedirectUris`.
+- Emenda v1.2 da SPEC-0020: o validador aceita `http://` fora de Development só com `AllowNonOfficialEndpoints=true` (a Api do Compose local fala com `http://ml-simulator:8080`); sem a flag, HTTPS continua obrigatório.
+- Fixtures do ML movidas para `tests/Fixtures/MercadoLivre/` e compartilhadas com os testes de contrato do gateway (SPEC-0021) e do webhook (SPEC-0023): formato documentado, valores sintéticos (a documentação do ML responde 403 a acesso automatizado).
+- Emendas: v1.1 (validador, form, imagem, fim do scan, fixture do E2E, fixtures sintéticas) e v1.2 (`.gitleaksignore` por fingerprint, suíte da SPEC-0005 sem o perfil, lock único no estado).
+- G4 em 2 rodadas: corrigidos o achado do gitleaks no histórico (fingerprint do falso positivo `generic-api-key` em teste, sem exceção inline) e a quebra dos testes de deploy da SPEC-0005 sem a imagem do simulador.
 
 ### Prova de Correção
-<!-- type fix: o teste de regressão falhou antes da correção (commit red + saída) e passa depois (commit green + execução). Outros tipos: "N/A". -->
+N/A — `type: feature`.
 
 ### Verificação
-<!-- Uma linha por teste do plano (todos os IDs da seção 7). Resultado: PASS. Evidência: execução de CI, commit ou relatório. -->
 | Teste | Comportamento | Resultado | Evidência |
 |---|---|---|---|
+| CH-01 | AppHost e Compose local sem o simulador antes da mudança (só `api` e `caddy`; Caddy só `vitrine.localhost`) | PASS | CI PR #53 runs/41127127131 (d36d604); main ff46f26 |
+| UT-01 | PKCE S256 do simulador | PASS | CI PR #53 runs/41127127131 (d36d604); main ff46f26 |
+| UT-02 | Emissão de tokens, refresh de uso único rotacionado, revogação e expiração | PASS | CI PR #53 runs/41127127131 (d36d604); main ff46f26 |
+| UT-03 | Busca por offset até 1000 e por scan com cursor | PASS | CI PR #53 runs/41127127131 (d36d604); main ff46f26 |
+| UT-04 | A Api não referencia o simulador | PASS | CI PR #53 runs/41127127131 (d36d604); main ff46f26 |
+| IT-01 | Fluxo OAuth: página de autorização, decisão, code de 10 min de uso único, token, `invalid_client`, erros em HTML | PASS | CI PR #53 runs/41127127131 (d36d604); main ff46f26 |
+| IT-02 | Vendedores e anúncios: `/__sim/sellers`, `/__sim/items`, `/users/me`, busca, `/items/bulk` | PASS | CI PR #53 runs/41127127131 (d36d604); main ff46f26 |
+| IT-03 | Compose: perfil `ml-simulator` só no `.env.example` local, Caddy com diretório de sites extras, variáveis da Api e do simulador | PASS | CI PR #53 runs/41127127131 (d36d604); main ff46f26 |
+| IT-04 | AppHost: recurso `ml-simulator` só em modo run, fixture do E2E com `ML_SIMULATOR_URL` | PASS | CI PR #53 runs/41127127131 (d36d604); main ff46f26 |
+| IT-05 | `/__sim/notify` entrega a notificação ao webhook | PASS | CI PR #53 runs/41127127131 (d36d604); main ff46f26 |
+| IT-06 | Deploy local com o perfil: simulador acessível pelo Caddy; sem o perfil, não | PASS | CI PR #53 runs/41127127131 (d36d604); main ff46f26 |
+| CT-01 | Respostas do simulador com os campos e tipos das fixtures compartilhadas (as mesmas do gateway) | PASS | CI PR #53 runs/41127127131 (d36d604); main ff46f26 |
 
 ### Definição de Pronto
-- [ ] Todos os testes do plano passando e listados na Verificação
-- [ ] Todo comportamento do Mapa de Comportamentos coberto e verificado
-- [ ] Suíte completa, arquitetura e CI verdes no resultado integrado (G5)
-- [ ] Review independente sem achados blocker/major (G4)
-- [ ] Padrão arquitetural existente mantido, ou desvio coberto por ADR aprovado
-- [ ] Requisitos não-funcionais medidos com evidência (ou N/A justificado)
-- [ ] Disponível no ambiente-alvo via pipeline, com smoke/E2E passando no ambiente (G6)
-- [ ] Observabilidade e rollback prontos conforme o Plano de Rollout
-- [ ] Documentação raiz e CHANGELOG atualizados (G7)
-- [ ] Guia de jornadas e mapa do sistema atualizados quando a entrega muda uma jornada ou um componente (G7)
-- [ ] Pendências registradas como novas specs (ou nenhuma)
+- [x] Todos os testes do plano passando e listados na Verificação
+- [x] Todo comportamento do Mapa de Comportamentos coberto e verificado
+- [x] Suíte completa, arquitetura e CI verdes no resultado integrado (G5)
+- [x] Review independente sem achados blocker/major (G4)
+- [x] Padrão arquitetural existente mantido, ou desvio coberto por ADR aprovado — ADR-0016
+- [x] Requisitos não-funcionais medidos com evidência (ou N/A justificado) — isolamento da produção (UT-04, IT-03, IT-04)
+- [x] Disponível no ambiente-alvo via pipeline, com smoke/E2E passando no ambiente (G6) — ambiente local prod-like
+- [x] Observabilidade e rollback prontos conforme o Plano de Rollout — `/health` do simulador; desligar = tirar o perfil (runbook)
+- [x] Documentação raiz e CHANGELOG atualizados (G7)
+- [x] Guia de jornadas e mapa do sistema atualizados quando a entrega muda uma jornada ou um componente (G7) — N/A: sem `living_docs`; README e runbook atualizados
+- [x] Pendências registradas como novas specs (ou nenhuma)
 
 ### Deploy
-<!-- ambiente(s), versão/tag, data, estratégia, estado da feature flag, execução do pipeline -->
+Ambiente local prod-like, `ghcr.io/thomasravache/vitrine-api:ff46f26` + `vitrine-ml-simulator:local`, 2026-10-30, `deploy/deploy.sh` com o perfil `ml-simulator` (health 200, simulador 200 pelo Caddy, smoke 2/2, 0 logs Error/Critical).
 
 ### Pendências
-<!-- specs criadas para o que ficou de fora, ou "Nenhuma" -->
+- Go-live (SPEC-0009), com o usuário: copiar as fixtures oficiais da documentação do ML (hoje sintéticas) e conferir o formato do `/items/bulk`; `deploy.yml` criar `deploy/caddy-sites/` explicitamente no servidor (hoje o bind o cria vazio).
+- SPEC-0025: interceptar `*.mlstatic.com` no Playwright (as miniaturas do simulador apontam para o CDN real com caminhos inexistentes); o E2E da jornada cobre o lado da requisição do contrato (parâmetros enviados ao ML).
+- Desligar o perfil não derruba um simulador já no ar (`--remove-orphans` não remove serviço de perfil) — anotado no runbook.
 
 ## 15. Emendas
 <!-- Mudança em spec aprovada: uma linha por emenda. Mudou o contrato? Incremente `contract_version` e rode `spec_graph.py impacted SPEC-0024`. -->
