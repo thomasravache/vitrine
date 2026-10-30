@@ -4,8 +4,8 @@
 
 ## Saúde
 
-- Validação (G0): **0 erro(s), 33 aviso(s)** — rode `spec_graph.py validate`
-- Specs: approved 4, in-progress 1, implemented 20
+- Validação (G0): **0 erro(s), 35 aviso(s)** — rode `spec_graph.py validate`
+- Specs: approved 6, in-progress 1, implemented 20
 - Impedimentos: **0 aberto(s)**, 10 resolvido(s)
 
 ## Cobertura de Pilares
@@ -47,13 +47,15 @@ Perfil: **padrao**
 | 2 | SPEC-0024 | Simulador do Mercado Livre para desenvolvimento e E2E | full/M | approved | ✅ pronta | saiu da onda 1: arquivos em comum com SPEC-0023, SPEC-0009 |
 | 3 | SPEC-0025 | Telas de contas e anúncios (jornada conectar-conta) | full/M | approved | ⛔ aguarda implementação de SPEC-0024 |  |
 | 3 | SPEC-0027 | Teste de arquitetura passa localmente com assembly de módulo não referenciado | lite/S | approved | ✅ pronta | saiu da onda 1: arquivos em comum com SPEC-0023; saiu da onda 2: arquivos em comum com SPEC-0024 |
+| 3 | SPEC-0028 | Handlers do Listings não são gerados pelo Wolverine com o gateway real do ML | lite/S | approved | ✅ pronta | saiu da onda 1: arquivos em comum com SPEC-0023; saiu da onda 2: arquivos em comum com SPEC-0024 |
+| 4 | SPEC-0029 | Notificação forjada grava anúncio de outro vendedor no catálogo da conta | lite/S | approved | ✅ pronta | saiu da onda 1: arquivos em comum com SPEC-0023; saiu da onda 2: arquivos em comum com SPEC-0024; saiu da onda 3: arquivos em comum com SPEC-0028 |
 
 ## Épicos
 
 | Épico | Título | Status | Progresso |
 |---|---|---|---|
 | SPEC-0001 | Fundação da plataforma Vitrine | approved | 16/17 implementadas |
-| SPEC-0019 | Conectar conta do Mercado Livre e ver os anúncios | approved | 4/8 implementadas |
+| SPEC-0019 | Conectar conta do Mercado Livre e ver os anúncios | approved | 4/10 implementadas |
 
 ## Grafo de Dependências
 
@@ -75,6 +77,8 @@ flowchart LR
     S0024["SPEC-0024<br/>Simulador do Mercado Livre para desenvo…"]:::approved
     S0025["SPEC-0025<br/>Telas de contas e anúncios (jornada con…"]:::approved
     S0027["SPEC-0027<br/>Teste de arquitetura passa localmente c…"]:::approved
+    S0028["SPEC-0028<br/>Handlers do Listings não são gerados pe…"]:::approved
+    S0029["SPEC-0029<br/>Notificação forjada grava anúncio de ou…"]:::approved
   end
   S0005 --> S0006
   S0006 --> S0007
@@ -91,6 +95,8 @@ flowchart LR
   S0024 --> S0025
   S0020 -. contrato v1 .-> S0025
   S0022 -. contrato v1 .-> S0025
+  S0022 --> S0028
+  S0022 --> S0029
   classDef proposed fill:#fef3c7,stroke:#d97706,color:#111
   classDef approved fill:#dbeafe,stroke:#2563eb,color:#111
   classDef inprogress fill:#ede9fe,stroke:#7c3aed,color:#111
@@ -129,6 +135,8 @@ flowchart LR
 | [SPEC-0025](SPEC-0025-telas-de-contas-e-anuncios-jornada-conectar-conta.md) | Telas de contas e anúncios (jornada conectar-conta) | full | feature | approved | 2026-10-30 | SPEC-0019 | SPEC-0024 | SPEC-0020@1, SPEC-0022@1 |
 | [SPEC-0026](SPEC-0026-usefieldprotection-cria-um-provedor-interno-do-ef-por-protet.md) | UseFieldProtection cria um provedor interno do EF por protetor | lite | fix | implemented | 2026-10-30 | SPEC-0019 | SPEC-0020 | — |
 | [SPEC-0027](SPEC-0027-teste-de-arquitetura-passa-localmente-com-assembly-de-modulo.md) | Teste de arquitetura passa localmente com assembly de módulo não referenciado | lite | fix | approved | 2026-10-30 | SPEC-0019 | — | — |
+| [SPEC-0028](SPEC-0028-handlers-do-listings-nao-sao-gerados-pelo-wolverine-com-o-ga.md) | Handlers do Listings não são gerados pelo Wolverine com o gateway real do ML | lite | fix | approved | 2026-10-30 | SPEC-0019 | SPEC-0022 | — |
+| [SPEC-0029](SPEC-0029-notificacao-forjada-grava-anuncio-de-outro-vendedor-no-catal.md) | Notificação forjada grava anúncio de outro vendedor no catálogo da conta | lite | fix | approved | 2026-10-30 | SPEC-0019 | SPEC-0022 | — |
 
 ## ADRs
 
