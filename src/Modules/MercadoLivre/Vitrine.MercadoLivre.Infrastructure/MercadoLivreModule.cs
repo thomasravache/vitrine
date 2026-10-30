@@ -28,6 +28,15 @@ public static class MercadoLivreModule
     /// <summary>Nome do <c>HttpClient</c> que fala com a API do ML (<c>ApiBaseUrl</c>), com Http.Resilience.</summary>
     public const string HttpClientName = "mercadolivre";
 
+    /// <summary>
+    /// <c>HttpClient</c> das chamadas autenticadas à API do ML (SPEC-0021): <c>AddStandardResilienceHandler</c> (opções
+    /// nomeadas <c>mercadolivre-api-standard</c>) e o handler que anexa o token.
+    /// </summary>
+    public const string ApiHttpClientName = "mercadolivre-api";
+
+    /// <summary><c>HttpClient</c> da renovação do token (<c>POST /oauth/token</c>, SPEC-0021): sem retry.</summary>
+    public const string OAuthHttpClientName = "mercadolivre-oauth";
+
     /// <summary>Meter das métricas do módulo (<c>vitrine.mercadolivre.*</c>).</summary>
     public const string MeterName = "Vitrine.MercadoLivre";
 

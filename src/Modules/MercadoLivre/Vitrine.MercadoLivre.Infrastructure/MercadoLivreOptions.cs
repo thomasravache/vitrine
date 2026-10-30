@@ -25,6 +25,12 @@ public sealed class MercadoLivreOptions
     /// <summary>Em Production, só com <c>true</c> URLs diferentes das oficiais são aceitas (ex.: simulador — SPEC-0024).</summary>
     public bool AllowNonOfficialEndpoints { get; set; }
 
+    /// <summary>IDs por chamada de <c>/items/bulk</c> (SPEC-0021; 1..100).</summary>
+    public int BulkBatchSize { get; set; } = 20;
+
+    /// <summary>Antecedência da renovação do access token (SPEC-0021): renova com menos que isso restante.</summary>
+    public TimeSpan RefreshSkew { get; set; } = TimeSpan.FromMinutes(5);
+
     /// <summary>Verdadeiro quando <c>ClientId</c>, <c>ClientSecret</c> e <c>RedirectUri</c> estão preenchidos.</summary>
     public bool IsConfigured =>
         !string.IsNullOrWhiteSpace(ClientId) && !string.IsNullOrWhiteSpace(ClientSecret) && !string.IsNullOrWhiteSpace(RedirectUri);
