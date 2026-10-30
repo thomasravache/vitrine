@@ -304,8 +304,8 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 | G2 Green | PASS | build exit 0 (npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts a); test exit 0 (at least ~698ms faster with isolate: false — reuses workers across files instead of one pe); lint exit 0 ([0m[34mChecked 66 files in 40[0m[0m[2m[34mms[0m[0m[34m.[0m[0m[34m No fixes app); coverage exit 0 (Coverage: 100%) — 5150604 | 2026-10-30 |
 | G3 Arquitetura | PASS | arch_test exit 0 (duration: 1s 953ms) — 5150604 | 2026-10-30 |
 | G4 Review | PASS | verify G1+G4: PASS; revisão: Reviewer independente: APPROVED (2ª rodada; notas do G4 corrigidas com testes; Sentry → SPEC-0030; critério de polling e limites do keepalive/dedupe como pendências) — 5150604 | 2026-10-30 |
-| G5 Integração & CI | PENDING | | |
-| H2 Integração aprovada | PENDING | | |
+| G5 Integração & CI | PASS | build exit 0 (npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts a); test exit 0 (at least ~714ms faster with isolate: false — reuses workers across files instead of one pe); test_integration exit 0 (duration: 3m 46s 122ms); test_e2e exit 0 (40 passed (1.2m)); arch_test exit 0 (duration: 2s 158ms); security_scan exit 0 ([90m8:02PM[0m [32mINF[0m [1mno leaks found[0m); nota: PR #54 CI 8/8 verde + CodeQL (runs/41140692871) — 47121ac | 2026-10-30 |
+| H2 Integração aprovada | PASS | política auto-on-green (aprovada por thomas em 2026-10-13); G5 PASS | 2026-10-30 |
 | G6 Deploy | PENDING | | |
 | G7 Pronto & Docs | PENDING | | |
 
