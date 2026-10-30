@@ -94,3 +94,19 @@ docker compose -p vitrine down
 - `deploy: migração falhou` → `docker compose -p vitrine run --rm migrate` e leia o log; a versão anterior segue no ar.
 - `health check ... falhou` → `docker compose -p vitrine logs api --tail 100`; a versão anterior já foi restaurada.
 - O script nunca imprime o `.env`; não use `docker compose config` em logs compartilhados (mostra segredos).
+
+## Smoke no ambiente local prod-like (CA interna do Caddy)
+
+O E2E faz chamadas pelo Node (controle `/__sim` do simulador) e valida o certificado. Exporte a raiz da CA local do
+Caddy e aponte o Node para ela (o `smoke_test` do `docs/specs/sdd-config.yml` já faz isso quando `BASE_URL` é
+`*.localhost`):
+
+```bash
+docker compose -p vitrine cp caddy:/data/caddy/pki/authorities/local/root.crt /tmp/vitrine-caddy-root.crt
+NODE_EXTRA_CA_CERTS=/tmp/vitrine-caddy-root.crt BASE_URL=https://vitrine.localhost \
+  ML_SIMULATOR_URL=https://ml-simulador.vitrine.localhost npm --prefix web run e2e -- --grep @smoke
+```
+
+A raiz é gerada pelo Caddy no primeiro start e fica no volume `/data`; se o volume for recriado, exporte de novo. Sem
+`NODE_EXTRA_CA_CERTS`, a jornada `conectar-conta` falha com `unable to get local issuer certificate`. Staging e produção
+usam certificados públicos e não definem `ML_SIMULATOR_URL` (a jornada `conectar-conta` é pulada com motivo).

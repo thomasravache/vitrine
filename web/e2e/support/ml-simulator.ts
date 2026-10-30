@@ -1,9 +1,20 @@
 import { randomUUID } from "node:crypto";
-import { type APIRequestContext, expect, type Page } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
 import { warnSeriousA11yViolations } from "./axe.ts";
+import { nodeRequest } from "./local-http.ts";
 
 // SPEC-0025: apoio do E2E da jornada conectar-conta contra o simulador do Mercado Livre (SPEC-0024). Cada teste cria
-// o próprio vendedor pelo controle /__sim; nada depende da massa inicial compartilhada.
+// o próprio vendedor pelo controle /__sim; nada depende da massa inicial compartilhada. O controle sai do Node por
+// nodeRequest (resolve *.localhost para loopback no ambiente local prod-like).
+
+/** Motivo do skip quando não há simulador (staging/produção): a jornada precisa dele para autorizar no "ML". */
+export const NO_SIMULATOR_REASON =
+  "sem ML_SIMULATOR_URL: o ambiente não tem o simulador do Mercado Livre (staging/produção); a jornada " +
+  "conectar-conta só é provada contra o simulador (AppHost ou ambiente local prod-like)";
+
+export function hasSimulator(): boolean {
+  return Boolean(process.env.ML_SIMULATOR_URL);
+}
 
 export interface SimSeller {
   id: number;
@@ -24,45 +35,45 @@ export function simulatorUrl(): string {
 
 /** Cria um vendedor novo no simulador (padrão: MLB com 15 ativos, 6 pausados e 4 encerrados). */
 export async function createSimSeller(
-  request: APIRequestContext,
   options: { siteId?: string; active?: number; paused?: number; closed?: number } = {},
 ): Promise<SimSeller> {
   const nickname = `LOJA_E2E_${randomUUID().replaceAll("-", "").slice(0, 10).toUpperCase()}`;
-  const response = await request.post(`${simulatorUrl()}/__sim/sellers`, {
-    data: { nickname, ...options },
+  const response = await nodeRequest("POST", `${simulatorUrl()}/__sim/sellers`, {
+    nickname,
+    ...options,
   });
-  expect(response.status(), await response.text()).toBe(201);
-  return (await response.json()) as SimSeller;
+  expect(response.status, response.text).toBe(201);
+  return JSON.parse(response.text) as SimSeller;
 }
 
 /** Revoga os tokens do vendedor no simulador (o refresh passa a falhar com invalid_grant). */
-export async function revokeSeller(request: APIRequestContext, sellerId: number): Promise<void> {
-  const revoked = await request.post(`${simulatorUrl()}/__sim/sellers/${sellerId}/revoke`);
-  expect(revoked.status()).toBe(204);
-  const expired = await request.post(
+export async function revokeSeller(sellerId: number): Promise<void> {
+  const revoked = await nodeRequest("POST", `${simulatorUrl()}/__sim/sellers/${sellerId}/revoke`);
+  expect(revoked.status, revoked.text).toBe(204);
+  const expired = await nodeRequest(
+    "POST",
     `${simulatorUrl()}/__sim/sellers/${sellerId}/expire-access-token`,
   );
-  expect(expired.status()).toBe(204);
+  expect(expired.status, expired.text).toBe(204);
 }
 
 /** Muda o título de um anúncio no simulador e envia a notificação do ML para a Api. */
 export async function changeTitleAndNotify(
-  request: APIRequestContext,
   sellerId: number,
   itemId: string,
   title: string,
 ): Promise<void> {
-  const changed = await request.post(
+  const changed = await nodeRequest(
+    "POST",
     `${simulatorUrl()}/__sim/sellers/${sellerId}/items/${itemId}`,
-    {
-      data: { title },
-    },
+    { title },
   );
-  expect(changed.status(), await changed.text()).toBe(200);
-  const notified = await request.post(`${simulatorUrl()}/__sim/notify`, {
-    data: { userId: sellerId, itemId },
+  expect(changed.status, changed.text).toBe(200);
+  const notified = await nodeRequest("POST", `${simulatorUrl()}/__sim/notify`, {
+    userId: sellerId,
+    itemId,
   });
-  expect(notified.status(), await notified.text()).toBe(202);
+  expect(notified.status, notified.text).toBe(202);
 }
 
 /**
