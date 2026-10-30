@@ -17,8 +17,9 @@ public static class SolutionArchitecture
         .Build());
 
     /// <summary>
-    /// Todo projeto .csproj em <c>src/</c> entra nas regras, referenciado ou não pelo host: o assembly vem da pasta
-    /// de saída dos testes ou, se não estiver lá, da saída do próprio projeto (mesma configuração de build).
+    /// Todo projeto .csproj em <c>src/</c> entra nas regras. O assembly vem só da pasta de saída dos testes (como no
+    /// job <c>architecture</c> do CI, que compila só este projeto): projeto que não chega lá por referência falha o
+    /// carregamento, em vez de passar localmente por um <c>src/**/bin</c> antigo (SPEC-0027).
     /// </summary>
     public static Architecture Load() => Architecture.Value;
 
@@ -34,7 +35,9 @@ public static class SolutionArchitecture
 
     /// <summary>
     /// Carrega o assembly de cada projeto .csproj em <c>src/</c> de <paramref name="repositoryRoot"/>, procurando-o
-    /// em <paramref name="outputDirectory"/> (saída do projeto de testes).
+    /// só em <paramref name="outputDirectory"/> (saída do projeto de testes). <paramref name="configuration"/> e
+    /// <paramref name="targetFramework"/> ficam no contrato do carregador, mas não abrem mais o fallback para
+    /// <c>src/**/bin</c>: assembly ausente da saída é projeto não referenciado (<see cref="InvalidOperationException"/>).
     /// </summary>
     public static IReadOnlyList<Assembly> LoadProjectAssemblies(
         string repositoryRoot,
@@ -51,29 +54,32 @@ public static class SolutionArchitecture
                 .Split(Path.DirectorySeparatorChar)
                 .Any(segment => ExcludedSegments.Contains(segment, StringComparer.OrdinalIgnoreCase)))
             .Order(StringComparer.Ordinal)
-            .Select(project => LoadProjectAssembly(project, output, configuration, targetFramework))
+            .Select(project => LoadProjectAssembly(project, output))
             .ToList();
     }
 
-    private static Assembly LoadProjectAssembly(
-        string project,
-        string outputDirectory,
-        string configuration,
-        string targetFramework)
+    private static Assembly LoadProjectAssembly(string project, string outputDirectory)
     {
         var name = Path.GetFileNameWithoutExtension(project);
-        var candidates = new[]
+        var path = Path.Combine(outputDirectory, name + ".dll");
+        if (!File.Exists(path))
         {
-            Path.Combine(outputDirectory, name + ".dll"),
-            Path.Combine(Path.GetDirectoryName(project)!, "bin", configuration, targetFramework, name + ".dll"),
-        };
-        var path = candidates.FirstOrDefault(File.Exists)
-            ?? throw new InvalidOperationException(
-                $"Assembly de '{project}' não encontrado ({string.Join(", ", candidates)}). Compile a solução antes.");
+            throw new InvalidOperationException(
+                $"O projeto '{name}' ({project}) não é referenciado pelos projetos que chegam ao Vitrine.ArchitectureTests: "
+                + $"'{path}' não existe. Referencie-o a partir da solução — a camada Application do módulo deve referenciar "
+                + "seu IntegrationEvents/PublicApi — em vez de depender de um build da solução inteira.");
+        }
 
-        return Path.GetDirectoryName(path) == outputDirectory
-            ? Assembly.Load(AssemblyName.GetAssemblyName(path))
-            : Assembly.LoadFile(path);
+        try
+        {
+            // Referenciado: resolvido pelo deps.json do projeto de testes.
+            return Assembly.Load(AssemblyName.GetAssemblyName(path));
+        }
+        catch (FileNotFoundException)
+        {
+            // Copiado para a saída sem entrar no deps.json (o AppHost, executável): carregado pelo caminho, na mesma pasta.
+            return Assembly.LoadFile(path);
+        }
     }
 
     private static string RepositoryRoot()
