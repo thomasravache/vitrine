@@ -19,6 +19,10 @@ const SENSITIVE_NAME_FRAGMENTS = [
 const EMAIL_PATTERN = /[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}/g;
 const CREDENTIAL_PATTERN = /\b(Bearer|Basic)\s+[A-Za-z0-9\-._~+/]+=*/gi;
 const NAME_VALUE_PATTERN = /([A-Za-z0-9_.%\-[\]]+)=([^&\s#;,"']+)/g;
+// Parâmetros do OAuth (SPEC-0030): mascarados pelo nome exato, para não pegar `status_code`, `postcode` etc.
+const OAUTH_PARAM_NAMES = new Set(["code", "state"]);
+// Volta do OAuth do ML (SPEC-0025), absoluta ou relativa: a query inteira some (SPEC-0030).
+const OAUTH_RETURN_QUERY_PATTERN = /(\/contas\/mercado-livre\/retorno)\?[^\s#"']*/g;
 
 export function isSensitiveName(name: string): boolean {
   const normalized = name.toLowerCase().replace(/[^\p{L}\p{N}]/gu, "");
@@ -33,11 +37,20 @@ function decode(name: string): string {
   }
 }
 
-/** Mascara e-mails, credenciais Bearer/Basic e o valor de pares `nome=valor` de nome sensível (query, URL). */
+function isSensitiveParam(name: string): boolean {
+  const decoded = decode(name);
+  return OAUTH_PARAM_NAMES.has(decoded) || isSensitiveName(decoded);
+}
+
+/**
+ * Mascara e-mails, credenciais Bearer/Basic e o valor de pares `nome=valor` de nome sensível (query, URL), inclusive
+ * `code`/`state` do OAuth; a query da volta do OAuth do ML é removida inteira.
+ */
 export function maskText(text: string): string {
   return text
+    .replace(OAUTH_RETURN_QUERY_PATTERN, "$1")
     .replace(NAME_VALUE_PATTERN, (pair, name: string) =>
-      isSensitiveName(decode(name)) ? `${name}=${MASK}` : pair,
+      isSensitiveParam(name) ? `${name}=${MASK}` : pair,
     )
     .replace(EMAIL_PATTERN, MASK)
     .replace(CREDENTIAL_PATTERN, `$1 ${MASK}`);

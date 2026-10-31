@@ -146,3 +146,108 @@ describe("Sentry da SPA", () => {
     },
   );
 });
+
+// SPEC-0030: o `code` e o `state` da volta do OAuth (ML) nunca saem da SPA, nem pelos breadcrumbs nem pela URL do evento.
+const OAUTH_CODE = "TG-abc123";
+const OAUTH_STATE = "xyz789";
+const OAUTH_RETURN = `/contas/mercado-livre/retorno?code=${OAUTH_CODE}&state=${OAUTH_STATE}`;
+const OTHER_ROUTE = "/painel?code=1&state=2";
+const OAUTH_PARAM_PATTERN = /(?:^|[?&#;])(code|state)=([^&#\s"]*)/g;
+
+function expectNoOAuthValues(value: unknown): void {
+  const text = JSON.stringify(value);
+  for (const secret of [OAUTH_CODE, OAUTH_STATE]) {
+    expect(text, `"${secret}" saiu para o Sentry: ${text}`).not.toContain(secret);
+  }
+  // `code=1&state=2` não dá para procurar por substring; todo `code`/`state` que sobrar tem de estar mascarado.
+  const strings: string[] = [];
+  JSON.stringify(value, (_key, item: unknown) => {
+    if (typeof item === "string") {
+      strings.push(item);
+    }
+    return item;
+  });
+  for (const item of strings) {
+    for (const [, name, paramValue] of item.matchAll(OAUTH_PARAM_PATTERN)) {
+      expect(paramValue, `${name} saiu sem máscara para o Sentry: ${item}`).toBe("***");
+    }
+  }
+}
+
+describe("Sentry da SPA — retorno do OAuth", () => {
+  beforeEach(() => {
+    vi.mocked(Sentry.init).mockClear();
+  });
+
+  it.each<[string, TestBreadcrumb]>([
+    [
+      "navegação saindo do retorno do OAuth",
+      {
+        category: "navigation",
+        data: { from: OAUTH_RETURN, to: "/contas/mercado-livre/retorno" },
+      },
+    ],
+    [
+      "navegação entrando no retorno do OAuth",
+      {
+        category: "navigation",
+        data: { from: "/contas", to: `https://vitrine.example${OAUTH_RETURN}` },
+      },
+    ],
+    [
+      "navegação com code/state em outra rota",
+      { category: "navigation", data: { from: OTHER_ROUTE, to: "/painel" } },
+    ],
+    [
+      "fetch",
+      {
+        category: "fetch",
+        data: { method: "GET", url: `https://vitrine.example${OAUTH_RETURN}`, status_code: 200 },
+      },
+    ],
+    [
+      "xhr",
+      {
+        category: "xhr",
+        data: { method: "GET", url: `https://vitrine.example${OTHER_ROUTE}`, status_code: 200 },
+      },
+    ],
+    [
+      "navegação com mensagem",
+      { category: "navigation", message: `navegou de ${OAUTH_RETURN} para ${OTHER_ROUTE}` },
+    ],
+  ])("SPEC-0030:UT-01 — breadcrumb de %s sai sem os valores de code/state", (_, breadcrumb) => {
+    // Dado o Sentry da SPA inicializado com DSN de teste
+    const options = initWithDsn();
+    expect(options.beforeBreadcrumb, "beforeBreadcrumb não configurado").toBeTypeOf("function");
+
+    // Quando o breadcrumb traz code/state na URL
+    const sent = options.beforeBreadcrumb?.(structuredClone(breadcrumb), {});
+
+    // Então nenhum valor de code/state sai da SPA
+    expect(sent).not.toBeNull();
+    expectNoOAuthValues(sent);
+  });
+
+  it("SPEC-0030:UT-01 — evento na tela de retorno do OAuth sai sem code/state na URL", () => {
+    // Dado o Sentry da SPA inicializado com DSN de teste
+    const options = initWithDsn();
+    expect(options.beforeSend, "beforeSend não configurado").toBeTypeOf("function");
+
+    // Quando um erro acontece na tela de retorno do OAuth (e em outra rota com code/state)
+    const noRetorno = options.beforeSend?.(
+      { message: "Falha", request: { url: `https://vitrine.example${OAUTH_RETURN}` } },
+      {},
+    );
+    const emOutraRota = options.beforeSend?.(
+      { message: "Falha", request: { url: `https://vitrine.example${OTHER_ROUTE}` } },
+      {},
+    );
+
+    // Então a URL do evento sai sem os valores de code/state
+    expect(noRetorno).not.toBeNull();
+    expect(emOutraRota).not.toBeNull();
+    expectNoOAuthValues(noRetorno);
+    expectNoOAuthValues(emOutraRota);
+  });
+});
