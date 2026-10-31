@@ -4,7 +4,7 @@ title: Code e state do OAuth podem chegar ao Sentry pelos breadcrumbs de navega�
 tier: lite
 type: fix
 user_facing: false
-status: in-progress
+status: implemented
 created: 2026-10-30
 parent: SPEC-0019
 depends_on: [SPEC-0025]
@@ -60,9 +60,9 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 
 **Fase final: Integração, entrega e documentação**
 - [x] Review independente (G4)
-- [ ] Integração + CI verde (G5) e aprovação (H2)
-- [ ] Deploy no ambiente local prod-like com smoke (G6)
-- [ ] Relatório de Entrega e CHANGELOG (G7)
+- [x] Integração + CI verde (G5) e aprovação (H2)
+- [x] Deploy no ambiente local prod-like com smoke (G6)
+- [x] Relatório de Entrega e CHANGELOG (G7)
 
 ## 8. Registro de Gates
 <!-- Status: PENDING | PASS | FAIL | N/A. PASS e N/A exigem evidência. -->
@@ -75,8 +75,8 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 | G4 Review | PASS | verify G1+G4: PASS; revisão: Reviewer independente: APPROVED_WITH_NOTES (0 blocker/major; notas: caixa de code/state, chaves de objeto em console, barra final — hoje sem caminho de vazamento; tracing/replay desligados) — 0852599 | 2026-10-30 |
 | G5 Integração & CI | PASS | build exit 0 (npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts a); test exit 0 (learn more: https://vitest.dev/guide/improving-performance#test-environments); test_integration exit 0 (duration: 3m 46s 803ms); test_e2e exit 0 (40 passed (1.2m)); arch_test exit 0 (duration: 1s 804ms); security_scan exit 0 ([90m9:06PM[0m [32mINF[0m [1mno leaks found[0m); nota: PR #56 CI 8/8 verde + CodeQL (runs/41146891322) — 025f90a | 2026-10-30 |
 | H2 Integração aprovada | PASS | política auto-on-green (aprovada por thomas em 2026-10-13); G5 PASS | 2026-10-30 |
-| G6 Deploy | PENDING | | |
-| G7 Pronto & Docs | PENDING | | |
+| G6 Deploy | PASS | MANUAL: Deploy local prod-like (deploy/deploy.sh 0b9affd + simulador): health 200 em 4 s; smoke do sdd-config 4/4 (acesso + conectar-conta, desktop e mobile), reinício do simulador, smoke de novo 4/4; 0 logs Error/Critical; staging/produção na SPEC-0009 | 2026-10-30 |
+| G7 Pronto & Docs | PASS | Relatório de Entrega e Definição de Pronto: ok — cf8bb5b | 2026-10-30 |
 
 ## 9. Registro de Impedimentos
 <!-- Toda parada é registrada pelo Architect com `spec_graph.py impede` e fechada com `resolve` — não edite à mão. Tipos: spec (spec errada/incompleta → resolve com Emenda) | decisão (só o humano decide → resposta ou ADR) | trabalho (falta algo que exige código → SPEC-NNNN nova) | externo (acesso, ambiente, terceiro → ação tomada) | falha (3 FAILs seguidos no mesmo gate → diagnóstico e decisão). Com impedimento aberto a spec aparece como parada no INDEX e não pode ser fechada. -->
@@ -87,28 +87,35 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 <!-- Preenchido no CLOSE (G7). Para status implemented o validate exige tudo preenchido, todo teste do plano com PASS + evidência e a Definição de Pronto marcada. -->
 
 ### O que foi entregue
+O `code` e o `state` do retorno do OAuth do Mercado Livre não chegam mais ao Sentry da SPA: a query de `/contas/mercado-livre/retorno` é removida e os parâmetros `code`/`state` são mascarados em qualquer URL ou texto de breadcrumbs e eventos.
 
 ### Como foi feito
+- `web/src/observability/sentry.ts` (`maskText`): remove a query do retorno do OAuth e mascara `code`/`state` por nome exato (`code=***`), sem afetar `status_code`/`postcode`. `beforeSend` e `beforeBreadcrumb` já passavam por `maskText`; tracing e replay estão desligados.
+- Notas aceitas no G4: caixa alta em `Code`/`STATE` e chaves `code`/`state` em objetos de `console.log` não são mascaradas (nenhum caminho real hoje); ligar tracing/replay exige máscara própria (`beforeSendTransaction`/`beforeSendSpan`).
 
 ### Prova de Correção
-<!-- type fix: teste de regressão falhou antes (commit red + saída) e passa depois (commit green + execução). Outros tipos: "N/A". -->
+- Red: UT-01 (`0e7701b`) — `"TG-abc123" saiu para o Sentry` e `code saiu sem máscara: /painel?code=1&state=2`.
+- Green: fix `0852599`; 56/56 testes da SPA; CI do PR #56 (runs/41146891322) verde.
 
 ### Verificação
 | Teste | Comportamento | Resultado | Evidência |
 |---|---|---|---|
+| UT-01 | Breadcrumbs (navegação, fetch, xhr, message) e `request.url` do evento sem `code`/`state` do OAuth | PASS | CI PR #56 runs/41146891322 (0852599); main 50fe336 |
 
 ### Definição de Pronto
-- [ ] Teste de regressão falhou antes e passa depois da correção
-- [ ] Suíte completa, arquitetura e CI verdes (G2, G3, G5)
-- [ ] Review independente sem achados blocker/major (G4)
-- [ ] Padrão existente mantido
-- [ ] Disponível no ambiente-alvo via pipeline (G6)
-- [ ] Documentação/CHANGELOG atualizados quando aplicável (G7)
-- [ ] Outras ocorrências registradas como novas specs (ou nenhuma)
+- [x] Teste de regressão falhou antes e passa depois da correção
+- [x] Suíte completa, arquitetura e CI verdes (G2, G3, G5)
+- [x] Review independente sem achados blocker/major (G4)
+- [x] Padrão existente mantido
+- [x] Disponível no ambiente-alvo via pipeline (G6)
+- [x] Documentação/CHANGELOG atualizados quando aplicável (G7)
+- [x] Outras ocorrências registradas como novas specs (ou nenhuma)
 
 ### Deploy
+Ambiente local prod-like, imagem `0b9affd` (inclui `50fe336`), 2026-10-30; smoke 4/4. Staging/produção na SPEC-0009.
 
 ### Pendências
+Nenhuma.
 
 ## 11. Emendas
 <!-- Mudança em spec aprovada: uma linha por emenda, aprovada pelo humano. -->

@@ -3,7 +3,7 @@ id: SPEC-0019
 title: Conectar conta do Mercado Livre e ver os anúncios
 tier: epic
 type: feature
-status: approved
+status: implemented
 created: 2026-10-30
 depends_on: [SPEC-0006, SPEC-0008]
 adrs: [ADR-0001, ADR-0006, ADR-0007, ADR-0010, ADR-0014, ADR-0016]
@@ -141,12 +141,12 @@ Contratos entre as filhas:
 - **IDs do ML acima de Int32:** `long` em todo lugar (SPEC-0020/0022).
 
 ## 7. Critérios de Aceite do Épico
-- [ ] O vendedor conecta uma conta do ML e vê seus anúncios no celular e no desktop — SPEC-0025:E2E-01.
-- [ ] Os tokens do ML ficam cifrados no banco e nunca aparecem em resposta da API nem em log — SPEC-0020:IT-07.
-- [ ] Access token expirado é renovado sem ação do vendedor; refresh recusado leva a conta a "reconectar necessário" e a tela mostra isso — SPEC-0021:IT-02, SPEC-0025:E2E-02.
-- [ ] Anúncio alterado no ML aparece atualizado após a notificação, e notificação perdida é recuperada pela reconciliação — SPEC-0023:IT-01, SPEC-0022:IT-09, SPEC-0022:IT-05.
-- [ ] Desconectar apaga os tokens e os anúncios da conta e some da tela — SPEC-0020:IT-05, SPEC-0022:IT-06, SPEC-0025:E2E-03.
-- [ ] Um workspace não vê contas nem anúncios de outro — SPEC-0020:IT-08, SPEC-0022:IT-07.
+- [x] O vendedor conecta uma conta do ML e vê seus anúncios no celular e no desktop — SPEC-0025:E2E-01.
+- [x] Os tokens do ML ficam cifrados no banco e nunca aparecem em resposta da API nem em log — SPEC-0020:IT-07.
+- [x] Access token expirado é renovado sem ação do vendedor; refresh recusado leva a conta a "reconectar necessário" e a tela mostra isso — SPEC-0021:IT-02, SPEC-0025:E2E-02.
+- [x] Anúncio alterado no ML aparece atualizado após a notificação, e notificação perdida é recuperada pela reconciliação — SPEC-0023:IT-01, SPEC-0022:IT-09, SPEC-0022:IT-05.
+- [x] Desconectar apaga os tokens e os anúncios da conta e some da tela — SPEC-0020:IT-05, SPEC-0022:IT-06, SPEC-0025:E2E-03.
+- [x] Um workspace não vê contas nem anúncios de outro — SPEC-0020:IT-08, SPEC-0022:IT-07.
 
 ## 8. Questões em Aberto
 - [x] Quantas contas do ML por workspace? — Várias, sem limite neste épico (ADR-0007: "um cliente pode ter várias contas"). O limite por plano vem do épico de assinatura. (Architect, 2026-10-30, a confirmar no H1)
@@ -164,6 +164,48 @@ Uma aprovação humana cobre o épico e as specs filhas apresentadas junto com e
 |---|---|---|---|---|---|---|---|---|
 
 ## 11. Relatório de Entrega
+
+### O que foi entregue
+O vendedor conecta uma ou mais contas do Mercado Livre pelo OAuth oficial (PKCE) e vê seus anúncios no celular e no desktop: busca, filtros por status e conta, sincronização manual e desconexão. A cópia local dos anúncios se atualiza sozinha pelas notificações do ML e por uma reconciliação diária; tokens ficam cifrados e nunca chegam à SPA. Tudo roda localmente, sem custo e sem conta real, com um simulador do ML (`https://ml-simulador.vitrine.localhost`).
+
+| Spec | Entrega | PR |
+|---|---|---|
+| SPEC-0020 | Módulo `MercadoLivre`: conectar/desconectar (OAuth PKCE, `state` de uso único, tokens cifrados) | #47 |
+| SPEC-0026 | `UseFieldProtection` sem provedor interno do EF por protetor (dívida do G4 da 0020) | #48 |
+| SPEC-0021 | Gateway da API do ML: renovação sem repetir o refresh, reconexão por evento, `scan` e `/items/bulk` | #49 |
+| SPEC-0022 | Módulo `Listings`: importação, sincronização, reconciliação por estado persistido, API de listagem | #50 |
+| SPEC-0023 | Webhook de notificações (anônimo, ≤ 16 KB, rate limit, inbox com retenção) | #51 |
+| SPEC-0028 | Handlers do Listings gerados pelo Wolverine com o gateway real | #51 |
+| SPEC-0029 | Notificação forjada não grava anúncio de outro vendedor | #51 |
+| SPEC-0027 | Testes de arquitetura iguais localmente e no CI | #52 |
+| SPEC-0024 | Simulador do ML (AppHost, E2E e ambiente local) | #53 |
+| SPEC-0025 | Telas Painel, Contas, retorno do OAuth e Anúncios + jornada E2E `conectar-conta` | #54, #55 |
+| SPEC-0030 | `code`/`state` do OAuth fora do Sentry | #56 |
+| SPEC-0031 | Simulador sem IDs repetidos após reinício | #57 |
+
+### Como foi feito
+Seis ondas sequenciais (arquivos compartilhados do host), cada spec com Test-writer → Implementer → Reviewer independentes, PR com CI 8/8 verde e merge commit (política auto-on-green), deploy no ambiente local prod-like com smoke. Cinco specs de correção nasceram de achados das revisões e do smoke (0026–0031): duas eram falhas de segurança ou de funcionamento real (0028: sincronização não rodaria com o gateway real; 0029: notificação forjada). ADR-0016 (simulador) aceita; emenda v5 da SPEC-0008 (CSP `img-src` do CDN do ML e webhook anônimo).
+
+### Verificação dos critérios de aceite
+| Critério | Testes | Resultado |
+|---|---|---|
+| Conectar conta e ver anúncios no celular e no desktop | SPEC-0025:E2E-01 | PASS (CI #54/#55; smoke local 4/4) |
+| Tokens cifrados, fora de respostas e logs | SPEC-0020:IT-07 | PASS (CI #47) |
+| Renovação automática; refresh recusado → "reconectar" na tela | SPEC-0021:IT-02, SPEC-0025:E2E-02 | PASS (CI #49, #54) |
+| Notificação atualiza o anúncio; reconciliação recupera a perdida | SPEC-0023:IT-01, SPEC-0022:IT-09, SPEC-0022:IT-05 | PASS (CI #51, #50) |
+| Desconectar apaga tokens e anúncios e some da tela | SPEC-0020:IT-05, SPEC-0022:IT-06, SPEC-0025:E2E-03 | PASS (CI #47, #50, #54) |
+| Isolamento entre workspaces | SPEC-0020:IT-08, SPEC-0022:IT-07 | PASS (CI #47, #50) |
+
+### Deploy
+Ambiente local prod-like, `ghcr.io/thomasravache/vitrine-api:0b9affd` + `vitrine-ml-simulator:local`, 2026-10-30: health 200, smoke 4/4 antes e depois de reiniciar o simulador, 0 logs Error/Critical. Staging/produção: SPEC-0009 (go-live com o usuário).
+
+### Pendências (go-live, SPEC-0009, com o usuário)
+- Criar o app no DevCenter do ML (1 por titular no Brasil; redirect HTTPS; PKCE ligado), cadastrar a URL do webhook e testar com um usuário de teste real.
+- Copiar as fixtures oficiais da documentação do ML (hoje sintéticas, a documentação bloqueia acesso automatizado) e conferir o formato do `/items/bulk`.
+- Allowlist dos IPs do ML no Caddy (obrigatória) e rate limit por /64 em IPv6; criar `deploy/caddy-sites/` explicitamente no servidor.
+- `ML_SIMULATOR_URL` sem valor no smoke de staging (a jornada `conectar-conta` é pulada com motivo); permissão para criar a extensão `pg_trgm` se o banco virar gerenciado.
+- Revogar a autorização no ML ao desconectar (endpoint não verificado).
+- Wolverine 7.0: revisar handlers combinados por tipo de mensagem.
 
 ## 12. Emendas
 | Versão | Data | Mudança | Motivo | Specs impactadas | Aprovado por |

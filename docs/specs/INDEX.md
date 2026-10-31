@@ -4,8 +4,8 @@
 
 ## Saúde
 
-- Validação (G0): **0 erro(s), 41 aviso(s)** — rode `spec_graph.py validate`
-- Specs: approved 1, in-progress 2, implemented 26
+- Validação (G0): **0 erro(s), 42 aviso(s)** — rode `spec_graph.py validate`
+- Specs: approved 1, implemented 28
 - Impedimentos: **0 aberto(s)**, 11 resolvido(s)
 
 ## Cobertura de Pilares
@@ -36,14 +36,12 @@ Perfil: **padrao**
 
 ## Plano de Execução
 
-**Em andamento:** SPEC-0030, SPEC-0031  
+**Em andamento:** —  
 **Paradas por impedimento:** —  
 **Próximo lote:** SPEC-0009
 
 | Onda | Spec | Título | Tier/Tam. | Status | Prontidão | Observação |
 |---|---|---|---|---|---|---|
-| 1 | SPEC-0030 | Code e state do OAuth podem chegar ao Sentry pelos breadcrumbs de navegação da SPA | lite/S | in-progress | 🔄 em andamento |  |
-| 1 | SPEC-0031 | Simulador do ML repete IDs de vendedor depois de reiniciar | lite/S | in-progress | 🔄 em andamento |  |
 | 1 | SPEC-0009 | Provisionamento na nuvem e go-live | full/M | approved | ✅ pronta |  |
 
 ## Épicos
@@ -51,7 +49,7 @@ Perfil: **padrao**
 | Épico | Título | Status | Progresso |
 |---|---|---|---|
 | SPEC-0001 | Fundação da plataforma Vitrine | approved | 16/17 implementadas |
-| SPEC-0019 | Conectar conta do Mercado Livre e ver os anúncios | approved | 10/12 implementadas |
+| SPEC-0019 | Conectar conta do Mercado Livre e ver os anúncios | implemented | 12/12 implementadas |
 
 ## Grafo de Dependências
 
@@ -66,12 +64,6 @@ flowchart LR
     S0008["SPEC-0008<br/>Segurança de base"]:::implemented
     S0009["SPEC-0009<br/>Provisionamento na nuvem e go-live"]:::approved
   end
-  subgraph E0019["SPEC-0019 · Conectar conta do Mercado Livre e ver os anúncios"]
-    S0024["SPEC-0024<br/>Simulador do Mercado Livre para desenvo…"]:::implemented
-    S0025["SPEC-0025<br/>Telas de contas e anúncios (jornada con…"]:::implemented
-    S0030["SPEC-0030<br/>Code e state do OAuth podem chegar ao S…"]:::inprogress
-    S0031["SPEC-0031<br/>Simulador do ML repete IDs de vendedor …"]:::inprogress
-  end
   S0005 --> S0006
   S0006 --> S0007
   S0006 -. contrato v1 .-> S0007
@@ -81,9 +73,6 @@ flowchart LR
   S0006 --> S0009
   S0007 --> S0009
   S0008 --> S0009
-  S0024 --> S0025
-  S0025 --> S0030
-  S0024 --> S0031
   classDef proposed fill:#fef3c7,stroke:#d97706,color:#111
   classDef approved fill:#dbeafe,stroke:#2563eb,color:#111
   classDef inprogress fill:#ede9fe,stroke:#7c3aed,color:#111
@@ -113,7 +102,7 @@ flowchart LR
 | [SPEC-0016](SPEC-0016-fixture-de-integracao-nao-libera-pools-do-postgres-compartil.md) | Fixture de integração não libera pools do Postgres compartilhado | lite | fix | implemented | 2026-10-29 | SPEC-0001 | — | — |
 | [SPEC-0017](SPEC-0017-checagem-do-anel-aceita-encryptedsecret-fora-do-descritor-da.md) | Checagem do anel aceita encryptedSecret fora do descritor da chave | lite | fix | implemented | 2026-10-29 | SPEC-0001 | SPEC-0014 | — |
 | [SPEC-0018](SPEC-0018-mascaramento-do-sentry-ignora-contexts-extras-nao-string-e-v.md) | Mascaramento do Sentry ignora contexts, extras não-string e valores sensíveis de Exception.Data | lite | fix | implemented | 2026-10-29 | SPEC-0001 | SPEC-0015 | — |
-| [SPEC-0019](SPEC-0019-conectar-conta-do-mercado-livre-e-ver-os-anuncios.md) | Conectar conta do Mercado Livre e ver os anúncios | epic | feature | approved | 2026-10-30 | — | SPEC-0006, SPEC-0008 | — |
+| [SPEC-0019](SPEC-0019-conectar-conta-do-mercado-livre-e-ver-os-anuncios.md) | Conectar conta do Mercado Livre e ver os anúncios | epic | feature | implemented | 2026-10-30 | — | SPEC-0006, SPEC-0008 | — |
 | [SPEC-0020](SPEC-0020-conectar-e-desconectar-conta-do-mercado-livre-oauth-com-pkce.md) | Conectar e desconectar conta do Mercado Livre (OAuth com PKCE) | full | feature | implemented | 2026-10-30 | SPEC-0019 | — | — |
 | [SPEC-0021](SPEC-0021-gateway-autenticado-da-api-do-mercado-livre-renovacao-de-tok.md) | Gateway autenticado da API do Mercado Livre (renovação de token e resiliência) | full | feature | implemented | 2026-10-30 | SPEC-0019 | SPEC-0026 | SPEC-0020@1 |
 | [SPEC-0022](SPEC-0022-importacao-e-sincronizacao-de-anuncios-modulo-listings.md) | Importação e sincronização de anúncios (módulo Listings) | full | feature | implemented | 2026-10-30 | SPEC-0019 | — | SPEC-0020@1, SPEC-0021@1, SPEC-0023@1 |
@@ -124,8 +113,8 @@ flowchart LR
 | [SPEC-0027](SPEC-0027-teste-de-arquitetura-passa-localmente-com-assembly-de-modulo.md) | Teste de arquitetura passa localmente com assembly de módulo não referenciado | lite | fix | implemented | 2026-10-30 | SPEC-0019 | — | — |
 | [SPEC-0028](SPEC-0028-handlers-do-listings-nao-sao-gerados-pelo-wolverine-com-o-ga.md) | Handlers do Listings não são gerados pelo Wolverine com o gateway real do ML | lite | fix | implemented | 2026-10-30 | SPEC-0019 | SPEC-0022 | — |
 | [SPEC-0029](SPEC-0029-notificacao-forjada-grava-anuncio-de-outro-vendedor-no-catal.md) | Notificação forjada grava anúncio de outro vendedor no catálogo da conta | lite | fix | implemented | 2026-10-30 | SPEC-0019 | SPEC-0022 | — |
-| [SPEC-0030](SPEC-0030-code-e-state-do-oauth-podem-chegar-ao-sentry-pelos-breadcrum.md) | Code e state do OAuth podem chegar ao Sentry pelos breadcrumbs de navegação da SPA | lite | fix | in-progress | 2026-10-30 | SPEC-0019 | SPEC-0025 | — |
-| [SPEC-0031](SPEC-0031-simulador-do-ml-repete-ids-de-vendedor-depois-de-reiniciar.md) | Simulador do ML repete IDs de vendedor depois de reiniciar | lite | fix | in-progress | 2026-10-30 | SPEC-0019 | SPEC-0024 | — |
+| [SPEC-0030](SPEC-0030-code-e-state-do-oauth-podem-chegar-ao-sentry-pelos-breadcrum.md) | Code e state do OAuth podem chegar ao Sentry pelos breadcrumbs de navegação da SPA | lite | fix | implemented | 2026-10-30 | SPEC-0019 | SPEC-0025 | — |
+| [SPEC-0031](SPEC-0031-simulador-do-ml-repete-ids-de-vendedor-depois-de-reiniciar.md) | Simulador do ML repete IDs de vendedor depois de reiniciar | lite | fix | implemented | 2026-10-30 | SPEC-0019 | SPEC-0024 | — |
 
 ## ADRs
 

@@ -24,6 +24,8 @@ Cada entrada cita a spec de origem (`SPEC-NNNN`); gere-as com `spec_graph.py rep
 - Telas de Contas e Anúncios: conectar e desconectar contas do Mercado Livre, ver, buscar e filtrar os anúncios e sincronizar, no celular e no desktop (SPEC-0025)
 
 ### Fixed
+- O código e o state do retorno do OAuth do Mercado Livre não chegam mais ao Sentry da SPA (SPEC-0030)
+- O simulador do Mercado Livre não repete IDs de vendedor depois de reiniciar (SPEC-0031)
 - Testes de arquitetura dão o mesmo resultado localmente e no CI quando um projeto não é referenciado (SPEC-0027)
 - Sincronização e atualização de anúncios rodam com o gateway real do Mercado Livre (geração de código do Wolverine) (SPEC-0028)
 - Notificação forjada não grava mais anúncio de outro vendedor no catálogo da conta (SPEC-0029)
