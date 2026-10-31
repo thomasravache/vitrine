@@ -49,8 +49,14 @@ internal sealed class SimulatorState
     /// <summary><c>VENDEDOR_AR</c> (MLA: site não suportado pelo Vitrine).</summary>
     public const long SellerArId = 3_000_000_002;
 
-    /// <summary>Primeiro id dos vendedores criados por <c>POST /__sim/sellers</c>.</summary>
+    /// <summary>Menor id dos vendedores criados por <c>POST /__sim/sellers</c>.</summary>
     public const long FirstCreatedSellerId = 3_000_001_000;
+
+    /// <summary>
+    /// Época fixa da base dos ids criados (SPEC-0031): a base de cada execução é <see cref="FirstCreatedSellerId"/> mais
+    /// os milissegundos desde esta data no relógio do DI, para não repetir ids entre reinícios (o banco do Vitrine persiste).
+    /// </summary>
+    public static readonly DateTimeOffset SellerIdEpoch = new(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
 
     /// <summary>Validade do <c>code</c> de autorização.</summary>
     public static readonly TimeSpan CodeLifetime = TimeSpan.FromMinutes(10);
@@ -78,10 +84,15 @@ internal sealed class SimulatorState
     public SimulatorState(TimeProvider timeProvider)
     {
         _timeProvider = timeProvider;
+        var elapsed = (long)Math.Max(0, (timeProvider.GetUtcNow() - SellerIdEpoch).TotalMilliseconds);
+        _nextSellerId = FirstCreatedSellerId + elapsed;
         Reset();
     }
 
-    /// <summary>Volta à massa inicial: só <c>VENDEDOR_TESTE</c> e <c>VENDEDOR_AR</c>, sem codes pendentes.</summary>
+    /// <summary>
+    /// Volta à massa inicial: só <c>VENDEDOR_TESTE</c> e <c>VENDEDOR_AR</c>, sem codes pendentes. Os ids de vendedores
+    /// criados continuam crescendo (não voltam à base), para não repetir ids já conectados no Vitrine.
+    /// </summary>
     public void Reset()
     {
         lock (_gate)
@@ -89,7 +100,6 @@ internal sealed class SimulatorState
             _sellers.Clear();
             _items.Clear();
             _codes.Clear();
-            _nextSellerId = FirstCreatedSellerId;
             _nextItemNumber = FirstItemNumber;
             AddSellerLocked(SellerTesteId, "VENDEDOR_TESTE", Site.Find("MLB")!, active: 15, paused: 6, closed: 4);
             AddSellerLocked(SellerArId, "VENDEDOR_AR", Site.Find("MLA")!, active: 3, paused: 0, closed: 0);
@@ -113,7 +123,7 @@ internal sealed class SimulatorState
         }
     }
 
-    /// <summary>Cria um vendedor com id único (a partir de <see cref="FirstCreatedSellerId"/>) e a massa pedida.</summary>
+    /// <summary>Cria um vendedor com id único (crescente a partir da base da execução) e a massa pedida.</summary>
     public SellerInfo CreateSeller(string? nickname, Site site, int active, int paused, int closed)
     {
         lock (_gate)
