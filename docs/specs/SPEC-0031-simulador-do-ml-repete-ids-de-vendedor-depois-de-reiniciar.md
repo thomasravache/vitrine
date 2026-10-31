@@ -36,12 +36,12 @@ O simulador do ML (SPEC-0024) numera os vendedores criados por `POST /__sim/sell
 
 **Rollback:** revert do commit.
 
-**Outras ocorrências:** Nenhuma: IDs de anúncios criados por teste são escolhidos pelo próprio teste ou pelo simulador com o mesmo contador — verificar e corrigir junto se usarem a mesma base.
+**Outras ocorrências:** IDs de anúncios também recomeçam no reinício, mas não colidem no Vitrine (chave `(account_id, item_id)` e contas novas por execução) e a massa inicial depende da base fixa — sem mudança.
 
 ## 4. Plano de Testes (TDD)
 <!-- Mínimo: um teste de regressão que reproduz o problema e FALHA antes da correção, no nível em que o defeito aparece (IT para fronteiras de I/O, E2E para jornadas de usuário). Código sem cobertura: primeiro CH-xx fixando o comportamento atual. Tag no código: `SPEC-0031:<ID>`. Modo privado: sem tag no código; aponte o teste no fim da linha com `→ caminho::nome` (ex.: `→ tests/test_soma.py::test_soma`). Categoria sem teste: "N/A — motivo" SEM ID. -->
 - Caracterização: N/A — os testes do simulador da SPEC-0024 seguem como guarda.
-- **UT-01** — Dado dois `SimulatorState` criados em instantes diferentes (`TimeProvider` falso avançado), quando cada um cria um vendedor, então os IDs são diferentes, ambos ≥ 3000001000 e maiores que Int32.
+- Unidade: N/A — `SimulatorState` é `internal` e o defeito aparece no reinício do host; o IT-01 o reproduz no nível certo (Emenda v1.1).
 - **IT-01** — Dado dois hosts do simulador iniciados um após o outro (`WebApplicationFactory`), quando cada um recebe `POST /__sim/sellers`, então os IDs devolvidos não se repetem.
 
 ## 5. Questões em Aberto
@@ -54,7 +54,7 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 ## 7. Checklist de Implementação
 <!-- Preenchido na fase PLAN, após a aprovação. -->
 **Fase 1: Regressão e correção**
-- [ ] Red: escrever UT-01 e IT-01 com a tag `SPEC-0031:<ID>` e confirmar que falham pelo motivo certo
+- [ ] Red: escrever IT-01 com a tag `SPEC-0031:<ID>` e confirmar que falham pelo motivo certo
 - [ ] Green: base de IDs única por execução do simulador
 - [ ] Validar: build + suíte completa (G2/G3)
 
@@ -114,3 +114,4 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 <!-- Mudança em spec aprovada: uma linha por emenda, aprovada pelo humano. -->
 | Versão | Data | Mudança | Motivo | Specs impactadas | Aprovado por |
 |---|---|---|---|---|---|
+| v1.1 | 2026-10-30 | Plano de testes só com IT-01 (UT sem acesso a `SimulatorState`, que é `internal`); IDs de anúncios ficam como estão (sem colisão no Vitrine; a massa inicial depende da base fixa) | BLOCKED do Test-writer no G1 | nenhuma | thomas (piloto automático do épico SPEC-0019) |
