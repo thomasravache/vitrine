@@ -60,9 +60,9 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 
 **Fase final: Integração, entrega e documentação**
 - [x] Review independente (G4)
-- [ ] Integração + CI verde (G5) e aprovação (H2)
-- [ ] Deploy no ambiente local prod-like com smoke (G6)
-- [ ] Relatório de Entrega e CHANGELOG (G7)
+- [x] Integração + CI verde (G5) e aprovação (H2)
+- [x] Deploy no ambiente local prod-like com smoke (G6)
+- [x] Relatório de Entrega e CHANGELOG (G7)
 
 ## 8. Registro de Gates
 <!-- Status: PENDING | PASS | FAIL | N/A. PASS e N/A exigem evidência. -->
@@ -75,7 +75,7 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 | G4 Review | PASS | verify G1+G4: PASS; revisão: Reviewer independente: APPROVED_WITH_NOTES (0 blocker/major; IDs < 2^53; reset sem voltar o contador sem teste dedicado — registrado) — 713ef80 | 2026-10-30 |
 | G5 Integração & CI | PASS | build exit 0 (npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts a); test exit 0 (learn more: https://vitest.dev/guide/improving-performance#test-environments); test_integration exit 0 (duration: 3m 42s 743ms); test_e2e exit 0 (40 passed (1.2m)); arch_test exit 0 (duration: 1s 575ms); security_scan exit 0 ([90m9:40PM[0m [32mINF[0m [1mno leaks found[0m); nota: PR #57 CI 8/8 verde + CodeQL (runs/41150155220) — ac99283 | 2026-10-30 |
 | H2 Integração aprovada | PASS | política auto-on-green (aprovada por thomas em 2026-10-13); G5 PASS | 2026-10-30 |
-| G6 Deploy | PENDING | | |
+| G6 Deploy | PASS | MANUAL: Deploy local prod-like (deploy/deploy.sh 0b9affd + simulador): health 200 em 4 s; smoke do sdd-config 4/4 (acesso + conectar-conta, desktop e mobile), reinício do simulador, smoke de novo 4/4; 0 logs Error/Critical; staging/produção na SPEC-0009 | 2026-10-30 |
 | G7 Pronto & Docs | PENDING | | |
 
 ## 9. Registro de Impedimentos
@@ -87,28 +87,35 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 <!-- Preenchido no CLOSE (G7). Para status implemented o validate exige tudo preenchido, todo teste do plano com PASS + evidência e a Definição de Pronto marcada. -->
 
 ### O que foi entregue
+Os vendedores criados no simulador do ML por `POST /__sim/sellers` não repetem mais IDs depois de reiniciar o simulador, então o smoke e o teste manual no ambiente local não colidem com contas que ficaram no banco do Vitrine (409 `ML_ACCOUNT_IN_USE`).
 
 ### Como foi feito
+- `tools/MercadoLivreSimulator/SimulatorState.cs`: base dos IDs = `3000001000 + ms desde 2026-01-01 UTC`, lida do `TimeProvider` do DI na criação do estado; crescentes dentro da execução; bem abaixo de 2^53. `/__sim/reset` não volta o contador (Emenda v1.2). Massa inicial e IDs de anúncios inalterados.
+- Emenda v1.1: só IT-01 (o estado é `internal`). Nota do G4: o comportamento do reset não tem teste dedicado.
 
 ### Prova de Correção
-<!-- type fix: teste de regressão falhou antes (commit red + saída) e passa depois (commit green + execução). Outros tipos: "N/A". -->
+- Red: IT-01 (`56dfb9a`) — `IDs repetidos depois do reinício: [3000001000, 3000001001, 3000001002]`.
+- Green: fix `713ef80`; 550/550 na suíte .NET; CI do PR #57 (runs/41150155220) verde; no ambiente local, smoke 4/4, reinício do simulador e smoke 4/4 de novo (antes falhava com "já está conectada em outro workspace").
 
 ### Verificação
 | Teste | Comportamento | Resultado | Evidência |
 |---|---|---|---|
+| IT-01 | Dois hosts do simulador em sequência não repetem IDs de vendedor | PASS | CI PR #57 runs/41150155220 (713ef80); main 0b9affd |
 
 ### Definição de Pronto
-- [ ] Teste de regressão falhou antes e passa depois da correção
-- [ ] Suíte completa, arquitetura e CI verdes (G2, G3, G5)
-- [ ] Review independente sem achados blocker/major (G4)
-- [ ] Padrão existente mantido
-- [ ] Disponível no ambiente-alvo via pipeline (G6)
-- [ ] Documentação/CHANGELOG atualizados quando aplicável (G7)
-- [ ] Outras ocorrências registradas como novas specs (ou nenhuma)
+- [x] Teste de regressão falhou antes e passa depois da correção
+- [x] Suíte completa, arquitetura e CI verdes (G2, G3, G5)
+- [x] Review independente sem achados blocker/major (G4)
+- [x] Padrão existente mantido
+- [x] Disponível no ambiente-alvo via pipeline (G6)
+- [x] Documentação/CHANGELOG atualizados quando aplicável (G7)
+- [x] Outras ocorrências registradas como novas specs (ou nenhuma)
 
 ### Deploy
+Ambiente local prod-like, `ghcr.io/thomasravache/vitrine-api:0b9affd` + `vitrine-ml-simulator:local`, 2026-10-30 (smoke 4/4 antes e depois de reiniciar o simulador). O simulador nunca vai a staging/produção.
 
 ### Pendências
+Nenhuma.
 
 ## 11. Emendas
 <!-- Mudança em spec aprovada: uma linha por emenda, aprovada pelo humano. -->
