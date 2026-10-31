@@ -54,12 +54,12 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 ## 7. Checklist de Implementação
 <!-- Preenchido na fase PLAN, após a aprovação. -->
 **Fase 1: Regressão e correção**
-- [ ] Red: escrever IT-01 com a tag `SPEC-0031:<ID>` e confirmar que falham pelo motivo certo
-- [ ] Green: base de IDs única por execução do simulador
-- [ ] Validar: build + suíte completa (G2/G3)
+- [x] Red: escrever IT-01 com a tag `SPEC-0031:<ID>` e confirmar que falham pelo motivo certo
+- [x] Green: base de IDs única por execução do simulador
+- [x] Validar: build + suíte completa (G2/G3)
 
 **Fase final: Integração, entrega e documentação**
-- [ ] Review independente (G4)
+- [x] Review independente (G4)
 - [ ] Integração + CI verde (G5) e aprovação (H2)
 - [ ] Deploy no ambiente local prod-like com smoke (G6)
 - [ ] Relatório de Entrega e CHANGELOG (G7)
@@ -69,10 +69,10 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 | Gate | Status | Evidência | Data |
 |---|---|---|---|
 | G0 Spec | PASS | validate: 0 erro(s) — 76998b1 (árvore suja) | 2026-10-30 |
-| G1 Red | PENDING | | |
-| G2 Green | PENDING | | |
-| G3 Arquitetura | PENDING | | |
-| G4 Review | PENDING | | |
+| G1 Red | PASS | MANUAL: verify G1 + red: IT-01 (56dfb9a) falha no HEAD com 'IDs repetidos depois do reinício: [3000001000, 3000001001, 3000001002]'; o comando de red do gate (unitários) não cobre IT | 2026-10-30 |
+| G2 Green | PASS | build exit 0 (npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts a); test exit 0 (at least ~671ms faster with isolate: false — reuses workers across files instead of one pe); lint exit 0 ([0m[34mChecked 67 files in 46[0m[0m[2m[34mms[0m[0m[34m.[0m[0m[34m No fixes app); coverage exit 0 (Coverage: 100%) — 713ef80 | 2026-10-30 |
+| G3 Arquitetura | PASS | arch_test exit 0 (duration: 1s 809ms) — 713ef80 | 2026-10-30 |
+| G4 Review | PASS | verify G1+G4: PASS; revisão: Reviewer independente: APPROVED_WITH_NOTES (0 blocker/major; IDs < 2^53; reset sem voltar o contador sem teste dedicado — registrado) — 713ef80 | 2026-10-30 |
 | G5 Integração & CI | PENDING | | |
 | H2 Integração aprovada | PENDING | | |
 | G6 Deploy | PENDING | | |
@@ -115,3 +115,4 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 | Versão | Data | Mudança | Motivo | Specs impactadas | Aprovado por |
 |---|---|---|---|---|---|
 | v1.1 | 2026-10-30 | Plano de testes só com IT-01 (UT sem acesso a `SimulatorState`, que é `internal`); IDs de anúncios ficam como estão (sem colisão no Vitrine; a massa inicial depende da base fixa) | BLOCKED do Test-writer no G1 | nenhuma | thomas (piloto automático do épico SPEC-0019) |
+| v1.2 | 2026-10-30 | `/__sim/reset` deixa de voltar o contador de vendedores à base (um reset no meio da execução também não repete IDs); a massa inicial e os anúncios continuam voltando ao estado inicial | Decisão do Implementer aceita no G4 | nenhuma | thomas (piloto automático do épico SPEC-0019) |
