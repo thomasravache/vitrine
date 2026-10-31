@@ -3,7 +3,7 @@ id: SPEC-0019
 title: Conectar conta do Mercado Livre e ver os anúncios
 tier: epic
 type: feature
-status: approved
+status: implemented
 created: 2026-10-30
 depends_on: [SPEC-0006, SPEC-0008]
 adrs: [ADR-0001, ADR-0006, ADR-0007, ADR-0010, ADR-0014, ADR-0016]

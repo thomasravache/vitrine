@@ -4,7 +4,7 @@
 
 ## Saúde
 
-- Validação (G0): **0 erro(s), 43 aviso(s)** — rode `spec_graph.py validate`
+- Validação (G0): **0 erro(s), 42 aviso(s)** — rode `spec_graph.py validate`
 - Specs: approved 1, implemented 28
 - Impedimentos: **0 aberto(s)**, 11 resolvido(s)
 
@@ -49,7 +49,7 @@ Perfil: **padrao**
 | Épico | Título | Status | Progresso |
 |---|---|---|---|
 | SPEC-0001 | Fundação da plataforma Vitrine | approved | 16/17 implementadas |
-| SPEC-0019 | Conectar conta do Mercado Livre e ver os anúncios | approved | 12/12 implementadas |
+| SPEC-0019 | Conectar conta do Mercado Livre e ver os anúncios | implemented | 12/12 implementadas |
 
 ## Grafo de Dependências
 
@@ -102,7 +102,7 @@ flowchart LR
 | [SPEC-0016](SPEC-0016-fixture-de-integracao-nao-libera-pools-do-postgres-compartil.md) | Fixture de integração não libera pools do Postgres compartilhado | lite | fix | implemented | 2026-10-29 | SPEC-0001 | — | — |
 | [SPEC-0017](SPEC-0017-checagem-do-anel-aceita-encryptedsecret-fora-do-descritor-da.md) | Checagem do anel aceita encryptedSecret fora do descritor da chave | lite | fix | implemented | 2026-10-29 | SPEC-0001 | SPEC-0014 | — |
 | [SPEC-0018](SPEC-0018-mascaramento-do-sentry-ignora-contexts-extras-nao-string-e-v.md) | Mascaramento do Sentry ignora contexts, extras não-string e valores sensíveis de Exception.Data | lite | fix | implemented | 2026-10-29 | SPEC-0001 | SPEC-0015 | — |
-| [SPEC-0019](SPEC-0019-conectar-conta-do-mercado-livre-e-ver-os-anuncios.md) | Conectar conta do Mercado Livre e ver os anúncios | epic | feature | approved | 2026-10-30 | — | SPEC-0006, SPEC-0008 | — |
+| [SPEC-0019](SPEC-0019-conectar-conta-do-mercado-livre-e-ver-os-anuncios.md) | Conectar conta do Mercado Livre e ver os anúncios | epic | feature | implemented | 2026-10-30 | — | SPEC-0006, SPEC-0008 | — |
 | [SPEC-0020](SPEC-0020-conectar-e-desconectar-conta-do-mercado-livre-oauth-com-pkce.md) | Conectar e desconectar conta do Mercado Livre (OAuth com PKCE) | full | feature | implemented | 2026-10-30 | SPEC-0019 | — | — |
 | [SPEC-0021](SPEC-0021-gateway-autenticado-da-api-do-mercado-livre-renovacao-de-tok.md) | Gateway autenticado da API do Mercado Livre (renovação de token e resiliência) | full | feature | implemented | 2026-10-30 | SPEC-0019 | SPEC-0026 | SPEC-0020@1 |
 | [SPEC-0022](SPEC-0022-importacao-e-sincronizacao-de-anuncios-modulo-listings.md) | Importação e sincronização de anúncios (módulo Listings) | full | feature | implemented | 2026-10-30 | SPEC-0019 | — | SPEC-0020@1, SPEC-0021@1, SPEC-0023@1 |
