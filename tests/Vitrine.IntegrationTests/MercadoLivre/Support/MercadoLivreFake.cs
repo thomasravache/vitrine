@@ -89,7 +89,8 @@ internal sealed class MercadoLivreFake(WireMockServer server)
     /// <c>POST /oauth/token</c> (form-urlencoded, <c>grant_type=authorization_code</c>) responde 200 com os tokens; sem
     /// <paramref name="withRefreshToken"/>, como um app sem o escopo <c>offline_access</c>.
     /// </summary>
-    public void TokenResponds(MlTokens tokens, long userId, bool withRefreshToken = true, TimeSpan? delay = null)
+    /// <remarks><paramref name="scope"/> sobrepõe o <c>scope</c> devolvido (ex.: sem <c>write</c>, SPEC-0033:IT-08).</remarks>
+    public void TokenResponds(MlTokens tokens, long userId, bool withRefreshToken = true, TimeSpan? delay = null, string? scope = null)
     {
         ArgumentNullException.ThrowIfNull(tokens);
         var body = new Dictionary<string, object>
@@ -97,7 +98,7 @@ internal sealed class MercadoLivreFake(WireMockServer server)
             ["access_token"] = tokens.AccessToken,
             ["token_type"] = "Bearer",
             ["expires_in"] = tokens.ExpiresIn,
-            ["scope"] = withRefreshToken ? "offline_access read write" : "read write",
+            ["scope"] = scope ?? (withRefreshToken ? "offline_access read write" : "read write"),
             ["user_id"] = userId,
         };
         if (withRefreshToken)
