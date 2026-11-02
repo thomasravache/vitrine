@@ -68,14 +68,14 @@
       },
       "WolverineFx": {
         "type": "Direct",
-        "requested": "[6.59.0, )",
-        "resolved": "6.59.0",
-        "contentHash": "Jg1xHXogDWd9C7Ti1DWxM97B8Udc0rXo6ru4aJ5/KK0qbQRl0WnZ/MOi1J9iljRCaBx41YIk88vijlOQWGFUfw==",
+        "requested": "[6.60.0, )",
+        "resolved": "6.60.0",
+        "contentHash": "PfH3GOcBcGwGH5UhQmsT20mEtkKOdphFZLzb88j5Ci6iZAQtBkiSV85W4SHD70hqodJy912Ntok4uArYG/dtVw==",
         "dependencies": {
           "Cronos": "0.11.0",
-          "JasperFx": "2.96.1",
-          "JasperFx.Events": "2.96.1",
-          "JasperFx.SourceGenerator": "2.96.1",
+          "JasperFx": "2.97.0",
+          "JasperFx.Events": "2.97.0",
+          "JasperFx.SourceGenerator": "2.97.0",
           "Microsoft.Extensions.Caching.Memory": "10.0.0",
           "Microsoft.Extensions.Configuration": "10.0.0",
           "Microsoft.Extensions.Configuration.Abstractions": "10.0.0",
@@ -743,8 +743,8 @@
       },
       "JasperFx": {
         "type": "Transitive",
-        "resolved": "2.96.1",
-        "contentHash": "v18ZoBNSz4x+DcNJV36hNsQ6fuXsoeP7KI3HtnyzQSSo2fHqIw4Ssg72HtlyvgDkWRfK0s1+UiMrBWD2oMkhSg==",
+        "resolved": "2.97.0",
+        "contentHash": "LZlh0kWctuAFozrOQY/CaJm+IPDJmi7tKCkf1aLhconSwzbUQJ6YpHkOomOsniTEgpEZ5CT+oX6WT7iKl8udUw==",
         "dependencies": {
           "FastExpressionCompiler": "5.4.1",
           "ImTools": "4.0.0",
@@ -760,10 +760,10 @@
       },
       "JasperFx.Events": {
         "type": "Transitive",
-        "resolved": "2.96.1",
-        "contentHash": "psPNxP27GBu5QjlmaBGnQtaZ0udUu1X6tzIgCTyxWp3QTkIC5+tiKIjifHuIl3jmdRkqi2xQi6nGEVkbX2Br7A==",
+        "resolved": "2.97.0",
+        "contentHash": "PAqMFEvr1xmK+0aFiT0n/WvJEvqgeDv79d4kVAGANzqPFLTDrnno+z7FQqSXbmMuCybnWRkKaco1RBYZul0weA==",
         "dependencies": {
-          "JasperFx": "2.96.1"
+          "JasperFx": "2.97.0"
         }
       },
       "JasperFx.RuntimeCompiler": {
@@ -780,8 +780,8 @@
       },
       "JasperFx.SourceGenerator": {
         "type": "Transitive",
-        "resolved": "2.96.1",
-        "contentHash": "m5KC5GDbZ1uYjwJm3bXd43Tocs4RJOfPhhYcPvFEhPaE1szl6WGqUVWA0efBB3pmCg2HkWIU8CDCV711MsI/tg=="
+        "resolved": "2.97.0",
+        "contentHash": "oUbeHCcoD8sNgZ4Sq6/UeZ7xKzsoRQ7mDD5UyKcQWRM+ukhdD0smCuAJ8q8fGIhng6vq2jjGK2eHeJisvaM70A=="
       },
       "JmesPath.Net": {
         "type": "Transitive",
@@ -2284,6 +2284,7 @@
           "Vitrine.Identity.Application": "[1.0.0, )",
           "Vitrine.Identity.Domain": "[1.0.0, )",
           "Vitrine.Identity.IntegrationEvents": "[1.0.0, )",
+          "WolverineFx": "[6.60.0, )",
           "WolverineFx.EntityFrameworkCore": "[6.59.0, )",
           "WolverineFx.Postgresql": "[6.59.0, )"
         }
@@ -2320,6 +2321,7 @@
           "Npgsql.EntityFrameworkCore.PostgreSQL": "[10.0.3, )",
           "Vitrine.Listings.Application": "[1.0.0, )",
           "Vitrine.Listings.Domain": "[1.0.0, )",
+          "WolverineFx": "[6.60.0, )",
           "WolverineFx.EntityFrameworkCore": "[6.59.0, )"
         }
       },
@@ -2355,6 +2357,7 @@
           "Vitrine.MercadoLivre.Application": "[1.0.0, )",
           "Vitrine.MercadoLivre.Domain": "[1.0.0, )",
           "Vitrine.MercadoLivre.IntegrationEvents": "[1.0.0, )",
+          "WolverineFx": "[6.60.0, )",
           "WolverineFx.EntityFrameworkCore": "[6.59.0, )",
           "WolverineFx.Postgresql": "[6.59.0, )"
         }
