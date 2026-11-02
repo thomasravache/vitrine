@@ -79,7 +79,7 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 
 **Fase final: Integração, entrega e documentação**
 - [x] Review independente (G4)
-- [ ] Integração + CI verde (G5) e aprovação (H2)
+- [x] Integração + CI verde (G5) e aprovação (H2)
 - [ ] Deploy no ambiente local prod-like com smoke (G6)
 - [ ] Relatório de Entrega, docs raiz e CHANGELOG (G7)
 
@@ -92,8 +92,8 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 | G2 Green | PASS | build exit 0 (npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts a); test exit 0 (learn more: https://vitest.dev/guide/improving-performance#test-environments); lint exit 0 ([0m[34mChecked 67 files in 80[0m[0m[2m[34mms[0m[0m[34m.[0m[0m[34m No fixes app); coverage exit 0 (No lines with coverage information in this diff.) — f7cc53b | 2026-11-02 |
 | G3 Arquitetura | PASS | arch_test exit 0 (duration: 3s 100ms) — f7cc53b | 2026-11-02 |
 | G4 Review | PASS | verify G1+G4: PASS; revisão: Reviewer independente: APPROVED (2ª rodada; achados IPv6 e ss -ltun resolvidos pela Emenda v1.1) — 6edeb1d | 2026-11-02 |
-| G5 Integração & CI | PENDING | | |
-| H2 Integração aprovada | PENDING | | |
+| G5 Integração & CI | PASS | build exit 0 (npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts a); test exit 0 (learn more: https://vitest.dev/guide/improving-performance#test-environments); test_integration exit 0 (duration: 4m 04s 602ms); test_e2e exit 0 (40 passed (1.4m)); arch_test exit 0 (duration: 2s 336ms); security_scan exit 0 ([90m8:12AM[0m [32mINF[0m [1mno leaks found[0m) — 7a9234e | 2026-11-02 |
+| H2 Integração aprovada | PASS | política auto-on-green (aprovada por thomas em 2026-10-13); G5 PASS | 2026-11-02 |
 | G6 Deploy | PENDING | | |
 | G7 Pronto & Docs | PENDING | | |
 
