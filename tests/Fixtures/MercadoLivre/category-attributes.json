@@ -1,0 +1,125 @@
+{
+  "_source": {
+    "endpoint": "GET /categories/MLB90001/attributes",
+    "format": "[{ id, name, value_type, tags: { required, catalog_required, read_only, hidden, ... }, values: [{ id, name }], allowed_units: [{ id, name }] }].",
+    "documentation": "https://developers.mercadolivre.com.br/pt_br/categorias-e-atributos",
+    "consulted_at": "2026-11-02",
+    "note": "Sintética: formato montado a partir dos trechos de busca de 2026-11-02 (a documentação oficial respondeu HTTP 403). Valores fictícios; conferir com usuário de teste real no go-live (SPEC-0009)."
+  },
+  "response": [
+    {
+      "id": "COLOR",
+      "name": "Cor",
+      "value_type": "list",
+      "tags": {
+        "catalog_required": true
+      },
+      "hierarchy": "CHILD_PK",
+      "relevance": 1,
+      "attribute_group_id": "OTHERS",
+      "attribute_group_name": "Outros",
+      "values": [
+        {
+          "id": "52049",
+          "name": "Preto"
+        },
+        {
+          "id": "52055",
+          "name": "Branco"
+        },
+        {
+          "id": "52100",
+          "name": "Café"
+        }
+      ]
+    },
+    {
+      "id": "MODEL",
+      "name": "Modelo",
+      "value_type": "string",
+      "value_max_length": 255,
+      "tags": {
+        "required": true
+      },
+      "hierarchy": "PARENT_PK",
+      "relevance": 1,
+      "attribute_group_id": "OTHERS",
+      "attribute_group_name": "Outros"
+    },
+    {
+      "id": "BATTERY_LIFE",
+      "name": "Duração da bateria",
+      "value_type": "number_unit",
+      "tags": {},
+      "hierarchy": "ITEM",
+      "relevance": 2,
+      "attribute_group_id": "OTHERS",
+      "attribute_group_name": "Outros",
+      "allowed_units": [
+        {
+          "id": "h",
+          "name": "h"
+        },
+        {
+          "id": "min",
+          "name": "min"
+        }
+      ],
+      "default_unit": "h"
+    },
+    {
+      "id": "IS_WIRELESS",
+      "name": "É sem fio",
+      "value_type": "boolean",
+      "tags": {},
+      "hierarchy": "ITEM",
+      "relevance": 2,
+      "attribute_group_id": "OTHERS",
+      "attribute_group_name": "Outros",
+      "values": [
+        {
+          "id": "242085",
+          "name": "Sim"
+        },
+        {
+          "id": "242084",
+          "name": "Não"
+        }
+      ]
+    },
+    {
+      "id": "ITEM_CONDITION",
+      "name": "Condição do item",
+      "value_type": "list",
+      "tags": {
+        "read_only": true
+      },
+      "hierarchy": "ITEM",
+      "relevance": 1,
+      "attribute_group_id": "OTHERS",
+      "attribute_group_name": "Outros",
+      "values": [
+        {
+          "id": "2230284",
+          "name": "Novo"
+        },
+        {
+          "id": "2230581",
+          "name": "Usado"
+        }
+      ]
+    },
+    {
+      "id": "PRODUCT_FEATURES",
+      "name": "Características do produto",
+      "value_type": "string",
+      "tags": {
+        "hidden": true
+      },
+      "hierarchy": "ITEM",
+      "relevance": 2,
+      "attribute_group_id": "OTHERS",
+      "attribute_group_name": "Outros"
+    }
+  ]
+}

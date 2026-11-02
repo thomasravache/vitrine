@@ -1,0 +1,21 @@
+{
+  "_source": {
+    "endpoint": "GET /items/MLB5100000001/description",
+    "format": "{ text, plain_text, last_updated, date_created, snapshot }; o Vitrine lê só plain_text.",
+    "documentation": "https://developers.mercadolivre.com.br/pt_br/descricao-de-produtos",
+    "consulted_at": "2026-11-02",
+    "note": "Sintética: formato montado a partir dos trechos de busca de 2026-11-02 (a documentação oficial respondeu HTTP 403). Valores fictícios; conferir com usuário de teste real no go-live (SPEC-0009)."
+  },
+  "response": {
+    "text": "",
+    "plain_text": "Fone de ouvido bluetooth sem fio.\nBateria de até 20 horas.",
+    "last_updated": "2026-10-29T14:03:12.000Z",
+    "date_created": "2026-09-01T10:00:00.000Z",
+    "snapshot": {
+      "url": "http://descriptions.mlstatic.com/D-MLB5100000001.jpg?hash=0000000000000000",
+      "width": 0,
+      "height": 0,
+      "status": ""
+    }
+  }
+}

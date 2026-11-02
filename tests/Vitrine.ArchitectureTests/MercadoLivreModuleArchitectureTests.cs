@@ -34,6 +34,18 @@ public sealed class MercadoLivreModuleArchitectureTests
 
     private static readonly string[] GatewaySensitiveNameParts = ["token", "secret"];
 
+    // Contrato v1 da leitura detalhada e da edição de anúncios (SPEC-0033).
+    private static readonly string[] ListingContract =
+    [
+        "IMercadoLivreListingDetails", "MercadoLivreItemDetails", "MercadoLivreItemAttribute", "MercadoLivreCategory",
+        "MercadoLivreCategoryAttribute", "MercadoLivreAttributeValue", "IMercadoLivreListingEditor", "ListingChanges",
+        "AttributeChange", "ListingChangeResult", "FieldResult", "Applied", "Rejected", "NotAttempted",
+        "MercadoLivreItemNotFoundException", "ListingChangeRules",
+    ];
+
+    // Implementações internas da SPEC-0033 no Infrastructure.
+    private static readonly string[] ListingGateways = ["MercadoLivreListingDetailsGateway", "MercadoLivreListingEditor"];
+
     private static readonly string[] MercadoLivreInternalLayers = ["Domain", "Application", "Infrastructure", "Presentation"];
 
     [Fact]
@@ -248,6 +260,72 @@ public sealed class MercadoLivreModuleArchitectureTests
         // Então nenhum referencia Infrastructure (nem Domain, Application ou Presentation): consumidores (ex.: Listings)
         // usam só MercadoLivre.PublicApi e MercadoLivre.IntegrationEvents
         Assert.True(violations.Count == 0, "Módulos referenciando camadas internas do MercadoLivre:\n" + string.Join('\n', violations));
+    }
+
+    [Fact]
+    [Trait("spec", "SPEC-0033:UT-05")]
+    public void MercadoLivre_PublicApi_tem_o_contrato_de_leitura_detalhada_e_edicao_e_continua_so_com_a_BCL()
+    {
+        // Dado o assembly Vitrine.MercadoLivre.PublicApi com o contrato v1 da SPEC-0033
+        var publicApi = SolutionAssembly($"{Module}.PublicApi");
+        var exported = publicApi.GetExportedTypes().Select(type => type.Name).ToHashSet(StringComparer.Ordinal);
+        foreach (var name in ListingContract)
+        {
+            Assert.True(exported.Contains(name), $"{Module}.PublicApi não exporta {name} (contrato v1 da SPEC-0033).");
+        }
+
+        // Quando as referências dele são lidas (ListingChangeRules é código no PublicApi)
+        var nonBcl = publicApi.GetReferencedAssemblies()
+            .Select(reference => reference.Name ?? string.Empty)
+            .Where(name => !IsBcl(name))
+            .ToList();
+
+        // Então continua referenciando só a BCL
+        Assert.True(nonBcl.Count == 0, $"{Module}.PublicApi referencia assemblies fora da BCL: " + string.Join(", ", nonBcl));
+    }
+
+    [Fact]
+    [Trait("spec", "SPEC-0033:UT-05")]
+    public void Tipos_publicos_novos_da_SPEC_0033_nao_tem_membro_com_token_ou_secret()
+    {
+        // Dado os tipos públicos novos do contrato da SPEC-0033
+        var listingTypes = SolutionAssembly($"{Module}.PublicApi").GetExportedTypes()
+            .Where(type => ListingContract.Contains(type.Name, StringComparer.Ordinal))
+            .ToList();
+        Assert.Equal(ListingContract.Length, listingTypes.Count);
+
+        // Quando os membros públicos (propriedades, campos, métodos, eventos e parâmetros) são lidos
+        var sensitive = listingTypes
+            .SelectMany(type => type.GetMembers(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly)
+                .SelectMany(member => new[] { member.Name }.Concat(
+                    member is MethodBase method ? method.GetParameters().Select(parameter => $"{member.Name}({parameter.Name})") : []))
+                .Select(name => $"{type.FullName}.{name}"))
+            .Where(name => GatewaySensitiveNameParts.Any(part => name[(name.LastIndexOf('.') + 1)..].Contains(part, StringComparison.OrdinalIgnoreCase)))
+            .Where(name => !name.EndsWith("(cancellationToken)", StringComparison.Ordinal))
+            .ToList();
+
+        // Então nenhum tem "token" ou "secret" no nome (o CancellationToken dos métodos não conta)
+        Assert.True(sensitive.Count == 0, "Membros sensíveis no contrato da SPEC-0033:\n" + string.Join('\n', sensitive));
+    }
+
+    [Fact]
+    [Trait("spec", "SPEC-0033:UT-05")]
+    public void Gateways_novos_da_SPEC_0033_sao_internal()
+    {
+        // Dado o assembly Vitrine.MercadoLivre.Infrastructure
+        var infrastructure = SolutionAssembly($"{Module}.Infrastructure");
+        var types = infrastructure.GetTypes();
+
+        foreach (var name in ListingGateways)
+        {
+            // Quando o gateway é procurado
+            var gateway = types.SingleOrDefault(type => type.Name == name);
+
+            // Então existe, não é público e implementa o contrato do PublicApi
+            Assert.True(gateway is not null, $"{Module}.Infrastructure não tem {name} (SPEC-0033).");
+            Assert.False(gateway.IsVisible, $"{gateway.FullName} precisa ser internal: consumidores usam só o PublicApi.");
+            Assert.Contains(gateway.GetInterfaces(), contract => contract.Assembly.GetName().Name == $"{Module}.PublicApi");
+        }
     }
 
     private static bool IsBcl(string assemblyName) =>

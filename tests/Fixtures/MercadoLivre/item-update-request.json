@@ -1,0 +1,22 @@
+{
+  "_source": {
+    "endpoint": "PUT /items/MLB5100000001 (application/json)",
+    "format": "{ title?, attributes?: [{ id, value_id | value_name }] }: value_id para atributo de lista, value_name para valor livre; campos ausentes não são enviados.",
+    "documentation": "https://developers.mercadolivre.com.br/pt_br/produto-sincroniza-modificacoes",
+    "consulted_at": "2026-11-02",
+    "note": "Sintética: formato montado a partir dos trechos de busca de 2026-11-02 (a documentação oficial respondeu HTTP 403). Valores fictícios; conferir com usuário de teste real no go-live (SPEC-0009)."
+  },
+  "request": {
+    "title": "Fone de Ouvido Bluetooth Sem Fio Branco 20h de Bateria",
+    "attributes": [
+      {
+        "id": "COLOR",
+        "value_id": "52055"
+      },
+      {
+        "id": "MODEL",
+        "value_name": "BT-500 Pro"
+      }
+    ]
+  }
+}

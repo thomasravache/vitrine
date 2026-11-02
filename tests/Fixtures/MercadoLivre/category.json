@@ -1,0 +1,35 @@
+{
+  "_source": {
+    "endpoint": "GET /categories/MLB90001",
+    "format": "{ id, name, path_from_root, settings: { max_title_length, max_description_length, ... } }.",
+    "documentation": "https://developers.mercadolivre.com.br/pt_br/categorias-e-atributos",
+    "consulted_at": "2026-11-02",
+    "note": "Sintética: formato montado a partir dos trechos de busca de 2026-11-02 (a documentação oficial respondeu HTTP 403). Valores fictícios; conferir com usuário de teste real no go-live (SPEC-0009)."
+  },
+  "response": {
+    "id": "MLB90001",
+    "name": "Fones de Ouvido",
+    "path_from_root": [
+      {
+        "id": "MLB1000",
+        "name": "Eletrônicos, Áudio e Vídeo"
+      },
+      {
+        "id": "MLB90001",
+        "name": "Fones de Ouvido"
+      }
+    ],
+    "children_categories": [],
+    "total_items_in_this_category": 123456,
+    "settings": {
+      "max_title_length": 60,
+      "max_description_length": 50000,
+      "max_pictures_per_item": 12,
+      "listing_allowed": true,
+      "buying_modes": [
+        "buy_it_now"
+      ],
+      "status": "enabled"
+    }
+  }
+}
