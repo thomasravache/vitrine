@@ -1,0 +1,16 @@
+{
+  "_source": {
+    "endpoint": "PUT /items/MLB5100000001 (escrita concorrente)",
+    "format": "409 { message, error, status, cause }: optimistic locking; o ML orienta tentar de novo depois de alguns segundos.",
+    "documentation": "https://developers.mercadolivre.com.br/pt_br/produto-sincroniza-modificacoes",
+    "consulted_at": "2026-11-02",
+    "note": "Sintética: formato montado a partir dos trechos de busca de 2026-11-02 (a documentação oficial respondeu HTTP 403). Valores fictícios; conferir com usuário de teste real no go-live (SPEC-0009)."
+  },
+  "status": 409,
+  "response": {
+    "message": "Optimistic locking error, please try again in a few seconds.",
+    "error": "conflict",
+    "status": 409,
+    "cause": []
+  }
+}

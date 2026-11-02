@@ -1,0 +1,12 @@
+{
+  "_source": {
+    "endpoint": "PUT /items/MLB5100000001/description?api_version=2 (descrição existente) ou POST /items/MLB5100000001/description (sem descrição), application/json",
+    "format": "{ plain_text }: só texto puro, quebras \\n permitidas.",
+    "documentation": "https://developers.mercadolivre.com.br/pt_br/descricao-de-produtos",
+    "consulted_at": "2026-11-02",
+    "note": "Sintética: formato montado a partir dos trechos de busca de 2026-11-02 (a documentação oficial respondeu HTTP 403). Valores fictícios; conferir com usuário de teste real no go-live (SPEC-0009)."
+  },
+  "request": {
+    "plain_text": "Fone de ouvido bluetooth sem fio, com áudio nítido.\nBateria de até 20 horas.\nAcompanha cabo de carregamento."
+  }
+}

@@ -1,0 +1,93 @@
+{
+  "_source": {
+    "endpoint": "GET /items/MLB5100000001?attributes=id,seller_id,category_id,title,sold_quantity,status,catalog_listing,user_product_id,permalink,last_updated,attributes",
+    "format": "Contrato da SPEC-0033 (seção 6): item com os campos da seleção; attributes[] com id, name, value_id, value_name (e campos extras ignorados).",
+    "documentation": "https://developers.mercadolivre.com.br/pt_br/itens-e-buscas",
+    "consulted_at": "2026-11-02",
+    "note": "Sintética: formato montado a partir dos trechos de busca de 2026-11-02 (a documentação oficial respondeu HTTP 403). Valores fictícios; conferir com usuário de teste real no go-live (SPEC-0009)."
+  },
+  "response": {
+    "id": "MLB5100000001",
+    "seller_id": 3987654321,
+    "category_id": "MLB90001",
+    "title": "Fone De Ouvido Bluetooth Sem Fio Preto",
+    "sold_quantity": 0,
+    "status": "active",
+    "catalog_listing": false,
+    "user_product_id": null,
+    "permalink": "https://produto.mercadolivre.com.br/MLB-5100000001-fone-de-ouvido-bluetooth-sem-fio-preto-_JM",
+    "last_updated": "2026-10-29T14:03:12.000Z",
+    "attributes": [
+      {
+        "id": "COLOR",
+        "name": "Cor",
+        "value_id": "52049",
+        "value_name": "Preto",
+        "value_struct": null,
+        "values": [
+          {
+            "id": "52049",
+            "name": "Preto",
+            "struct": null
+          }
+        ],
+        "attribute_group_id": "OTHERS",
+        "attribute_group_name": "Outros"
+      },
+      {
+        "id": "MODEL",
+        "name": "Modelo",
+        "value_id": null,
+        "value_name": "BT-500",
+        "value_struct": null,
+        "values": [
+          {
+            "id": null,
+            "name": "BT-500",
+            "struct": null
+          }
+        ],
+        "attribute_group_id": "OTHERS",
+        "attribute_group_name": "Outros"
+      },
+      {
+        "id": "BATTERY_LIFE",
+        "name": "Duração da bateria",
+        "value_id": null,
+        "value_name": "20 h",
+        "value_struct": {
+          "number": 20,
+          "unit": "h"
+        },
+        "values": [
+          {
+            "id": null,
+            "name": "20 h",
+            "struct": {
+              "number": 20,
+              "unit": "h"
+            }
+          }
+        ],
+        "attribute_group_id": "OTHERS",
+        "attribute_group_name": "Outros"
+      },
+      {
+        "id": "ITEM_CONDITION",
+        "name": "Condição do item",
+        "value_id": "2230284",
+        "value_name": "Novo",
+        "value_struct": null,
+        "values": [
+          {
+            "id": "2230284",
+            "name": "Novo",
+            "struct": null
+          }
+        ],
+        "attribute_group_id": "OTHERS",
+        "attribute_group_name": "Outros"
+      }
+    ]
+  }
+}

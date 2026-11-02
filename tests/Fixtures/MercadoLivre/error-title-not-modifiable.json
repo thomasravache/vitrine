@@ -1,0 +1,27 @@
+{
+  "_source": {
+    "endpoint": "PUT /items/MLB5100000001 com title (item com vendas)",
+    "format": "400 { message, error, status, cause: [{ code, message }] }: título não modificável.",
+    "documentation": "https://developers.mercadolivre.com.br/pt_br/produto-sincroniza-modificacoes",
+    "consulted_at": "2026-11-02",
+    "note": "Sintética: formato montado a partir dos trechos de busca de 2026-11-02 (a documentação oficial respondeu HTTP 403). Valores fictícios; conferir com usuário de teste real no go-live (SPEC-0009)."
+  },
+  "status": 400,
+  "response": {
+    "message": "Validation error",
+    "error": "validation_error",
+    "status": 400,
+    "cause": [
+      {
+        "department": "items",
+        "cause_id": 377,
+        "type": "error",
+        "code": "field_not_updatable",
+        "references": [
+          "item.title"
+        ],
+        "message": "title is not modifiable."
+      }
+    ]
+  }
+}

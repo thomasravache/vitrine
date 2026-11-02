@@ -55,6 +55,8 @@ internal sealed class MercadoLivreFake(WireMockServer server)
 
     private int _tokenCalls;
 
+    private int _searchCalls;
+
     /// <summary>Requisições recebidas pelo ML simulado.</summary>
     public IReadOnlyList<ILogEntry> Calls => [.. server.LogEntries];
 
@@ -87,7 +89,8 @@ internal sealed class MercadoLivreFake(WireMockServer server)
     /// <c>POST /oauth/token</c> (form-urlencoded, <c>grant_type=authorization_code</c>) responde 200 com os tokens; sem
     /// <paramref name="withRefreshToken"/>, como um app sem o escopo <c>offline_access</c>.
     /// </summary>
-    public void TokenResponds(MlTokens tokens, long userId, bool withRefreshToken = true, TimeSpan? delay = null)
+    /// <remarks><paramref name="scope"/> sobrepõe o <c>scope</c> devolvido (ex.: sem <c>write</c>, SPEC-0033:IT-08).</remarks>
+    public void TokenResponds(MlTokens tokens, long userId, bool withRefreshToken = true, TimeSpan? delay = null, string? scope = null)
     {
         ArgumentNullException.ThrowIfNull(tokens);
         var body = new Dictionary<string, object>
@@ -95,7 +98,7 @@ internal sealed class MercadoLivreFake(WireMockServer server)
             ["access_token"] = tokens.AccessToken,
             ["token_type"] = "Bearer",
             ["expires_in"] = tokens.ExpiresIn,
-            ["scope"] = withRefreshToken ? "offline_access read write" : "read write",
+            ["scope"] = scope ?? (withRefreshToken ? "offline_access read write" : "read write"),
             ["user_id"] = userId,
         };
         if (withRefreshToken)
@@ -361,6 +364,36 @@ internal sealed class MercadoLivreFake(WireMockServer server)
             }, null);
         }));
     }
+
+    /// <summary>Chamadas da busca de IDs contadas na chegada desde <see cref="SearchFailsFirst"/>.</summary>
+    public int SearchArrivals => Volatile.Read(ref _searchCalls);
+
+    /// <summary>
+    /// As <paramref name="times"/> primeiras chamadas da busca de IDs do vendedor respondem <paramref name="status"/> (com
+    /// <c>Retry-After</c> se informado); as seguintes devolvem <paramref name="ids"/> numa única página por offset.
+    /// </summary>
+    public void SearchFailsFirst(long mlUserId, int times, int status, IReadOnlyList<string> ids, string? retryAfter = null)
+    {
+        ArgumentNullException.ThrowIfNull(ids);
+        Interlocked.Exchange(ref _searchCalls, 0);
+        server.Given(Request.Create().WithPath(SearchPath(mlUserId)).UsingGet()).RespondWith(Response.Create().WithCallback(_ =>
+        {
+            if (Interlocked.Increment(ref _searchCalls) <= times)
+            {
+                return ErrorResponse(status, retryAfter);
+            }
+
+            return Message(200, new Dictionary<string, object?>
+            {
+                ["seller_id"] = mlUserId.ToString(CultureInfo.InvariantCulture),
+                ["results"] = ids.ToArray(),
+                ["paging"] = new Dictionary<string, object> { ["total"] = ids.Count, ["offset"] = 0, ["limit"] = 100 },
+            }, null);
+        }));
+    }
+
+    /// <summary>Toda chamada da busca de IDs do vendedor responde <paramref name="status"/>.</summary>
+    public void SearchAlwaysFails(long mlUserId, int status) => SearchFailsFirst(mlUserId, int.MaxValue, status, []);
 
     /// <summary><c>scroll_id</c> devolvido em todas as páginas do scan com <c>constantScrollId</c>.</summary>
     public const string ConstantScrollId = "DXF1ZXJ5QW5kRmV0Y2gBAAAAAAAAAAEWb3Zfc2Nyb2xsX2ZpeG8";
