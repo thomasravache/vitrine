@@ -23,6 +23,9 @@ internal sealed record PkcePair(string Verifier, string Challenge)
         Convert.ToBase64String(bytes).TrimEnd('=').Replace('+', '-').Replace('/', '_');
 }
 
+/// <summary>Vendedor criado e conectado, com os IDs ativos e pausados na ordem da massa.</summary>
+internal sealed record ConnectedSeller(long Id, string AccessToken, IReadOnlyList<string> Active, IReadOnlyList<string> Paused);
+
 /// <summary>Resposta HTTP já lida: status, cabeçalhos úteis e corpo (JSON quando houver).</summary>
 internal sealed record SimulatorResponse(HttpStatusCode Status, string Body, string? ContentType, Uri? Location)
 {
@@ -137,6 +140,43 @@ internal sealed partial class SimulatorClient(HttpClient http) : IDisposable
 
     public Task<SimulatorResponse> PostAsync(string path, CancellationToken cancellationToken = default) =>
         SendAsync(new HttpRequestMessage(HttpMethod.Post, path), null, cancellationToken);
+
+    /// <summary>Requisição JSON à API do ML (corpo serializado como está: use nomes snake_case) com Bearer opcional.</summary>
+    public Task<SimulatorResponse> SendJsonAsync(
+        HttpMethod method, string path, object body, string? accessToken, CancellationToken cancellationToken = default) =>
+        SendAsync(new HttpRequestMessage(method, path) { Content = JsonContent.Create(body) }, accessToken, cancellationToken);
+
+    /// <summary>Requisição com o JSON cru (ex.: o <c>request</c> de uma fixture) e Bearer opcional.</summary>
+    public Task<SimulatorResponse> SendRawJsonAsync(
+        HttpMethod method, string path, string json, string? accessToken, CancellationToken cancellationToken = default) =>
+        SendAsync(
+            new HttpRequestMessage(method, path) { Content = new StringContent(json, Encoding.UTF8, "application/json") },
+            accessToken,
+            cancellationToken);
+
+    /// <summary>
+    /// Vendedor novo (<c>POST /__sim/sellers</c>, massa padrão 15/6/4) já conectado: id, access token e os IDs ativos e
+    /// pausados na ordem da massa (1º ativo com vendas, 2º de catálogo, 3º em diante editáveis — SPEC-0034).
+    /// </summary>
+    public async Task<ConnectedSeller> CreateConnectedSellerAsync(CancellationToken cancellationToken = default)
+    {
+        var (id, _) = await CreateSellerAsync(cancellationToken: cancellationToken);
+        var token = (await ConnectAsync(id, cancellationToken)).GetProperty("access_token").GetString()!;
+        return new ConnectedSeller(
+            id,
+            token,
+            await SearchIdsAsync(id, token, "active", cancellationToken),
+            await SearchIdsAsync(id, token, "paused", cancellationToken));
+    }
+
+    /// <summary>IDs do vendedor com o status pedido (busca por offset, até 100).</summary>
+    public async Task<List<string>> SearchIdsAsync(long sellerId, string accessToken, string status, CancellationToken cancellationToken = default)
+    {
+        var path = string.Create(CultureInfo.InvariantCulture, $"/users/{sellerId}/items/search?status={status}&limit=100");
+        var page = await GetAsync(path, accessToken, cancellationToken);
+        Assert.True(page.Status == HttpStatusCode.OK, $"GET {path} respondeu {(int)page.Status}: {page.Body}");
+        return [.. page.Json.GetProperty("results").EnumerateArray().Select(id => id.GetString()!)];
+    }
 
     /// <summary><c>POST /__sim/sellers</c>; devolve o id criado (201 exigido).</summary>
     public async Task<(long Id, string Nickname)> CreateSellerAsync(object? body = null, CancellationToken cancellationToken = default)
