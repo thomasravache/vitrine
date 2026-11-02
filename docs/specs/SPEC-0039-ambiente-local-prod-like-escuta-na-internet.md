@@ -4,7 +4,7 @@ title: Ambiente local prod-like escuta na internet
 tier: lite
 type: fix
 user_facing: false
-status: approved
+status: implemented
 created: 2026-11-02
 parent: SPEC-0032
 depends_on: []
@@ -80,8 +80,8 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 **Fase final: Integração, entrega e documentação**
 - [x] Review independente (G4)
 - [x] Integração + CI verde (G5) e aprovação (H2)
-- [ ] Deploy no ambiente local prod-like com smoke (G6)
-- [ ] Relatório de Entrega, docs raiz e CHANGELOG (G7)
+- [x] Deploy no ambiente local prod-like com smoke (G6)
+- [x] Relatório de Entrega, docs raiz e CHANGELOG (G7)
 
 ## 8. Registro de Gates
 <!-- Status: PENDING | PASS | FAIL | N/A. PASS e N/A exigem evidência. -->
@@ -94,8 +94,8 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 | G4 Review | PASS | verify G1+G4: PASS; revisão: Reviewer independente: APPROVED (2ª rodada; achados IPv6 e ss -ltun resolvidos pela Emenda v1.1) — 6edeb1d | 2026-11-02 |
 | G5 Integração & CI | PASS | build exit 0 (npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts a); test exit 0 (learn more: https://vitest.dev/guide/improving-performance#test-environments); test_integration exit 0 (duration: 4m 04s 602ms); test_e2e exit 0 (40 passed (1.4m)); arch_test exit 0 (duration: 2s 336ms); security_scan exit 0 ([90m8:12AM[0m [32mINF[0m [1mno leaks found[0m) — 7a9234e | 2026-11-02 |
 | H2 Integração aprovada | PASS | política auto-on-green (aprovada por thomas em 2026-10-13); G5 PASS | 2026-11-02 |
-| G6 Deploy | PENDING | | |
-| G7 Pronto & Docs | PENDING | | |
+| G6 Deploy | PASS | MANUAL: deploy local da82ad7 (main após PR #64) com CADDY_BIND_ADDRESS=127.0.0.1: deploy.sh OK (health 200 em 4 s); ss -ltun → só 127.0.0.1:80/tcp, 127.0.0.1:443/tcp, 127.0.0.1:443/udp; curl ao IP público 143.95.218.240 (Host: vitrine.localhost) http e https → 000 (sem conexão); smoke BASE_URL=https://vitrine.localhost → 4 passed (acesso + conectar-conta, desktop e mobile) | 2026-11-02 |
+| G7 Pronto & Docs | PASS | Relatório de Entrega e Definição de Pronto: ok — 353a09b | 2026-11-02 |
 
 ## 9. Registro de Impedimentos
 <!-- Toda parada é registrada pelo Architect com `spec_graph.py impede` e fechada com `resolve` — não edite à mão. Tipos: spec (spec errada/incompleta → resolve com Emenda) | decisão (só o humano decide → resposta ou ADR) | trabalho (falta algo que exige código → SPEC-NNNN nova) | externo (acesso, ambiente, terceiro → ação tomada) | falha (3 FAILs seguidos no mesmo gate → diagnóstico e decisão). Com impedimento aberto a spec aparece como parada no INDEX e não pode ser fechada. -->
@@ -106,28 +106,37 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 <!-- Preenchido no CLOSE (G7). Para status implemented o validate exige tudo preenchido, todo teste do plano com PASS + evidência e a Definição de Pronto marcada. -->
 
 ### O que foi entregue
+O ambiente local prod-like não fica mais acessível pela internet: com `CADDY_BIND_ADDRESS=127.0.0.1` (padrão do `deploy/local/.env.example`), o Caddy publica 80/tcp, 443/tcp e 443/udp só no loopback. Staging e produção, sem a variável, continuam em todas as interfaces, IPv4 e IPv6. O runbook explica o acesso de outra máquina por túnel SSH.
 
 ### Como foi feito
+- `deploy/compose.override.yaml`: portas do `caddy` como `"${CADDY_BIND_ADDRESS:+${CADDY_BIND_ADDRESS}:}80:80"` (idem 443 e 443/udp). Sem a variável a porta sai sem endereço de host, como antes (Emenda v1.1: um `0.0.0.0` explícito derrubaria o IPv6 do `AAAA` de produção).
+- `deploy/local/.env.example`: `CADDY_BIND_ADDRESS=127.0.0.1`, com o motivo (o Docker passa por cima do ufw).
+- `docs/runbooks/deploy.md`: variável na tabela, nota para quem já tem `deploy/local/.env`, túnel `sudo ssh -N -L 443:127.0.0.1:443` (com `-F`/`-i`/`UserKnownHostsFile` para alias) e verificação com `ss -ltun`.
+- G4 em 2 rodadas: IPv6 e UDP no runbook (Emenda v1.1).
 
 ### Prova de Correção
-<!-- type fix: teste de regressão falhou antes (commit red + saída) e passa depois (commit green + execução). Outros tipos: "N/A". -->
+- Red: IT-01 (`b521a31`) — `Porta 80/tcp do caddy publicada em '(sem host_ip: todas as interfaces)' no ambiente local; esperado 127.0.0.1` (idem 443/tcp e 443/udp). Red da emenda (`9f83df7`): `Porta 80/tcp do caddy publicada em '0.0.0.0' sem CADDY_BIND_ADDRESS; esperado sem host_ip (IPv4 e IPv6)`.
+- Green: `8f6ffe1` + `f7cc53b`; Tooling 24/24; CI do PR #64 (runs/41434918884) verde; no ambiente local, `ss -ltun` só com `127.0.0.1` e o IP público sem conexão (antes respondia 200).
 
 ### Verificação
 | Teste | Comportamento | Resultado | Evidência |
 |---|---|---|---|
+| IT-01 | `.env.example` local publica o Caddy só em 127.0.0.1; sem a variável, todas as interfaces (sem `host_ip`) | PASS | CI PR #64 runs/41434918884 (f7cc53b); main da82ad7 |
 
 ### Definição de Pronto
-- [ ] Teste de regressão falhou antes e passa depois da correção
-- [ ] Suíte completa, arquitetura e CI verdes (G2, G3, G5)
-- [ ] Review independente sem achados blocker/major (G4)
-- [ ] Padrão existente mantido
-- [ ] Disponível no ambiente-alvo via pipeline (G6)
-- [ ] Documentação/CHANGELOG atualizados quando aplicável (G7)
-- [ ] Outras ocorrências registradas como novas specs (ou nenhuma)
+- [x] Teste de regressão falhou antes e passa depois da correção
+- [x] Suíte completa, arquitetura e CI verdes (G2, G3, G5)
+- [x] Review independente sem achados blocker/major (G4)
+- [x] Padrão existente mantido
+- [x] Disponível no ambiente-alvo via pipeline (G6)
+- [x] Documentação/CHANGELOG atualizados quando aplicável (G7)
+- [x] Outras ocorrências registradas como novas specs (ou nenhuma)
 
 ### Deploy
+Ambiente local prod-like, `ghcr.io/thomasravache/vitrine-api:da82ad7` + `vitrine-ml-simulator:local`, 2026-11-02, com `CADDY_BIND_ADDRESS=127.0.0.1`: smoke 4/4; `ss -ltun` só `127.0.0.1:80`, `127.0.0.1:443` e `127.0.0.1:443/udp`; `curl` ao IP público → sem conexão.
 
 ### Pendências
+Nenhuma. Em staging/produção nada muda (SPEC-0009 não define a variável).
 
 ## 11. Emendas
 <!-- Mudança em spec aprovada: uma linha por emenda, aprovada pelo humano. -->

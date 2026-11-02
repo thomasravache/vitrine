@@ -28,6 +28,7 @@ Cada entrada cita a spec de origem (`SPEC-NNNN`); gere-as com `spec_graph.py rep
 - O simulador do Mercado Livre não repete IDs de vendedor depois de reiniciar (SPEC-0031)
 - Testes de arquitetura dão o mesmo resultado localmente e no CI quando um projeto não é referenciado (SPEC-0027)
 - Sincronização e atualização de anúncios rodam com o gateway real do Mercado Livre (geração de código do Wolverine) (SPEC-0028)
+- O ambiente local prod-like escuta só em 127.0.0.1 e não fica mais acessível pela internet; staging e produção continuam em todas as interfaces, IPv4 e IPv6 (SPEC-0039)
 - Notificação forjada não grava mais anúncio de outro vendedor no catálogo da conta (SPEC-0029)
 - Cifra de campos (`UseFieldProtection`) não cria mais um provedor interno do EF Core por protetor; o módulo do Mercado Livre volta ao caminho padrão (SPEC-0026)
 - O Sentry não recebe segredos de `Exception.Data` guardados em objetos, contexts, extras, JSON, coleções ou URLs com credenciais, e o log de erro nunca falha por causa do mascaramento (SPEC-0018)
