@@ -143,5 +143,9 @@ root_docs:
   - AGENTS.md
   - README.md
 changelog: CHANGELOG.md
+# Documentos vivos (guia de jornadas e mapa do sistema), atualizados no CLOSE (G7).
+living_docs:
+  journeys: docs/jornadas.md
+  system_map: docs/arquitetura.md
 # Itens extras de Definição de Pronto do projeto, anexados a cada spec no PLAN.
 dod_extra: []
