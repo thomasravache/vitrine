@@ -19,7 +19,11 @@ internal static class MlJson
 
 internal sealed record OAuthError(string Error, string ErrorDescription, int Status, IReadOnlyList<string> Cause);
 
-internal sealed record ApiError(string Message, string Error, int Status, IReadOnlyList<string> Cause);
+/// <summary>Erro da API do ML: <c>{ message, error, status, cause: [{ code, message }] }</c>.</summary>
+internal sealed record ApiError(string Message, string Error, int Status, IReadOnlyList<ApiCause> Cause);
+
+/// <summary>Item de <c>cause</c> do erro do ML.</summary>
+internal sealed record ApiCause(string Code, string Message);
 
 internal sealed record TokenResponse(string AccessToken, string TokenType, int ExpiresIn, string Scope, long UserId, string RefreshToken);
 

@@ -6,6 +6,7 @@ using Vitrine.IntegrationTests.MercadoLivreSimulator.Support;
 namespace Vitrine.IntegrationTests.MercadoLivreSimulator;
 
 /// <summary>SPEC-0024:IT-01 — fluxo OAuth completo do simulador por HTTP (página, decisão, troca do code e renovação).</summary>
+[Trait("spec", "SPEC-0034:CH-01")]
 public sealed class SimulatorOAuthTests
 {
     private const string PageTitle = "Simulador do Mercado Livre — ambiente de teste";

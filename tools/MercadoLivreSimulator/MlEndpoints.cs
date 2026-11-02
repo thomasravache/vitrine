@@ -6,9 +6,10 @@ namespace Vitrine.MercadoLivreSimulator;
 
 /// <summary>
 /// Endpoints que imitam o subconjunto documentado do ML usado pelo Vitrine (SPEC-0024, seção 6): página de autorização,
-/// <c>/oauth/token</c>, <c>/users/me</c>, busca de anúncios e <c>/items/bulk</c>.
+/// <c>/oauth/token</c>, <c>/users/me</c>, busca de anúncios e <c>/items/bulk</c>; e, na SPEC-0034, detalhe, descrição,
+/// categorias e edição do anúncio (contrato SPEC-0033@1).
 /// </summary>
-internal static class MlEndpoints
+internal static partial class MlEndpoints
 {
     private const string Scope = "offline_access read write";
     private const int DefaultSearchLimit = 50;
@@ -23,6 +24,13 @@ internal static class MlEndpoints
         app.MapGet("/users/me", UsersMe);
         app.MapGet("/users/{sellerId:long}/items/search", SearchItems);
         app.MapGet("/items/bulk", Bulk);
+        app.MapGet("/items/{itemId}", ItemDetails);
+        app.MapPut("/items/{itemId}", EditItemAsync);
+        app.MapGet("/items/{itemId}/description", Description);
+        app.MapPost("/items/{itemId}/description", CreateDescriptionAsync);
+        app.MapPut("/items/{itemId}/description", UpdateDescriptionAsync);
+        app.MapGet("/categories/{categoryId}", Category);
+        app.MapGet("/categories/{categoryId}/attributes", CategoryAttributes);
     }
 
     private static IResult Authorization(HttpRequest request, SimulatorState state, IOptions<SimulatorOptions> options)
@@ -224,6 +232,175 @@ internal static class MlEndpoints
             : new BulkEntry(id, StatusCodes.Status404NotFound, new ApiError($"Item with id {id} not found", "not_found", StatusCodes.Status404NotFound, [])));
         return Results.Json(entries.ToList(), MlJson.Options);
     }
+
+    /// <summary><c>GET /items/{id}[?attributes=campos]</c>: recurso público (token opcional; inválido dá 401).</summary>
+    private static IResult ItemDetails(string itemId, HttpRequest request, SimulatorState state, TokenIssuer issuer)
+    {
+        if (request.Headers.Authorization.Count > 0 && Caller(request, issuer) is null)
+        {
+            return Unauthorized();
+        }
+
+        if (state.FindItem(itemId) is not { } item)
+        {
+            return ItemNotFound(itemId);
+        }
+
+        var attributes = request.Query["attributes"].ToString()
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .ToHashSet(StringComparer.Ordinal);
+        var body = Details(item);
+        return Results.Json(
+            attributes.Count == 0 ? body : body.Where(field => attributes.Contains(field.Key)).ToDictionary(StringComparer.Ordinal),
+            MlJson.Options);
+    }
+
+    /// <summary><c>GET /items/{id}/description</c>: 200 com <c>plain_text</c> ou 404 sem descrição.</summary>
+    private static IResult Description(string itemId, SimulatorState state) =>
+        state.FindDescription(itemId) is { } description
+            ? Results.Json(DescriptionBody(description), MlJson.Options)
+            : ApiFailure(StatusCodes.Status404NotFound, "not_found", $"Description of item {itemId} not found");
+
+    private static async Task<IResult> EditItemAsync(
+        string itemId, HttpRequest request, SimulatorState state, TokenIssuer issuer, NotificationSender notifications, ILoggerFactory loggers)
+    {
+        var body = await ReadBodyAsync(request);
+        var result = state.EditItem(itemId, Caller(request, issuer), PathOf(request), body);
+        return Written(itemId, WriteTarget.Item, result, notifications, loggers);
+    }
+
+    private static async Task<IResult> CreateDescriptionAsync(
+        string itemId, HttpRequest request, SimulatorState state, TokenIssuer issuer, NotificationSender notifications, ILoggerFactory loggers)
+    {
+        var body = await ReadBodyAsync(request);
+        var result = state.WriteDescription(itemId, Caller(request, issuer), create: true, PathOf(request), body);
+        return Written(itemId, WriteTarget.Description, result, notifications, loggers);
+    }
+
+    private static async Task<IResult> UpdateDescriptionAsync(
+        string itemId, HttpRequest request, SimulatorState state, TokenIssuer issuer, NotificationSender notifications, ILoggerFactory loggers)
+    {
+        var body = await ReadBodyAsync(request);
+        var result = state.WriteDescription(itemId, Caller(request, issuer), create: false, PathOf(request), body);
+        return Written(itemId, WriteTarget.Description, result, notifications, loggers);
+    }
+
+    /// <summary>Resposta da escrita no formato do ML; a aceita dispara a notificação <c>items</c> sem esperar a entrega.</summary>
+    private static IResult Written(
+        string itemId, WriteTarget target, WriteResult? result, NotificationSender notifications, ILoggerFactory loggers)
+    {
+        if (result is null)
+        {
+            return ItemNotFound(itemId);
+        }
+
+        var logger = loggers.CreateLogger(typeof(MlEndpoints));
+        LogWrite(logger, itemId, target, result.Status);
+        if (result.Error is { } error)
+        {
+            return Results.Json(error, MlJson.Options, statusCode: result.Status);
+        }
+
+        notifications.Publish(result.SellerId, itemId);
+        return result.Description is { } description
+            ? Results.Json(DescriptionBody(description), MlJson.Options, statusCode: result.Status)
+            : Results.Json(Details(result.Item!), MlJson.Options, statusCode: result.Status);
+    }
+
+    /// <summary><c>GET /categories/{id}</c>: nome e limites de <c>settings</c>.</summary>
+    private static IResult Category(string categoryId) =>
+        SimulatorCategories.Find(categoryId) is { } category
+            ? Results.Json(
+                new Dictionary<string, object>(StringComparer.Ordinal)
+                {
+                    ["id"] = category.Id,
+                    ["name"] = category.Name,
+                    ["settings"] = new Dictionary<string, int>(StringComparer.Ordinal)
+                    {
+                        ["max_title_length"] = category.MaxTitleLength,
+                        ["max_description_length"] = category.MaxDescriptionLength,
+                    },
+                },
+                MlJson.Options)
+            : CategoryNotFound(categoryId);
+
+    /// <summary><c>GET /categories/{id}/attributes</c>: tipo, tags (só as verdadeiras), valores e unidades.</summary>
+    private static IResult CategoryAttributes(string categoryId) =>
+        SimulatorCategories.Find(categoryId) is { } category
+            ? Results.Json(category.Attributes.Select(AttributeBody).ToList(), MlJson.Options)
+            : CategoryNotFound(categoryId);
+
+    private static Dictionary<string, object> AttributeBody(CategoryAttribute attribute)
+    {
+        var tags = new Dictionary<string, bool>(StringComparer.Ordinal);
+        foreach (var (tag, value) in new[]
+        {
+            ("required", attribute.Required), ("catalog_required", attribute.CatalogRequired),
+            ("read_only", attribute.ReadOnly), ("hidden", attribute.Hidden),
+        })
+        {
+            if (value)
+            {
+                tags[tag] = true;
+            }
+        }
+
+        return new Dictionary<string, object>(StringComparer.Ordinal)
+        {
+            ["id"] = attribute.Id,
+            ["name"] = attribute.Name,
+            ["value_type"] = attribute.ValueType,
+            ["tags"] = tags,
+            ["values"] = attribute.Values,
+            ["allowed_units"] = attribute.AllowedUnits,
+        };
+    }
+
+    /// <summary>Detalhe do anúncio (<c>GET /items/{id}</c>), com os campos do contrato SPEC-0033@1.</summary>
+    private static Dictionary<string, object?> Details(ItemInfo item) => new(StringComparer.Ordinal)
+    {
+        ["id"] = item.Id,
+        ["seller_id"] = item.SellerId,
+        ["category_id"] = item.CategoryId,
+        ["title"] = item.Title,
+        ["price"] = item.Price,
+        ["currency_id"] = item.CurrencyId,
+        ["available_quantity"] = item.AvailableQuantity,
+        ["sold_quantity"] = item.SoldQuantity,
+        ["status"] = item.Status,
+        ["catalog_listing"] = item.CatalogListing,
+        ["user_product_id"] = null,
+        ["permalink"] = item.Permalink,
+        ["thumbnail"] = item.Thumbnail,
+        ["secure_thumbnail"] = item.SecureThumbnail,
+        ["listing_type_id"] = item.ListingTypeId,
+        ["last_updated"] = MlJson.Date(item.LastUpdated),
+        ["attributes"] = item.Attributes,
+    };
+
+    private static Dictionary<string, string> DescriptionBody(ItemDescription description) => new(StringComparer.Ordinal)
+    {
+        ["plain_text"] = description.PlainText,
+        ["last_updated"] = MlJson.Date(description.LastUpdated),
+        ["date_created"] = MlJson.Date(description.DateCreated),
+    };
+
+    private static async Task<string> ReadBodyAsync(HttpRequest request)
+    {
+        using var reader = new StreamReader(request.Body);
+        return await reader.ReadToEndAsync(request.HttpContext.RequestAborted);
+    }
+
+    private static string PathOf(HttpRequest request) => request.Path.Value + request.QueryString.Value;
+
+    private static IResult ItemNotFound(string itemId) =>
+        ApiFailure(StatusCodes.Status404NotFound, "not_found", $"Item with id {itemId} not found");
+
+    private static IResult CategoryNotFound(string categoryId) =>
+        ApiFailure(StatusCodes.Status404NotFound, "not_found", $"Category {categoryId} not found");
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Escrita recebida: anúncio {ItemId}, alvo {Target}, status {Status}")]
+    private static partial void LogWrite(ILogger logger, string itemId, WriteTarget target, int status);
 
     /// <summary>Corpo do item com os campos pedidos em <c>attributes</c> (todos, quando não há filtro).</summary>
     private static Dictionary<string, object?> Body(ItemInfo item, HashSet<string> attributes)
