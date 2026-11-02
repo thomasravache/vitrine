@@ -272,7 +272,8 @@ public sealed class ListingEditorFailureTests(PostgresFixture postgres)
     {
         var cancellationToken = TestContext.Current.CancellationToken;
         var logs = new RecordingLoggerProvider();
-        await using var factory = MercadoLivreHost.Create(await postgres.CreateDatabaseAsync(cancellationToken)).WithLogs(logs);
+        var events = new EventRecordingLoggerProvider();
+        await using var factory = MercadoLivreHost.Create(await postgres.CreateDatabaseAsync(cancellationToken)).WithLogs(logs).WithLogs(events);
         var fake = new MercadoLivreListingFake(factory.ExternalServices);
         var oauth = new MercadoLivreFake(factory.ExternalServices);
         using var metrics = new ListingEditsListener(factory.Services.GetRequiredService<IMeterFactory>());
@@ -295,6 +296,11 @@ public sealed class ListingEditorFailureTests(PostgresFixture postgres)
 
         // E o título, já aplicado antes da exceção, foi registrado em listing_edits (emenda v1.1)
         Assert.True(metrics.Total("title", "applied") == 1, $"listing_edits{{title, applied}} esperado 1 antes da exceção. {metrics.Describe()}");
+
+        // E a interrupção sai como log Warning Interrupted (EventId 45) do editor
+        var interrupted = Assert.Single(events.Records, record => record.EventId.Id == 45 && record.Category.EndsWith("MercadoLivreListingEditor", StringComparison.Ordinal));
+        Assert.Equal(Microsoft.Extensions.Logging.LogLevel.Warning, interrupted.Level);
+        Assert.Equal("Interrupted", interrupted.EventId.Name);
 
         AssertNoSecrets(logs, [thrown], account.Tokens, renewed);
     }

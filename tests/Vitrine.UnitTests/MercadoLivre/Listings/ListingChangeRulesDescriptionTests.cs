@@ -35,6 +35,8 @@ public sealed class ListingChangeRulesDescriptionTests
     [InlineData("987654321")]
     [InlineData("ligue 3456-7890")]
     [InlineData("Tel: 3456-7890")]
+    [InlineData("tel: 3456 7890")]
+    [InlineData("Ligue 3456 7890")]
     [InlineData("Veja mais em https://lojateste.com.br/fone")]
     [InlineData("Veja mais em www.lojateste.com.br")]
     [InlineData("Chame no WhatsApp para negociar.")]
@@ -56,6 +58,11 @@ public sealed class ListingChangeRulesDescriptionTests
     [InlineData("Peça 12345678")]
     [InlineData("novo.Com garantia")]
     [InlineData("3456-7890")]
+    [InlineData("Para Celta 2008-2012")]
+    [InlineData("Tela para modelos 2018-2020")]
+    [InlineData("Capa celular modelos 2019-2021")]
+    [InlineData("Fone de ouvido linha 2020-2021")]
+    [InlineData("Pastilha Civic G10 2016-2021")]
     public void Numeros_e_textos_que_nao_sao_contato_sao_aceitos(string description)
     {
         // Emenda v1.1: anos, resolução, lotes, potências, códigos de peça, "novo.Com" (TLD só em minúsculas) e 8 dígitos
