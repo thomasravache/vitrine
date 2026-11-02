@@ -215,6 +215,31 @@ public sealed class ListingEditorTests(PostgresFixture postgres)
             MercadoLivreListingFake.BodyOf(put));
     }
 
+    [Fact]
+    [Trait("spec", "SPEC-0033:IT-04")]
+    public async Task Atributo_repetido_lanca_ArgumentException_sem_nenhuma_escrita()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var factory = MercadoLivreHost.Create(await postgres.CreateDatabaseAsync(cancellationToken));
+        var fake = new MercadoLivreListingFake(factory.ExternalServices);
+
+        // Dado um anúncio ativo
+        var account = await MercadoLivreGateway.SeedValidAccountAsync(factory, cancellationToken);
+        var itemId = ListingGateway.SetUpItem(fake, account);
+        fake.WritesSucceed(itemId);
+
+        // Quando ApplyAsync recebe o mesmo atributo duas vezes (emenda v1.1)
+        var changes = new ListingChanges(
+            ListingFixtures.ChangesFromRequestFixtures().Title,
+            null,
+            [new AttributeChange("MODEL", null, "BT-500 Pro"), new AttributeChange("MODEL", null, "BT-600")]);
+
+        // Então lança ArgumentException antes de qualquer escrita
+        await Assert.ThrowsAnyAsync<ArgumentException>(
+            () => ListingGateway.ApplyAsync(factory, account.AccountId, itemId, changes, cancellationToken));
+        Assert.Empty(fake.Writes(itemId));
+    }
+
     /// <summary>Igualdade de JSON (campos, tipos e valores), com os dois corpos na mensagem de falha.</summary>
     internal static void AssertJsonEqual(JsonNode expected, JsonNode? actual) =>
         Assert.True(

@@ -31,7 +31,10 @@ public sealed class ListingChangeRulesDescriptionTests
     [InlineData("Ligue 11987654321 para mais detalhes.")]
     [InlineData("Ligue 98765-4321 para mais detalhes.")]
     [InlineData("Ligue 987654321 para mais detalhes.")]
-    [InlineData("Ligue 3456-7890 para mais detalhes.")]
+    [InlineData("98765-4321")]
+    [InlineData("987654321")]
+    [InlineData("ligue 3456-7890")]
+    [InlineData("Tel: 3456-7890")]
     [InlineData("Veja mais em https://lojateste.com.br/fone")]
     [InlineData("Veja mais em www.lojateste.com.br")]
     [InlineData("Chame no WhatsApp para negociar.")]
@@ -41,6 +44,25 @@ public sealed class ListingChangeRulesDescriptionTests
         var violations = ListingChangeRules.Violations(Item(), Category(), Description(description));
 
         Assert.Equal("DESCRIPTION_CONTACT", violations.GetValueOrDefault("description"));
+    }
+
+    [Theory]
+    [Trait("spec", "SPEC-0033:UT-02")]
+    [InlineData("Compatível com Gol 2008-2012")]
+    [InlineData("Resolução 1920 1080")]
+    [InlineData("Lote 2024.2025")]
+    [InlineData("Kit 1000 2000 W")]
+    [InlineData("Ref. 0986 4945")]
+    [InlineData("Peça 12345678")]
+    [InlineData("novo.Com garantia")]
+    [InlineData("3456-7890")]
+    public void Numeros_e_textos_que_nao_sao_contato_sao_aceitos(string description)
+    {
+        // Emenda v1.1: anos, resolução, lotes, potências, códigos de peça, "novo.Com" (TLD só em minúsculas) e 8 dígitos
+        // com máscara sem palavra de contato antes não são contato
+        var violations = ListingChangeRules.Violations(Item(), Category(), Description(description));
+
+        Assert.False(violations.ContainsKey("description"), $"Descrição sem contato recusada: {string.Join(", ", violations)}");
     }
 
     [Fact]

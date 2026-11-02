@@ -28,6 +28,7 @@ public sealed class ListingContractTests(PostgresFixture postgres)
     [InlineData("error-description-invalid.json")]
     [InlineData("error-item-not-active.json")]
     [InlineData("error-conflict.json")]
+    [InlineData("error-field-not-updatable-attribute.json")]
     public void Fixture_tem_a_origem_anotada(string name)
     {
         // Dado a fixture sintética; então a origem está anotada (endpoint, formato, documentação, data e nota)

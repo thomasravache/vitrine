@@ -1,3 +1,5 @@
+using System.Diagnostics.Metrics;
+using Microsoft.Extensions.DependencyInjection;
 using Vitrine.IntegrationTests.MercadoLivre.Support;
 using Vitrine.IntegrationTests.Observability.Support;
 using Vitrine.IntegrationTests.Support;
@@ -45,6 +47,30 @@ public sealed class ListingEditorFailureTests(PostgresFixture postgres)
         ListingEditorTests.AssertJsonEqual(attributesOnly, MercadoLivreListingFake.BodyOf(puts[1]));
         Assert.Equal(["COLOR", "MODEL"], result.Attributes.Keys.Order(StringComparer.Ordinal));
         Assert.All(result.Attributes.Values, field => Assert.IsType<FieldResult.Applied>(field));
+    }
+
+    [Fact]
+    [Trait("spec", "SPEC-0033:IT-05")]
+    public async Task Field_not_updatable_sem_title_recusa_o_PUT_inteiro_sem_segundo_PUT()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var factory = MercadoLivreHost.Create(await postgres.CreateDatabaseAsync(cancellationToken));
+        var fake = new MercadoLivreListingFake(factory.ExternalServices);
+
+        // Dado o ML respondendo ao PUT com título e atributos 400 field_not_updatable de um atributo (sem citar title)
+        var account = await MercadoLivreGateway.SeedValidAccountAsync(factory, cancellationToken);
+        var itemId = ListingGateway.SetUpItem(fake, account);
+        fake.ItemUpdateResponds(itemId, MlReply.FromErrorFixture("error-field-not-updatable-attribute.json"), new MlReply(200, "{}"));
+
+        // Quando ApplyAsync recebe título e atributos
+        var changes = ListingFixtures.ChangesFromRequestFixtures() with { Description = null };
+        var result = await ListingGateway.ApplyAsync(factory, account.AccountId, itemId, changes, cancellationToken);
+
+        // Então título e atributos ficam Rejected(ML_REJECTED), com um único PUT (emenda v1.1)
+        Assert.Single(fake.CallsTo("PUT", MercadoLivreListingFake.ItemPath(itemId)));
+        Assert.Equal("ML_REJECTED", Assert.IsType<FieldResult.Rejected>(result.Title).Code);
+        Assert.Equal(["COLOR", "MODEL"], result.Attributes.Keys.Order(StringComparer.Ordinal));
+        Assert.All(result.Attributes.Values, field => Assert.Equal("ML_REJECTED", Assert.IsType<FieldResult.Rejected>(field).Code));
     }
 
     [Fact]
@@ -238,6 +264,39 @@ public sealed class ListingEditorFailureTests(PostgresFixture postgres)
         Assert.IsType<FieldResult.Applied>(result.Title);
 
         AssertNoSecrets(logs, [], account.Tokens, renewed);
+    }
+
+    [Fact]
+    [Trait("spec", "SPEC-0033:IT-07")]
+    public async Task Descricao_com_401_duplo_propaga_ReauthorizationRequired_depois_de_registrar_o_titulo_aplicado()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var logs = new RecordingLoggerProvider();
+        await using var factory = MercadoLivreHost.Create(await postgres.CreateDatabaseAsync(cancellationToken)).WithLogs(logs);
+        var fake = new MercadoLivreListingFake(factory.ExternalServices);
+        var oauth = new MercadoLivreFake(factory.ExternalServices);
+        using var metrics = new ListingEditsListener(factory.Services.GetRequiredService<IMeterFactory>());
+
+        // Dado o PUT do item aceito e o PUT da descrição respondendo 401 mesmo depois da renovação forçada
+        var account = await MercadoLivreGateway.SeedValidAccountAsync(factory, cancellationToken);
+        var renewed = MlTokens.New();
+        oauth.TokenResponds(renewed, account.Seller.Id);
+        var itemId = ListingGateway.SetUpItem(fake, account);
+        fake.ItemUpdateResponds(itemId);
+        fake.DescriptionUpdateResponds(itemId, new MlReply(200, "{}", RequiredToken: "APP_USR-token-nunca-emitido"));
+
+        // Quando ApplyAsync recebe título e descrição; então ReauthorizationRequired propaga
+        var changes = ListingFixtures.ChangesFromRequestFixtures() with { Attributes = null };
+        var thrown = await Assert.ThrowsAsync<MercadoLivreReauthorizationRequiredException>(
+            () => ListingGateway.ApplyAsync(factory, account.AccountId, itemId, changes, cancellationToken));
+        Assert.Equal(account.AccountId, thrown.AccountId);
+        Assert.Single(fake.CallsTo("PUT", MercadoLivreListingFake.ItemPath(itemId)));
+        Assert.Equal(2, fake.CallsTo("PUT", MercadoLivreListingFake.DescriptionPath(itemId)).Count);
+
+        // E o título, já aplicado antes da exceção, foi registrado em listing_edits (emenda v1.1)
+        Assert.True(metrics.Total("title", "applied") == 1, $"listing_edits{{title, applied}} esperado 1 antes da exceção. {metrics.Describe()}");
+
+        AssertNoSecrets(logs, [thrown], account.Tokens, renewed);
     }
 
     /// <summary>A 2ª escrita chegou ≥ 2 s depois da 1ª, e a espera de 2 s foi pedida ao <see cref="TimeProvider"/> do host.</summary>
