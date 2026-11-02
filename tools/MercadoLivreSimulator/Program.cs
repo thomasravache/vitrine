@@ -24,7 +24,8 @@ internal static class Program
         builder.Services.AddSingleton(services => new TokenIssuer(
             services.GetRequiredService<TimeProvider>(),
             services.GetRequiredService<IOptions<SimulatorOptions>>().Value.ParsedAccessTokenLifetime()!.Value));
-        builder.Services.AddHttpClient(ControlEndpoints.NotificationClient, client => client.Timeout = TimeSpan.FromSeconds(10));
+        builder.Services.AddHttpClient(NotificationSender.ClientName, client => client.Timeout = TimeSpan.FromSeconds(10));
+        builder.Services.AddSingleton<NotificationSender>();
         builder.Services.AddProblemDetails();
         builder.Services.AddHealthChecks();
 
