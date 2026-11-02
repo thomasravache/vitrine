@@ -80,7 +80,8 @@ simulador do ML (ADR-0002, ADR-0003). Resiliência e recuperação seguem a ADR-
   e `/items/bulk`; notificações por webhook (sem assinatura: o Vitrine sempre relê o anúncio com o token da conta e
   ignora itens de outro vendedor). Se o ML cair: chamadas com retry/circuit breaker, sincronização reagendada, conta
   marcada para reconectar se o token for recusado. Nos testes: WireMock (integração) e o simulador
-  `tools/MercadoLivreSimulator` (E2E e ambiente local; ADR-0016).
+  `tools/MercadoLivreSimulator` (E2E e ambiente local; ADR-0016), com detalhes, categorias e edição de anúncios
+  nas regras do ML (SPEC-0034).
 - **Grafana Cloud e Sentry** — opcionais; desligados sem credenciais.
 
 ## Ambientes
