@@ -4,7 +4,7 @@ title: Ambiente local prod-like escuta na internet
 tier: lite
 type: fix
 user_facing: false
-status: approved
+status: implemented
 created: 2026-11-02
 parent: SPEC-0032
 depends_on: []
@@ -95,7 +95,7 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 | G5 Integração & CI | PASS | build exit 0 (npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts a); test exit 0 (learn more: https://vitest.dev/guide/improving-performance#test-environments); test_integration exit 0 (duration: 4m 04s 602ms); test_e2e exit 0 (40 passed (1.4m)); arch_test exit 0 (duration: 2s 336ms); security_scan exit 0 ([90m8:12AM[0m [32mINF[0m [1mno leaks found[0m) — 7a9234e | 2026-11-02 |
 | H2 Integração aprovada | PASS | política auto-on-green (aprovada por thomas em 2026-10-13); G5 PASS | 2026-11-02 |
 | G6 Deploy | PASS | MANUAL: deploy local da82ad7 (main após PR #64) com CADDY_BIND_ADDRESS=127.0.0.1: deploy.sh OK (health 200 em 4 s); ss -ltun → só 127.0.0.1:80/tcp, 127.0.0.1:443/tcp, 127.0.0.1:443/udp; curl ao IP público 143.95.218.240 (Host: vitrine.localhost) http e https → 000 (sem conexão); smoke BASE_URL=https://vitrine.localhost → 4 passed (acesso + conectar-conta, desktop e mobile) | 2026-11-02 |
-| G7 Pronto & Docs | PENDING | | |
+| G7 Pronto & Docs | PASS | Relatório de Entrega e Definição de Pronto: ok — 353a09b | 2026-11-02 |
 
 ## 9. Registro de Impedimentos
 <!-- Toda parada é registrada pelo Architect com `spec_graph.py impede` e fechada com `resolve` — não edite à mão. Tipos: spec (spec errada/incompleta → resolve com Emenda) | decisão (só o humano decide → resposta ou ADR) | trabalho (falta algo que exige código → SPEC-NNNN nova) | externo (acesso, ambiente, terceiro → ação tomada) | falha (3 FAILs seguidos no mesmo gate → diagnóstico e decisão). Com impedimento aberto a spec aparece como parada no INDEX e não pode ser fechada. -->

@@ -4,8 +4,8 @@
 
 ## Saúde
 
-- Validação (G0): **0 erro(s), 43 aviso(s)** — rode `spec_graph.py validate`
-- Specs: approved 8, implemented 28
+- Validação (G0): **0 erro(s), 47 aviso(s)** — rode `spec_graph.py validate`
+- Specs: approved 7, implemented 29
 - Impedimentos: **0 aberto(s)**, 11 resolvido(s)
 
 ## Cobertura de Pilares
@@ -49,7 +49,6 @@ Perfil: **padrao**
 | 2 | SPEC-0035 | Sugestão de melhoria de anúncio com IA (geração, cota e custo) | full/M | approved | ⛔ aguarda implementação de SPEC-0033 |  |
 | 3 | SPEC-0036 | Aprovar e publicar a melhoria no Mercado Livre | full/M | approved | ⛔ aguarda implementação de SPEC-0035 |  |
 | 3 | SPEC-0037 | Suíte de avaliação da melhoria de anúncio | full/M | approved | ⛔ aguarda implementação de SPEC-0035 |  |
-| 3 | SPEC-0039 | Ambiente local prod-like escuta na internet | lite/S | approved | ✅ pronta | saiu da onda 1: arquivos em comum com SPEC-0009; saiu da onda 2: arquivos em comum com SPEC-0035 |
 | 4 | SPEC-0038 | Telas de detalhe e melhoria de anúncio (jornada aprovar-melhoria) | full/M | approved | ⛔ aguarda implementação de SPEC-0034; aguarda implementação de SPEC-0036 |  |
 
 ## Épicos
@@ -58,7 +57,7 @@ Perfil: **padrao**
 |---|---|---|---|
 | SPEC-0001 | Fundação da plataforma Vitrine | approved | 16/17 implementadas |
 | SPEC-0019 | Conectar conta do Mercado Livre e ver os anúncios | implemented | 12/12 implementadas |
-| SPEC-0032 | Melhorar anúncio com IA (aprovar e publicar no Mercado Livre) | approved | 0/7 implementadas |
+| SPEC-0032 | Melhorar anúncio com IA (aprovar e publicar no Mercado Livre) | approved | 1/7 implementadas |
 
 ## Grafo de Dependências
 
@@ -85,7 +84,6 @@ flowchart LR
     S0036["SPEC-0036<br/>Aprovar e publicar a melhoria no Mercad…"]:::approved
     S0037["SPEC-0037<br/>Suíte de avaliação da melhoria de anúnc…"]:::approved
     S0038["SPEC-0038<br/>Telas de detalhe e melhoria de anúncio …"]:::approved
-    S0039["SPEC-0039<br/>Ambiente local prod-like escuta na inte…"]:::approved
   end
   S0005 --> S0006
   S0006 --> S0007
@@ -161,7 +159,7 @@ flowchart LR
 | [SPEC-0036](SPEC-0036-aprovar-e-publicar-a-melhoria-no-mercado-livre.md) | Aprovar e publicar a melhoria no Mercado Livre | full | feature | approved | 2026-11-02 | SPEC-0032 | SPEC-0035 | SPEC-0033@1 |
 | [SPEC-0037](SPEC-0037-suite-de-avaliacao-da-melhoria-de-anuncio.md) | Suíte de avaliação da melhoria de anúncio | full | feature | approved | 2026-11-02 | SPEC-0032 | SPEC-0035 | SPEC-0035@1 |
 | [SPEC-0038](SPEC-0038-telas-de-detalhe-e-melhoria-de-anuncio-jornada-aprovar-melho.md) | Telas de detalhe e melhoria de anúncio (jornada aprovar-melhoria) | full | feature | approved | 2026-11-02 | SPEC-0032 | SPEC-0034, SPEC-0036 | SPEC-0035@1, SPEC-0036@1 |
-| [SPEC-0039](SPEC-0039-ambiente-local-prod-like-escuta-na-internet.md) | Ambiente local prod-like escuta na internet | lite | fix | approved | 2026-11-02 | SPEC-0032 | — | — |
+| [SPEC-0039](SPEC-0039-ambiente-local-prod-like-escuta-na-internet.md) | Ambiente local prod-like escuta na internet | lite | fix | implemented | 2026-11-02 | SPEC-0032 | — | — |
 
 ## ADRs
 
