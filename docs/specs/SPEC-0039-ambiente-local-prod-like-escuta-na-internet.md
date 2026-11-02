@@ -88,7 +88,7 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 | Gate | Status | Evidência | Data |
 |---|---|---|---|
 | G0 Spec | PASS | validate: 0 erro(s) — b44124e (árvore suja) | 2026-11-02 |
-| G1 Red | PENDING | | |
+| G1 Red | PASS | MANUAL: red b521a31: dotnet test --project tests/Vitrine.Tooling.Tests -- --filter-trait 'spec=SPEC-0039:IT-01' → total 2, failed 1 (Ambiente_local_publica_o_Caddy_so_em_127_0_0_1: 80/tcp, 443/tcp, 443/udp sem host_ip; esperado 127.0.0.1); guarda de staging/produção verde. Teste de ferramenta (Tooling), fora do red unitário do --run. | 2026-11-02 |
 | G2 Green | PENDING | | |
 | G3 Arquitetura | PENDING | | |
 | G4 Review | PENDING | | |
