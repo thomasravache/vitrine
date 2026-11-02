@@ -97,7 +97,7 @@ critical_journeys:
   acesso: "Vendedor se cadastra, entra e vê o painel"
   # Jornadas de produto (adicionadas pelos épicos de produto):
   conectar-conta: "Vendedor conecta conta do Mercado Livre e vê os anúncios"
-  # aprovar-melhoria: "Vendedor compara antes/depois e aprova a melhoria de um anúncio"
+  aprovar-melhoria: "Vendedor compara antes/depois e aprova a melhoria de um anúncio"
   # responder-pergunta: "Pergunta chega e é respondida (aprovação ou automático) em até 2 minutos"
 
 # --- Pilares de entrega (references/pillars.md) ---
