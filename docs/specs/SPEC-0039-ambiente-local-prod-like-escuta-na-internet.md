@@ -39,13 +39,13 @@ O ambiente local prod-like (SPEC-0005, com o simulador da SPEC-0024) publica o C
 Sem endereço de host, o Docker publica em `0.0.0.0` (e `::`). O mesmo arquivo serve o ambiente local e o servidor. Não existe variável para restringir a interface, e o `deploy/local/.env.example` não tem como pedir isso.
 
 ## 3. Mudança Proposta
-- `deploy/compose.override.yaml`: as três portas passam a `"${CADDY_BIND_ADDRESS:-0.0.0.0}:80:80"`, `"${CADDY_BIND_ADDRESS:-0.0.0.0}:443:443"` e `"${CADDY_BIND_ADDRESS:-0.0.0.0}:443:443/udp"`. O padrão `0.0.0.0` mantém staging e produção como estão.
+- `deploy/compose.override.yaml`: as três portas passam a `"${CADDY_BIND_ADDRESS:+${CADDY_BIND_ADDRESS}:}80:80"`, `"${CADDY_BIND_ADDRESS:+${CADDY_BIND_ADDRESS}:}443:443"` e `"${CADDY_BIND_ADDRESS:+${CADDY_BIND_ADDRESS}:}443:443/udp"`. Sem a variável, a porta sai sem endereço de host, exatamente como hoje: o Docker publica em `0.0.0.0` **e** `[::]`, o que mantém o IPv6 (registro `AAAA`) de staging e produção. Um `0.0.0.0` explícito publicaria só em IPv4 (Emenda v1.1).
 - `deploy/local/.env.example`: `CADDY_BIND_ADDRESS=127.0.0.1`, com comentário explicando por que (Docker passa por cima do ufw).
 - `docs/runbooks/deploy.md`:
   - a variável na tabela de variáveis do `.env`;
   - nota para quem já tem `deploy/local/.env` (copiar a linha);
   - acesso de outra máquina por túnel SSH (`sudo ssh -N -L 443:127.0.0.1:443 <servidor>` e `vitrine.localhost` resolvendo para `127.0.0.1` no cliente; a porta 443 local mantém os redirects do OAuth do simulador válidos);
-  - verificação: `ss -ltn` mostra `127.0.0.1:443`, e o IP público não responde.
+  - verificação: `ss -ltun | grep -E ':(80|443)\b'` mostra só `127.0.0.1` (TCP e UDP), e o IP público não responde.
 - **Não muda:** o `Caddyfile`, os sites, a rede `proxy`, os perfis do Compose e o comportamento em staging e produção. O smoke continua usando `--resolve vitrine.localhost:443:127.0.0.1`.
 
 **Padrão seguido:**
@@ -61,7 +61,7 @@ Sem endereço de host, o Docker publica em `0.0.0.0` (e `::`). O mesmo arquivo s
 <!-- Mínimo: um teste de regressão que reproduz o problema e FALHA antes da correção, no nível em que o defeito aparece (IT para fronteiras de I/O, E2E para jornadas de usuário). Código sem cobertura: primeiro CH-xx fixando o comportamento atual. Tag no código: `SPEC-0039:<ID>`. Modo privado: sem tag no código; aponte o teste no fim da linha com `→ caminho::nome` (ex.: `→ tests/test_soma.py::test_soma`). Categoria sem teste: "N/A — motivo" SEM ID. -->
 - Caracterização: N/A — os testes de deploy das SPEC-0005 e SPEC-0024 (`tests/infra`, `MercadoLivreSimulatorDeployTests`) seguem como guarda.
 - Unidade: N/A — o defeito está na configuração do Compose, verificada pelo `docker compose config` no IT-01.
-- **IT-01** — Dado o Compose lido por `docker compose config` (mesmos arquivos do `deploy/deploy.sh`), quando é resolvido com o `deploy/local/.env.example`, então as três portas publicadas do `caddy` têm `host_ip: 127.0.0.1`. Quando é resolvido sem `CADDY_BIND_ADDRESS` (configuração de staging/produção), então as portas continuam em `0.0.0.0`. Falha antes da correção, porque hoje o `host_ip` não existe e o Docker usa todas as interfaces.
+- **IT-01** — Dado o Compose lido por `docker compose config` (mesmos arquivos do `deploy/deploy.sh`), quando é resolvido com o `deploy/local/.env.example`, então as três portas publicadas do `caddy` têm `host_ip: 127.0.0.1`. Quando é resolvido sem `CADDY_BIND_ADDRESS` (configuração de staging/produção), então as portas continuam **sem** `host_ip` (todas as interfaces, IPv4 e IPv6), como hoje; `host_ip: 0.0.0.0` reprova, porque derruba o IPv6. Falha antes da correção, porque hoje o `host_ip` não existe e o Docker usa todas as interfaces.
 
 ## 5. Questões em Aberto
 - [x] Restringir também staging e produção? — Não. Lá o Caddy é a porta de entrada pública, e o firewall é o da nuvem (SPEC-0005/0009). (Architect, 2026-11-02, a confirmar no H1)
@@ -91,7 +91,7 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 | G1 Red | PASS | MANUAL: red b521a31: dotnet test --project tests/Vitrine.Tooling.Tests -- --filter-trait 'spec=SPEC-0039:IT-01' → total 2, failed 1 (Ambiente_local_publica_o_Caddy_so_em_127_0_0_1: 80/tcp, 443/tcp, 443/udp sem host_ip; esperado 127.0.0.1); guarda de staging/produção verde. Teste de ferramenta (Tooling), fora do red unitário do --run. | 2026-11-02 |
 | G2 Green | PASS | build exit 0 (npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts a); test exit 0 (at least ~677ms faster with isolate: false — reuses workers across files instead of one pe); lint exit 0 ([0m[34mChecked 67 files in 36[0m[0m[2m[34mms[0m[0m[34m.[0m[0m[34m No fixes app); coverage exit 0 (No lines with coverage information in this diff.) — 8f6ffe1 | 2026-11-02 |
 | G3 Arquitetura | PASS | arch_test exit 0 (duration: 2s 240ms) — 8f6ffe1 | 2026-11-02 |
-| G4 Review | PENDING | | |
+| G4 Review | FAIL | Reviewer: MUDANÇAS NECESSÁRIAS — padrão 0.0.0.0 explícito publica só IPv4 e derruba o AAAA de staging/produção (infra/main.tf ipv6=true); runbook sem UDP no ss | 2026-11-02 |
 | G5 Integração & CI | PENDING | | |
 | H2 Integração aprovada | PENDING | | |
 | G6 Deploy | PENDING | | |
@@ -133,3 +133,4 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 <!-- Mudança em spec aprovada: uma linha por emenda, aprovada pelo humano. -->
 | Versão | Data | Mudança | Motivo | Specs impactadas | Aprovado por |
 |---|---|---|---|---|---|
+| v1.1 | 2026-11-02 | §3: sem `CADDY_BIND_ADDRESS` a porta sai sem endereço de host (`${CADDY_BIND_ADDRESS:+${CADDY_BIND_ADDRESS}:}`), em vez do padrão `0.0.0.0`; verificação do runbook com `ss -ltun` (inclui o 443/udp). §4: o caso staging/produção do IT-01 exige ausência de `host_ip` | G4 (Reviewer): `0.0.0.0` explícito publica só IPv4 e quebraria o `AAAA` do droplet (`infra/main.tf`, `ipv6 = true`); o objetivo aprovado ("staging e produção continuam em todas as interfaces") não muda | nenhuma | thomas (piloto automático do épico SPEC-0032) |
