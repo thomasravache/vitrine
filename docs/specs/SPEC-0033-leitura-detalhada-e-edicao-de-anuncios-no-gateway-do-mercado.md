@@ -4,7 +4,7 @@ title: Leitura detalhada e edição de anúncios no gateway do Mercado Livre
 tier: full
 type: feature
 user_facing: false
-status: approved
+status: implemented
 created: 2026-11-02
 parent: SPEC-0032
 depends_on: []
@@ -383,7 +383,7 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 | G5 Integração & CI | PASS | build exit 0 (npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts a); test exit 0 (at least ~698ms faster with isolate: false — reuses workers across files instead of one pe); test_integration exit 0 (duration: 4m 11s 133ms); test_e2e exit 0 (40 passed (1.3m)); arch_test exit 0 (duration: 2s 283ms); security_scan exit 0 ([90m12:58PM[0m [32mINF[0m [1mno leaks found[0m) — 8563cf1 | 2026-11-02 |
 | H2 Integração aprovada | PASS | política auto-on-green (aprovada por thomas em 2026-10-13); G5 PASS | 2026-11-02 |
 | G6 Deploy | PASS | MANUAL: deploy local 039c157 (main após PR #66), CADDY_BIND_ADDRESS=127.0.0.1: deploy.sh OK (health 200 em 5 s); smoke BASE_URL=https://vitrine.localhost → 4 passed (acesso + conectar-conta, desktop e mobile) — leitura e importação de anúncios seguem pelo gateway; contratos novos ainda sem consumidor (SPEC-0035/0036) | 2026-11-02 |
-| G7 Pronto & Docs | PENDING | | |
+| G7 Pronto & Docs | PASS | Relatório de Entrega e Definição de Pronto: ok — c0b3a7e | 2026-11-02 |
 
 ## 13. Registro de Impedimentos
 <!-- Toda parada é registrada pelo Architect com `spec_graph.py impede` e fechada com `resolve` — não edite à mão. Tipos: spec (spec errada/incompleta → resolve com Emenda) | decisão (só o humano decide → resposta ou ADR) | trabalho (falta algo que exige código → SPEC-NNNN nova) | externo (acesso, ambiente, terceiro → ação tomada) | falha (3 FAILs seguidos no mesmo gate → diagnóstico e decisão). Com impedimento aberto a spec aparece como parada no INDEX e não pode ser fechada. -->

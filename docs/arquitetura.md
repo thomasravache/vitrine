@@ -34,8 +34,9 @@ origem. ADR-0013.
 Monólito modular .NET 10 em `src/` (ADR-0001), composto pelo host `src/Api`:
 
 - `src/Modules/Identity` — cadastro, login, sessão por cookie, workspaces e papéis (ADR-0007).
-- `src/Modules/MercadoLivre` — conectar/desconectar contas (OAuth com PKCE), gateway autenticado da API do ML; leitura detalhada do anúncio e das regras da categoria (`IMercadoLivreListingDetails`) e escrita de título, atributos e descrição com resultado por campo (`IMercadoLivreListingEditor`, regras em `ListingChangeRules`; SPEC-0033)
-  (renovação de token, resiliência) e webhook de notificações com inbox.
+- `src/Modules/MercadoLivre` — conectar/desconectar contas (OAuth com PKCE), gateway autenticado da API do ML
+  (renovação de token, resiliência) e webhook de notificações com inbox; leitura detalhada do anúncio e das regras da categoria
+  (`IMercadoLivreListingDetails`) e editor com resultado por campo (`IMercadoLivreListingEditor`, `ListingChangeRules`; SPEC-0033).
 - `src/Modules/Listings` — cópia local dos anúncios: importação, sincronização, reconciliação diária e API de listagem.
 - `src/Common` — building blocks sem regra de negócio (cifra de campos, filtros web).
 
