@@ -39,11 +39,13 @@ public sealed partial class CaddyBindAddressTests
         // Dado o Compose resolvido sem CADDY_BIND_ADDRESS (configuração de staging/produção)
         var ports = CaddyPorts(await ComposeConfigAsync(local: false, cancellationToken));
 
-        // Então as três portas continuam em todas as interfaces (0.0.0.0, ou sem host_ip)
+        // Então as três portas continuam sem host_ip: todas as interfaces, IPv4 (0.0.0.0) e IPv6 ([::]).
+        // Um host_ip 0.0.0.0 explícito publicaria só em IPv4 e derrubaria o IPv6 (registro AAAA) de staging/produção.
         Assert.Equal(ExpectedPorts, ports.Select(p => p.Port).Order(StringComparer.Ordinal).ToArray());
         Assert.All(ports, p => Assert.True(
-            p.HostIp is null or "" or "0.0.0.0",
-            $"Porta {p.Port} do caddy publicada em '{p.HostIp}' sem CADDY_BIND_ADDRESS; esperado 0.0.0.0."));
+            string.IsNullOrEmpty(p.HostIp),
+            $"Porta {p.Port} do caddy publicada em '{p.HostIp}' sem CADDY_BIND_ADDRESS; esperado sem host_ip (IPv4 e IPv6). "
+            + "Um 0.0.0.0 explícito publica só em IPv4 e derruba o IPv6 de staging/produção."));
     }
 
     private sealed record PublishedPort(string Port, string? HostIp);
