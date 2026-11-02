@@ -1,0 +1,325 @@
+---
+id: SPEC-0034
+title: "Simulador do ML: detalhes, categorias e edição de anúncios"
+tier: full
+type: feature
+user_facing: false
+status: approved
+created: 2026-11-02
+parent: SPEC-0032
+depends_on: [SPEC-0024, SPEC-0033]
+consumes_contract: [SPEC-0033@1]
+contract_version: 1
+# breaking: "o que quebra para consumidores e como migrar"   # só se houver quebra; vai para o PR e pede `!` no título
+touches: [tools/MercadoLivreSimulator/**, tests/Vitrine.UnitTests/MercadoLivreSimulator/**, tests/Vitrine.IntegrationTests/MercadoLivreSimulator/**]
+adrs: [ADR-0016]
+external: []
+size: M
+approved_by: thomas
+approved_at: 2026-11-02
+---
+
+# SPEC-0034 — Simulador do ML: detalhes, categorias e edição de anúncios
+
+<!-- type: feature | fix | refactor | migration | foundation. user_facing: true quando a mudança altera uma jornada do usuário (UI ou API pública) — exige teste E2E. Substitua todos os marcadores com chaves duplas: o G0 (`spec_graph.py validate`) reprova a spec enquanto restar algum. As seções de Checklist em diante são preenchidas depois da aprovação, sem marcadores. -->
+
+## 1. Visão Geral
+O simulador do Mercado Livre (SPEC-0024, ADR-0016) passa a servir o que a melhoria de anúncios usa:
+- o detalhe do anúncio (`GET /items/{id}`, com categoria, atributos, vendas e catálogo);
+- a descrição (`GET`, `POST` e `PUT /items/{id}/description`);
+- as categorias (`GET /categories/{id}` e `/categories/{id}/attributes`), com 3 categorias sintéticas;
+- a edição (`PUT /items/{id}`), com as regras do ML: título bloqueado com vendas ou catálogo, atributo `read_only`, valor fora da lista, item não ativo;
+- a notificação `items` depois de cada edição, como o ML real faz.
+
+Ganha também controles `/__sim/*` para preparar cenários (vendas, catálogo, descrição, falha forçada na próxima escrita) e uma massa inicial com descrições e atributos incompletos. Assim, a jornada `aprovar-melhoria` roda inteira no `aspire run`, no E2E e no ambiente local, sem conta no ML.
+
+## 2. Motivação & Escopo
+**Motivação:** o ML não tem sandbox (ADR-0016). Sem o simulador, a jornada de aprovar e publicar uma melhoria só poderia ser testada contra contas reais, com risco de alterar anúncios de verdade. O E2E da SPEC-0038 precisa de um ML com estado, que aceite e recuse edições como o real.
+
+**Objetivos (dentro do escopo):**
+- Endpoints do ML no contrato da SPEC-0033@1 (§6), no formato das fixtures de `tests/Fixtures/MercadoLivre/`.
+- Regras de edição do ML aplicadas pelo simulador, com corpo de erro no formato do ML (`{ message, error, status, cause }`); a edição é atômica (qualquer violação: nada muda).
+- Notificação `items` para `Simulator:NotificationUrl` depois de cada escrita aceita, reaproveitando o envio do `/__sim/notify`.
+- Massa inicial nova, por vendedor (inclusive os criados por `POST /__sim/sellers`):
+  - cada anúncio tem categoria sintética, atributos com ao menos 1 obrigatório faltando e, em metade dos anúncios, descrição em texto puro com dados que permitem derivar o atributo faltante ("Cor: Preto");
+  - o 1º anúncio ativo tem vendas (`sold_quantity` 12) e o 2º é de catálogo (`catalog_listing` true); os demais ativos ficam sem vendas;
+  - anúncios pausados e encerrados mantêm as vendas atuais (`índice % 37`).
+- Controles `/__sim/*`: alterar vendas, catálogo, descrição e atributos; forçar a resposta da próxima escrita (409, 500 ou 400 com erro escolhido); listar as escritas recebidas por anúncio.
+- IDs e reinício seguem a SPEC-0031 (IDs de vendedor únicos por execução; a massa volta no `reset`).
+
+**Não-objetivos (fora do escopo):**
+- Nota de qualidade (`/item/{id}/performance`), `family_name` de user products, fotos, preço e variações.
+- Fidelidade além do contrato da SPEC-0033: limites de taxa reais e erros raros.
+- Persistência: o estado continua em memória.
+- Uso em staging ou produção: proibido (ADR-0016).
+
+## 3. Dependências
+- **Implementações necessárias:**
+  - SPEC-0024, porque esta spec estende o simulador, seu estado e o envio de notificações;
+  - SPEC-0033, porque os CT comparam o simulador com as fixtures de requisição e resposta que a SPEC-0033 versiona em `tests/Fixtures/MercadoLivre/`.
+- **Contratos consumidos:** SPEC-0033@1, que define os endpoints, os corpos de requisição e as respostas que o gateway usa, com as fixtures de `tests/Fixtures/MercadoLivre/`. O simulador implementa o mesmo formato.
+- **Pré-requisitos externos:** N/A.
+
+## 4. Decisão Arquitetural
+**Contexto:** segue o simulador da SPEC-0024:
+- `tools/MercadoLivreSimulator/MlEndpoints.cs` (endpoints do ML, `ApiError` no formato do ML);
+- `SimulatorState.cs` (estado em memória sob um lock, massa em `AddItemsLocked`, `Reset`);
+- `ControlEndpoints.cs` (`/__sim/*`, envio da notificação pelo cliente `NotificationClient`);
+- `MlContracts.cs` (JSON em `snake_case`);
+- testes em `tests/Vitrine.IntegrationTests/MercadoLivreSimulator/` (`WebApplicationFactory`, `SimulatorClient`).
+
+**Decisão:**
+- Catálogo de categorias estático em código (`SimulatorCategories.cs`), com 3 categorias.
+- Regras de edição numa classe interna pura (`ItemEditRules`), testável em unidade, com os mesmos casos da `ListingChangeRules` da SPEC-0033, mas implementada à parte: o simulador imita o ML, não o Vitrine.
+- Falha forçada guardada no estado do anúncio (`PendingWriteFailure`, por alvo `item` ou `description`), consumida pela próxima escrita.
+- Notificação disparada fora do lock, sem esperar a entrega (falha só gera log).
+
+**Justificativa:** mantém o simulador como uma ferramenta pequena, de estado em memória (ADR-0016). Implementar a regra à parte da `ListingChangeRules` faz o E2E pegar divergências entre o Vitrine e o "ML", em vez de esconder as duas atrás do mesmo código.
+
+**Desvio do padrão existente:** nenhum.
+
+**Alternativas descartadas:**
+- Reaproveitar `ListingChangeRules` do `PublicApi` no simulador: a Api e o simulador ficariam acoplados (SPEC-0024, UT-04), e o simulador deixaria de ser um oráculo independente.
+- WireMock com mapeamentos no E2E: sem estado nem notificação (ADR-0016).
+
+**ADRs:** ADR-0016.
+
+## 5. Requisitos Não-Funcionais
+- **Desempenho e escala:** N/A — ferramenta de teste, em memória.
+- **Segurança:**
+  - `PUT`/`POST` exigem Bearer do dono do anúncio: sem token 401, token de outro vendedor 403 — IT-02;
+  - continua fora da imagem da Api e do Compose de produção (testes da SPEC-0024 seguem como guarda — CH-01).
+- **Privacidade e dados pessoais:** N/A — só dados sintéticos.
+- **Disponibilidade e resiliência:** N/A — sem SLA. A notificação é enviada sem bloquear a resposta da escrita.
+- **Acessibilidade (UI):** N/A — sem tela nova.
+- **Custo:** N/A.
+
+## 6. Artefato A — Contrato
+**Interface:** aplicação `ml-simulator` (mesma porta e configuração da SPEC-0024).
+
+```text
+Formato conforme o contrato da SPEC-0033@1 e as fixtures de tests/Fixtures/MercadoLivre/ (sintéticas, 2026-11-02).
+Erros da API: { "message", "error", "status", "cause": [{ "code", "message" }] }.
+
+GET  /items/{id}[?attributes=campos]      token opcional (recurso público); token inválido -> 401; inexistente -> 404
+     200 { id, seller_id, category_id, title, price, currency_id, available_quantity, sold_quantity, status,
+           catalog_listing, user_product_id: null, permalink, thumbnail, secure_thumbnail, listing_type_id,
+           last_updated, attributes: [{ id, name, value_id, value_name }] }
+GET  /items/{id}/description              200 { plain_text, last_updated, date_created } | 404 sem descrição
+POST /items/{id}/description              { plain_text } -> 201; já existe -> 400 (comportamento do ML não verificado:
+                                          o gateway só usa POST quando a leitura não achou descrição)
+PUT  /items/{id}/description?api_version=2 { plain_text } -> 200; sem descrição -> 404
+     validação da descrição: tag ou entidade HTML, emoji -> 400 item.description.type.invalid;
+                             acima de max_description_length -> 400 item.description.max_length (sintético)
+PUT  /items/{id}                          { title?, attributes?: [{ id, value_id? | value_name? }] }
+     sem token 401; token de outro vendedor 403; atômico (qualquer violação: nada muda)
+     status != active                     -> 400 cause item.status.not_modifiable (sintético)
+     title com sold_quantity > 0 ou catalog_listing -> 400 field_not_updatable, "title is not modifiable"
+     title vazio ou > max_title_length    -> 400 item.title.length.invalid (sintético)
+     atributo desconhecido, read_only ou hidden, value_id fora de values, unidade fora de allowed_units
+                                          -> 400 item.attributes.invalid (sintético), cause com o id
+     200 -> item atualizado (last_updated = agora) e notificação items enviada
+     toda escrita aceita (item ou descrição) envia { topic: "items", resource: "/items/{id}", user_id, ... }
+     para Simulator:NotificationUrl, no formato do /__sim/notify
+GET  /categories/{id}                     200 { id, name, settings: { max_title_length, max_description_length } } | 404
+GET  /categories/{id}/attributes          200 [{ id, name, value_type, tags: { required?, catalog_required?, read_only?,
+                                          hidden? }, values: [{ id, name }], allowed_units: [{ id, name }] }] | 404
+
+Categorias sintéticas (max_title_length 60, max_description_length 50000):
+  MLB90001 "Eletrônicos e acessórios (simulado)": fone, capa, luminária, teclado, carregador, mouse
+  MLB90002 "Casa e cozinha (simulado)": garrafa, caneca, organizador
+  MLB90003 "Bolsas e mochilas (simulado)": mochila
+  atributos comuns: BRAND (string, required), MODEL (string), COLOR (list, required: Preto, Branco, Azul, Vermelho),
+                    ITEM_CONDITION (list, read_only: Novo), PRODUCT_DATA_SOURCE (string, hidden)
+  MLB90001: IS_WIRELESS (boolean: Sim, Não)
+  MLB90002: CAPACITY (number_unit, unidades mL e L), MATERIAL (list: Aço inoxidável, Cerâmica, Plástico)
+  MLB90003: LAPTOP_SIZE (number_unit, unidade pol), MATERIAL (list: Poliéster, Nylon, Couro sintético)
+
+Massa por vendedor (reset e /__sim/sellers):
+  todo anúncio: BRAND "Marca Simulada" e ITEM_CONDITION "Novo" preenchidos; COLOR e MODEL vazios
+  anúncios de número par: descrição "{produto} simulado. Cor: Preto. Marca: Marca Simulada. Anúncio de teste."
+  anúncios de número ímpar: sem descrição
+  1º ativo: sold_quantity 12; 2º ativo: catalog_listing true, sold_quantity 0; demais ativos: sold_quantity 0
+  pausados e encerrados: sold_quantity = índice % 37 (como hoje)
+
+Controle (só dev/E2E):
+POST /__sim/sellers/{id}/items/{itemId}   body passa a aceitar também catalogListing?, description? (string; "" apaga),
+                                          attributes? ([{ id, value_id?, value_name? }], substitui a lista)
+POST /__sim/sellers/{id}/items/{itemId}/fail-next-write
+     body { target: "item" | "description", status: 400 | 409 | 500, error?, message?, causeCode?, times? (padrão 1) }
+     -> 204; as próximas `times` escritas no alvo respondem assim, sem mudar nada
+GET  /__sim/sellers/{id}/items/{itemId}/writes  -> 200 [{ method, path, body, status, at }] (escritas recebidas)
+POST /__sim/reset                          também limpa falhas forçadas e o registro de escritas
+```
+
+**Design:** N/A — sem tela nova.
+
+**Arquivos/módulos afetados:** ver `touches`. `MlEndpoints.cs`, `SimulatorState.cs`, `ControlEndpoints.cs`, `MlContracts.cs` e os novos `SimulatorCategories.cs` e `ItemEditRules.cs`, mais os testes.
+
+### 6.1 Mapa de Comportamentos
+| Cenário | Condição / Entrada | Resultado esperado | Testes |
+|---|---|---|---|
+| Detalhe do anúncio | `GET /items/{id}` | campos e atributos no formato da fixture; 404 se não existe | IT-01, CT-01 |
+| Descrição | `GET` com e sem descrição | 200 com `plain_text` ou 404 | IT-01, CT-01 |
+| Categorias | `GET /categories/{id}` e `/attributes` | limites, tags, valores e unidades; 404 se não existe | IT-01, CT-01 |
+| Editar título e atributos | `PUT /items/{id}` válido | 200; item atualizado; `last_updated` novo; bulk reflete | IT-02, CT-02 |
+| Título com vendas ou catálogo | `PUT` com `title` | 400 `field_not_updatable`; nada muda | UT-01, IT-02 |
+| Atributo inválido | `read_only`, `hidden`, desconhecido, fora da lista ou da unidade | 400 `item.attributes.invalid`; nada muda | UT-01, IT-02 |
+| Item não ativo | `PUT` em pausado | 400 de status; nada muda | UT-01, IT-02 |
+| Sem permissão | sem token / outro vendedor | 401 / 403 | IT-02 |
+| Criar e atualizar descrição | `POST` sem descrição, `PUT ?api_version=2` com descrição | 201 / 200; `PUT` sem descrição dá 404 | IT-03, CT-02 |
+| Descrição inválida | HTML, entidade, emoji, acima do limite | 400 `item.description.type.invalid` / limite | UT-02, IT-03 |
+| Notificação após edição | escrita aceita | POST `items` entregue à `NotificationUrl` | IT-04 |
+| Massa inicial | `reset` e `/__sim/sellers` | 1 com vendas, 1 de catálogo, obrigatório faltando, descrição derivável | UT-03, IT-05 |
+| Preparar cenário | `/__sim/.../items/{itemId}` com vendas, catálogo, descrição, atributos | estado alterado | IT-05 |
+| Falha forçada | `fail-next-write` 409, 500 ou 400 | próxima escrita responde assim, sem mudar nada; a seguinte é normal | IT-05 |
+| Registro de escritas | `GET .../writes` | escritas recebidas na ordem | IT-05 |
+| Comportamento anterior | testes da SPEC-0024 e da SPEC-0031 | continuam passando | CH-01 |
+
+## 7. Artefato B — Plano de Testes (TDD)
+<!-- Todo teste tem um ID e é escrito ANTES da implementação (Red). No código, cada teste carrega a tag `SPEC-0034:<ID>` — o G1 (`spec_graph.py verify`) verifica. Modo privado: sem tag no código; aponte o teste no fim da linha com `→ caminho::nome` (ex.: `→ tests/test_soma.py::test_soma`). Categoria sem testes: "N/A — motivo" SEM ID. Teste que protege comportamento existente e passa antes da mudança: marque `(guarda: passa antes da mudança)`. Estratégia completa: references/testing.md da skill. -->
+
+### 7.1 Testes de Caracterização
+- **CH-01** — Dado os testes atuais do simulador (OAuth, busca, bulk, notificação, isolamento de deploy e IDs após reinício, das SPEC-0024 e SPEC-0031), quando rodam depois da mudança da massa e dos endpoints novos, então continuam passando (guarda: passa antes da mudança).
+
+### 7.2 Testes Unitários
+- **UT-01** — Dado `ItemEditRules` e anúncios sintéticos, quando um `PUT /items/{id}` é avaliado, então:
+  - título com vendas ou de catálogo dá `field_not_updatable`; título vazio ou acima de 60 dá o erro de tamanho;
+  - atributo `read_only`, `hidden`, desconhecido, `value_id` fora da lista ou unidade fora de `allowed_units` dá `item.attributes.invalid` com o id na `cause`;
+  - item pausado dá o erro de status;
+  - com qualquer violação, o anúncio não muda (atomicidade).
+- **UT-02** — Dado descrições, quando validadas, então tag HTML, entidade HTML e emoji dão `item.description.type.invalid`; acima de 50.000 dá o erro de tamanho; texto com acentos e `\n` é aceito.
+- **UT-03** — Dado o estado depois do `reset` e um vendedor criado por `/__sim/sellers`, quando a massa é inspecionada, então em cada vendedor:
+  - o 1º ativo tem `sold_quantity` 12, o 2º tem `catalog_listing` true e os demais ativos têm 0;
+  - todo anúncio tem categoria existente, `BRAND` e `ITEM_CONDITION` preenchidos e `COLOR` vazio;
+  - anúncios pares têm descrição com "Cor: Preto", e ímpares não têm descrição;
+  - um 2º `reset` recria a mesma massa.
+
+### 7.3 Testes de Integração
+- **IT-01** — Dado o simulador em `WebApplicationFactory`, quando `GET /items/{id}`, `GET /items/{id}/description` e `GET /categories/{id}` (+ `/attributes`) são chamados, então as respostas trazem os campos do §6, com tags, valores e unidades. Item, descrição e categoria inexistentes dão 404 no formato do ML; token inválido no `GET /items/{id}` dá 401.
+- **IT-02** — Dado um vendedor criado e seu token, quando `PUT /items/{id}`:
+  - com título e `COLOR` válidos no 3º ativo: 200, e `GET /items/{id}` e `/items/bulk` mostram os valores novos com `last_updated` maior;
+  - com título no 1º ativo (vendas) ou no 2º (catálogo): 400 `field_not_updatable`, e nada muda;
+  - com `ITEM_CONDITION` (`read_only`), `PRODUCT_DATA_SOURCE` (`hidden`) ou `COLOR` com `value_id` inexistente: 400, e nada muda;
+  - num anúncio pausado: 400 de status;
+  - sem token: 401; com token de outro vendedor: 403.
+- **IT-03** — Dado um anúncio sem descrição, quando `POST /items/{id}/description` cria e `PUT /items/{id}/description?api_version=2` atualiza, então o `GET` devolve o texto novo. `PUT` num anúncio sem descrição dá 404, e descrição com HTML ou emoji dá 400 `item.description.type.invalid`.
+- **IT-04** — Dado um WireMock como receptor em `Simulator:NotificationUrl`, quando um `PUT /items/{id}` e um `PUT` de descrição são aceitos, então o receptor recebe 2 POSTs `topic=items`, `resource=/items/{id}`, com o `user_id` do vendedor. Uma escrita recusada não gera notificação, e o receptor fora do ar não muda a resposta da escrita.
+- **IT-05** — Dado os controles `/__sim/*`, então:
+  - `POST /__sim/sellers/{id}/items/{itemId}` com `soldQuantity`, `catalogListing`, `description` e `attributes` altera o anúncio, e `description: ""` apaga a descrição;
+  - `fail-next-write` com `{ target: "item", status: 409 }` faz o próximo PUT responder 409 sem mudar nada, e o seguinte responde 200;
+  - com `status: 500` e com `status: 400, causeCode: "item.description.type.invalid"` no alvo `description`, a próxima escrita de descrição responde assim;
+  - `GET .../writes` lista as escritas na ordem, com método, caminho, corpo e status;
+  - `POST /__sim/reset` limpa as falhas forçadas e o registro.
+
+### 7.4 Testes de Contrato
+- **CT-01** — Dado as fixtures de resposta da SPEC-0033 (`item-details`, `item-description`, `category`, `category-attributes` e os erros) em `tests/Fixtures/MercadoLivre/`, quando comparadas com as respostas do simulador, então têm os mesmos campos e tipos nos campos usados pelo Vitrine. É o lado provedor do contrato SPEC-0033@1.
+- **CT-02** — Dado as fixtures de requisição da SPEC-0033 (`item-update-request.json`, `item-description-request.json`), quando enviadas ao simulador para um anúncio editável, então são aceitas (200/201) e aplicadas.
+
+### 7.5 Testes E2E
+- N/A — ferramenta de teste, sem jornada própria. É exercitada pela SPEC-0038 (E2E 01 a 05).
+
+### 7.6 Outros
+- N/A.
+
+**Dublês e dados de teste:** massa sintética fixa; vendedores criados por teste; WireMock como receptor de notificação.
+
+**Ambiente de execução:** UT e IT em processo (local e CI).
+
+## 8. Plano de Rollout
+- **Estratégia:** deploy direto, só em dev, CI e ambiente local. Não existe em staging nem em produção.
+- **Dados/schema:** N/A — estado em memória.
+- **Compatibilidade:** endpoints novos; a massa muda as vendas dos anúncios ativos (só 1 com vendas por vendedor). Nenhum teste atual depende dessas vendas (conferido em `web/e2e` e nos testes do simulador). Quem tem o ambiente local reconstrói a imagem `vitrine-ml-simulator:local` (runbook da SPEC-0024).
+- **Observabilidade:** log Information por escrita recebida (anúncio, alvo, status); Warning quando a notificação não é entregue.
+- **Rollback:** revert do merge.
+- **Etapas de migração/coexistência:** N/A.
+
+## 9. Questões em Aberto
+- [x] Quantos anúncios com vendas na massa? — Só o 1º ativo de cada vendedor. Hoje quase todos têm vendas (`índice % 37`), o que bloquearia o título em quase toda a massa e esconderia o caminho feliz da jornada. Pausados e encerrados mantêm o valor atual. (Architect, 2026-11-02, a confirmar no H1)
+- [x] As regras do simulador reaproveitam o código do Vitrine? — Não. O simulador imita o ML de forma independente, para o E2E pegar divergências entre os dois. (Architect, 2026-11-02, a confirmar no H1)
+- [x] Os códigos de erro do simulador são os do ML? — Os que os trechos de busca de 2026-11-02 trazem (`field_not_updatable`, `item.description.type.invalid`, 409 de *optimistic locking*) sim. Os demais são sintéticos e marcados como tais; todos são conferidos com usuário de teste real no go-live (SPEC-0009). (Architect, 2026-11-02, a confirmar no H1)
+
+## 10. Aprovação (H1)
+Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o humano responder "Aprovado". O arquiteto nunca aprova a própria spec.
+
+## 11. Checklist de Implementação
+<!-- Preenchido na fase PLAN, após a aprovação. Cada fase começa pelos testes. -->
+**Fase 0: Caracterização**
+- [ ] CH-01 escrito, passando no código atual (simulador atual: busca, bulk e notificações), commitado antes de qualquer mudança
+
+**Fase 1: Estado do simulador**
+- [ ] Red: escrever UT-01..UT-03 com a tag `SPEC-0034:<ID>` e confirmar que falham pelo motivo certo
+- [ ] Green: categorias sintéticas MLB90001–3, descrição e regras de edição em memória
+- [ ] Refactor mantendo tudo verde
+
+**Fase 2: Endpoints do simulador**
+- [ ] Red: escrever IT-01..IT-05 e CT-01..CT-02 com a tag `SPEC-0034:<ID>` e confirmar que falham pelo motivo certo
+- [ ] Green: detalhes, descrição, `/categories/{id}/attributes`, PUT com as regras do ML, notificação após editar e `/__sim` `fail-next-write`/writes
+- [ ] Refactor mantendo tudo verde
+- [ ] Validar: build + suíte completa + arquitetura (G2/G3)
+
+**Fase final: Integração, entrega e documentação**
+- [ ] Review independente (G4)
+- [ ] Integração + CI verde (G5) e aprovação (H2)
+- [ ] Deploy no ambiente local prod-like com smoke (G6)
+- [ ] Relatório de Entrega, docs raiz e CHANGELOG (G7)
+
+## 12. Registro de Gates
+<!-- Status: PENDING | PASS | FAIL | N/A. PASS e N/A exigem evidência (comando + resultado, SHA, execução de CI, veredito). -->
+| Gate | Status | Evidência | Data |
+|---|---|---|---|
+| G0 Spec | PASS | validate: 0 erro(s) — b44124e (árvore suja) | 2026-11-02 |
+| G1 Red | PENDING | | |
+| G2 Green | PENDING | | |
+| G3 Arquitetura | PENDING | | |
+| G4 Review | PENDING | | |
+| G5 Integração & CI | PENDING | | |
+| H2 Integração aprovada | PENDING | | |
+| G6 Deploy | PENDING | | |
+| G7 Pronto & Docs | PENDING | | |
+
+## 13. Registro de Impedimentos
+<!-- Toda parada é registrada pelo Architect com `spec_graph.py impede` e fechada com `resolve` — não edite à mão. Tipos: spec (spec errada/incompleta → resolve com Emenda) | decisão (só o humano decide → resposta ou ADR) | trabalho (falta algo que exige código → SPEC-NNNN nova) | externo (acesso, ambiente, terceiro → ação tomada) | falha (3 FAILs seguidos no mesmo gate → diagnóstico e decisão). Com impedimento aberto a spec aparece como parada no INDEX e não pode ser fechada. -->
+| ID | Aberto em | Fase/Gate | Tipo | Descrição | Tentativas | Responsável | Resolução | Fechado em |
+|---|---|---|---|---|---|---|---|---|
+
+## 14. Relatório de Entrega
+<!-- Preenchido no CLOSE (G7). Diz o que foi feito, como, e prova que foi resolvido. Para status implemented o validate exige todas as subseções preenchidas, todo teste do plano com PASS + evidência e a Definição de Pronto toda marcada. -->
+
+### O que foi entregue
+<!-- comportamento entregue do ponto de vista do usuário/sistema -->
+
+### Como foi feito
+<!-- decisões de implementação, módulos/arquivos principais, desvios e emendas (com versão), dívidas assumidas -->
+
+### Prova de Correção
+<!-- type fix: o teste de regressão falhou antes da correção (commit red + saída) e passa depois (commit green + execução). Outros tipos: "N/A". -->
+
+### Verificação
+<!-- Uma linha por teste do plano (todos os IDs da seção 7). Resultado: PASS. Evidência: execução de CI, commit ou relatório. -->
+| Teste | Comportamento | Resultado | Evidência |
+|---|---|---|---|
+
+### Definição de Pronto
+- [ ] Todos os testes do plano passando e listados na Verificação
+- [ ] Todo comportamento do Mapa de Comportamentos coberto e verificado
+- [ ] Suíte completa, arquitetura e CI verdes no resultado integrado (G5)
+- [ ] Review independente sem achados blocker/major (G4)
+- [ ] Padrão arquitetural existente mantido, ou desvio coberto por ADR aprovado
+- [ ] Requisitos não-funcionais medidos com evidência (ou N/A justificado)
+- [ ] Disponível no ambiente-alvo via pipeline, com smoke/E2E passando no ambiente (G6)
+- [ ] Observabilidade e rollback prontos conforme o Plano de Rollout
+- [ ] Documentação raiz e CHANGELOG atualizados (G7)
+- [ ] Guia de jornadas e mapa do sistema atualizados quando a entrega muda uma jornada ou um componente (G7)
+- [ ] Pendências registradas como novas specs (ou nenhuma)
+
+### Deploy
+<!-- ambiente(s), versão/tag, data, estratégia, estado da feature flag, execução do pipeline -->
+
+### Pendências
+<!-- specs criadas para o que ficou de fora, ou "Nenhuma" -->
+
+## 15. Emendas
+<!-- Mudança em spec aprovada: uma linha por emenda. Mudou o contrato? Incremente `contract_version` e rode `spec_graph.py impacted SPEC-0034`. -->
+| Versão do contrato | Data | Mudança | Motivo | Specs impactadas | Aprovado por |
+|---|---|---|---|---|---|
