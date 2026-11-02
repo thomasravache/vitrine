@@ -267,13 +267,14 @@ DI: IMercadoLivreListingDetails e IMercadoLivreListingEditor Scoped; AlwaysUseSe
 - **UT-02** — Dado descrições, quando avaliadas, então:
   - `<b>`, `&nbsp;`, `&#39;` e emoji (inclusive com seletor de variação) dão `DESCRIPTION_INVALID`;
   - e-mail, telefone brasileiro (com e sem DDD e máscara), URL e a palavra "whatsapp" dão `DESCRIPTION_CONTACT`;
+  - (Emenda v1.1) **não** são contato: faixa de anos ("Compatível com Gol 2008-2012"), resolução ("1920 1080"), "Lote 2024.2025", "Kit 1000 2000 W", código de peça ("Ref. 0986 4945", "Peça 12345678") e "novo.Com garantia". Telefone sem DDD só conta como celular de 9 dígitos começando por 9 (`9XXXX-XXXX` ou `9XXXXXXXX`) ou, com 8 dígitos e máscara `XXXX-XXXX`, quando há palavra de contato até 20 caracteres antes (tel, fone, telefone, celular, cel, ligue, contato, whats, zap); TLD de URL casa só em minúsculas;
   - acima de `MaxDescriptionLength` (ou de 50.000 quando a categoria não informa) dá `DESCRIPTION_TOO_LONG`;
   - texto com acentos e quebras `\n` é aceito.
 - **UT-03** — Dado uma categoria com atributos livre, lista, `number_unit`, `read_only` e `hidden`, quando atributos são avaliados e normalizados, então:
   - id fora da categoria dá `ATTRIBUTE_UNKNOWN`; `read_only` ou `hidden` dá `ATTRIBUTE_NOT_EDITABLE`;
   - valor fora de `Values`, unidade fora de `AllowedUnits`, nem `ValueId` nem `ValueName`, ou texto livre com HTML ou acima de 255 dá `ATTRIBUTE_VALUE_NOT_ALLOWED`;
   - `ValueName` "preto" numa lista com "Preto" vira o `ValueId` correspondente.
-- **UT-04** — Dado as fixtures de erro do ML, quando o mapeador as traduz, então: título não modificável vira `FIELD_NOT_UPDATABLE`; `item.description.type.invalid` vira `DESCRIPTION_INVALID`; status não ativo vira `ITEM_NOT_ACTIVE`; 409 vira `ML_CONFLICT`; 403 vira `ML_FORBIDDEN`; outro 400 vira `ML_REJECTED` com a `message` do ML; corpo ilegível vira `ML_REJECTED` com mensagem genérica.
+- **UT-04** — Dado as fixtures de erro do ML, quando o mapeador as traduz, então: título não modificável vira `FIELD_NOT_UPDATABLE`; (Emenda v1.1) `field_not_updatable` cuja cause/mensagem não menciona `title` é recusa do corpo inteiro (`ML_REJECTED`), sem separar o título nem fazer o 2º PUT; `item.description.type.invalid` vira `DESCRIPTION_INVALID`; status não ativo vira `ITEM_NOT_ACTIVE`; 409 vira `ML_CONFLICT`; 403 vira `ML_FORBIDDEN`; outro 400 vira `ML_REJECTED` com a `message` do ML; corpo ilegível vira `ML_REJECTED` com mensagem genérica.
 - **UT-05** — Dado os assemblies, quando as regras de arquitetura rodam, então `MercadoLivre.PublicApi` continua referenciando só a BCL, nenhum tipo público novo tem membro com "token" ou "secret", e os gateways novos são `internal`.
 
 ### 7.3 Testes de Integração
@@ -375,10 +376,10 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 | Gate | Status | Evidência | Data |
 |---|---|---|---|
 | G0 Spec | PASS | validate: 0 erro(s) — b44124e (árvore suja) | 2026-11-02 |
-| G1 Red | PENDING | | |
-| G2 Green | PENDING | | |
-| G3 Arquitetura | PENDING | | |
-| G4 Review | PENDING | | |
+| G1 Red | PASS | verify G1: PASS; `dotnet test tests/Vitrine.UnitTests && npm --prefix web run test` exit 2 (red: Test run completed with non-success exit code: 2 (see: https://aka.ms/testingplatform/exit) — 1669585 | 2026-11-02 |
+| G2 Green | PASS | build exit 0 (npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts a); test exit 0 (at least ~612ms faster with isolate: false — reuses workers across files instead of one pe); lint exit 0 ([0m[34mChecked 67 files in 49[0m[0m[2m[34mms[0m[0m[34m.[0m[0m[34m No fixes app); coverage exit 0 (Coverage: 92%) — 8329a87 | 2026-11-02 |
+| G3 Arquitetura | PASS | arch_test exit 0 (duration: 2s 318ms) — 8329a87 | 2026-11-02 |
+| G4 Review | FAIL | Reviewer: CHANGES_REQUESTED — major: regex de telefone sem DDD recusa faixa de anos, resolução e códigos (Gol 2008-2012, 1920 1080); minors: título culpado sem prova no field_not_updatable, ids de atributo duplicados, resultado parcial sem registro antes de exceção | 2026-11-02 |
 | G5 Integração & CI | PENDING | | |
 | H2 Integração aprovada | PENDING | | |
 | G6 Deploy | PENDING | | |
@@ -429,3 +430,4 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 <!-- Mudança em spec aprovada: uma linha por emenda. Mudou o contrato? Incremente `contract_version` e rode `spec_graph.py impacted SPEC-0033`. -->
 | Versão do contrato | Data | Mudança | Motivo | Specs impactadas | Aprovado por |
 |---|---|---|---|---|---|
+| v1.1 (contrato inalterado) | 2026-11-02 | (1) UT-02: heurística de telefone sem DDD restrita (celular de 9 dígitos começando por 9, ou 8 dígitos com máscara e palavra de contato próxima) e casos negativos (faixa de anos, resolução, códigos de peça, "novo.Com"); TLD de URL só em minúsculas; (2) UT-04: `field_not_updatable` só culpa o título quando a cause/mensagem cita `title`, senão `ML_REJECTED` para o PUT inteiro; (3) `ApplyAsync` com `AttributeId` repetido lança `ArgumentException` antes de qualquer escrita; (4) quando uma exceção (2º 401, cancelamento) interrompe depois de escritas concluídas, os campos já aplicados são registrados (log + `listing_edits`) antes de propagar; (5) decisões registradas: categoria 404 no `ApplyAsync` = `MercadoLivreUnavailableException` sem escrita; `listing_edits` emite uma medição por par (resultado, código) distinto entre os atributos | G4 (Reviewer): falsos positivos de contato bloqueariam anúncios reais de autopeças e eletrônicos; motivo errado ao vendedor; robustez | SPEC-0035, SPEC-0036 (usam `ListingChangeRules`; contrato igual) | thomas (piloto automático do épico SPEC-0032) |
