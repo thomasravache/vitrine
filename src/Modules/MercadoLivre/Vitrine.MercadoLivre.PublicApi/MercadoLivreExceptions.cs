@@ -97,3 +97,36 @@ public sealed class MercadoLivreUnavailableException : Exception
     /// <summary>Motivo, sem dados sensíveis (ex.: <c>retries esgotados</c>, <c>circuito aberto</c>).</summary>
     public string Reason { get; } = string.Empty;
 }
+
+/// <summary>
+/// O anúncio não existe no ML (404) ou é de outro vendedor: nada foi escrito. Contrato v1 da SPEC-0033.
+/// </summary>
+public sealed class MercadoLivreItemNotFoundException : Exception
+{
+    public MercadoLivreItemNotFoundException()
+    {
+    }
+
+    public MercadoLivreItemNotFoundException(string message)
+        : base(message)
+    {
+    }
+
+    public MercadoLivreItemNotFoundException(string message, Exception innerException)
+        : base(message, innerException)
+    {
+    }
+
+    public MercadoLivreItemNotFoundException(Guid accountId, string itemId)
+        : base($"Anúncio {itemId} não encontrado na conta do Mercado Livre {accountId:D}.")
+    {
+        AccountId = accountId;
+        ItemId = itemId;
+    }
+
+    /// <summary>Conta da chamada.</summary>
+    public Guid AccountId { get; }
+
+    /// <summary>Anúncio pedido.</summary>
+    public string ItemId { get; } = string.Empty;
+}

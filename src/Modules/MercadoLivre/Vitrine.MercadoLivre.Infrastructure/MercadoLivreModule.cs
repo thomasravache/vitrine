@@ -87,6 +87,8 @@ public static class MercadoLivreModule
             // O gateway (implementação interna do módulo) é resolvido do contêiner nos handlers que o recebem (ex.:
             // MercadoLivreItemChanged no Listings): sem isso o código gerado pelo Wolverine recusa o tipo não público.
             options.CodeGeneration.AlwaysUseServiceLocationFor<IMercadoLivreItems>();
+            options.CodeGeneration.AlwaysUseServiceLocationFor<IMercadoLivreListingDetails>();
+            options.CodeGeneration.AlwaysUseServiceLocationFor<IMercadoLivreListingEditor>();
             options.LocalQueueFor<ProcessMercadoLivreNotification>().UseDurableInbox();
             options.Discovery.IncludeType(typeof(CleanupPendingAuthorizationsHandler));
             options.Discovery.IncludeType(typeof(CleanupNotificationsInboxHandler));
@@ -130,6 +132,8 @@ public static class MercadoLivreModule
         services.AddSingleton<MercadoLivreAccessTokenProvider>();
         services.AddSingleton<IMercadoLivreAccessTokenProvider>(provider => provider.GetRequiredService<MercadoLivreAccessTokenProvider>());
         services.AddScoped<IMercadoLivreItems, MercadoLivreItemsGateway>();
+        services.AddScoped<IMercadoLivreListingDetails, MercadoLivreListingDetailsGateway>();
+        services.AddScoped<IMercadoLivreListingEditor, MercadoLivreListingEditor>();
 
         // Casos de uso e portas da Application.
         services.TryAddSingleton(TimeProvider.System);
