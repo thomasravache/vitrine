@@ -32,6 +32,12 @@ internal sealed partial class MercadoLivreListingEditor(
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(itemId);
         ArgumentNullException.ThrowIfNull(changes);
+        var duplicated = (changes.Attributes ?? []).GroupBy(change => change.Id, StringComparer.Ordinal).FirstOrDefault(group => group.Count() > 1);
+        if (duplicated is not null)
+        {
+            // Emenda v1.1: o mesmo atributo duas vezes é erro do chamador (o resultado é por id), antes de qualquer leitura.
+            throw new ArgumentException($"Atributo {duplicated.Key} repetido nas mudanças.", nameof(changes));
+        }
 
         // 1. Releitura: a verdade é o ML, não o que o chamador mandou. Falha aqui lança e nada é escrito.
         var item = await details.GetItemDetailsAsync(accountId, itemId, cancellationToken)
@@ -95,46 +101,56 @@ internal sealed partial class MercadoLivreListingEditor(
             }
         }
 
-        // 3. Título e atributos num único PUT /items/{id}.
-        var interrupted = false;
-        if (pendingTitle is not null || pendingAttributes.Count > 0)
+        // 3. Título e atributos num único PUT /items/{id}; 4. descrição. Uma exceção depois de escritas concluídas (2º 401,
+        // cancelamento) registra os campos já decididos antes de propagar (emenda v1.1).
+        try
         {
-            var path = MercadoLivreListingDetailsGateway.ItemPath(itemId);
-            var outcome = await WriteAsync(accountId, itemId, HttpMethod.Put, path, ItemBody(pendingTitle, pendingAttributes), cancellationToken);
-            if (outcome is FieldResult.Rejected { Code: MercadoLivreErrorMapper.FieldNotUpdatable } && pendingTitle is not null && pendingAttributes.Count > 0)
+            var interrupted = false;
+            if (pendingTitle is not null || pendingAttributes.Count > 0)
             {
-                // Título recusado pelo ML: um reenvio só com os atributos.
-                title = outcome;
-                outcome = await WriteAsync(accountId, itemId, HttpMethod.Put, path, ItemBody(null, pendingAttributes), cancellationToken);
-            }
-            else if (pendingTitle is not null)
-            {
-                title = outcome;
+                var path = MercadoLivreListingDetailsGateway.ItemPath(itemId);
+                var outcome = await WriteAsync(accountId, itemId, HttpMethod.Put, path, ItemBody(pendingTitle, pendingAttributes), cancellationToken);
+                if (outcome is FieldResult.Rejected { Code: MercadoLivreErrorMapper.FieldNotUpdatable } && pendingTitle is not null && pendingAttributes.Count > 0)
+                {
+                    // Título recusado pelo ML: um reenvio só com os atributos.
+                    title = outcome;
+                    outcome = await WriteAsync(accountId, itemId, HttpMethod.Put, path, ItemBody(null, pendingAttributes), cancellationToken);
+                }
+                else if (pendingTitle is not null)
+                {
+                    title = outcome;
+                }
+
+                foreach (var change in pendingAttributes)
+                {
+                    attributes[change.Id] = outcome;
+                }
+
+                interrupted = IsUnavailable(outcome);
             }
 
-            foreach (var change in pendingAttributes)
+            // 4. Descrição em texto puro, depois do item; não é tentada se o ML ficou indisponível.
+            if (pendingDescription is not null)
             {
-                attributes[change.Id] = outcome;
+                if (interrupted)
+                {
+                    description = new FieldResult.NotAttempted(MercadoLivreErrorMapper.Unavailable);
+                }
+                else
+                {
+                    var path = $"{MercadoLivreListingDetailsGateway.ItemPath(itemId)}/description";
+                    var body = new JsonObject { ["plain_text"] = pendingDescription };
+                    description = item.Description is null
+                        ? await WriteAsync(accountId, itemId, HttpMethod.Post, path, body, cancellationToken)
+                        : await WriteAsync(accountId, itemId, HttpMethod.Put, $"{path}?api_version=2", body, cancellationToken);
+                }
             }
-
-            interrupted = IsUnavailable(outcome);
         }
-
-        // 4. Descrição em texto puro, depois do item; não é tentada se o ML ficou indisponível.
-        if (pendingDescription is not null)
+        catch (Exception exception)
         {
-            if (interrupted)
-            {
-                description = new FieldResult.NotAttempted(MercadoLivreErrorMapper.Unavailable);
-            }
-            else
-            {
-                var path = $"{MercadoLivreListingDetailsGateway.ItemPath(itemId)}/description";
-                var body = new JsonObject { ["plain_text"] = pendingDescription };
-                description = item.Description is null
-                    ? await WriteAsync(accountId, itemId, HttpMethod.Post, path, body, cancellationToken)
-                    : await WriteAsync(accountId, itemId, HttpMethod.Put, $"{path}?api_version=2", body, cancellationToken);
-            }
+            Log.Interrupted(logger, accountId, itemId, exception.GetType().Name);
+            Finish(accountId, itemId, title, description, attributes);
+            throw;
         }
 
         return Finish(accountId, itemId, title, description, attributes);
@@ -255,5 +271,8 @@ internal sealed partial class MercadoLivreListingEditor(
 
         [LoggerMessage(EventId = 44, Level = LogLevel.Information, Message = "Anúncio {ItemId} da conta do Mercado Livre {AccountId}: 409 em {Endpoint}; nova tentativa em 2 s.")]
         public static partial void ConflictRetry(ILogger logger, Guid accountId, string itemId, string endpoint);
+
+        [LoggerMessage(EventId = 45, Level = LogLevel.Warning, Message = "Anúncio {ItemId} da conta do Mercado Livre {AccountId}: edição interrompida por {Failure}; campos já decididos registrados.")]
+        public static partial void Interrupted(ILogger logger, Guid accountId, string itemId, string failure);
     }
 }

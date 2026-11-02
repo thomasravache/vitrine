@@ -41,10 +41,16 @@ internal static class MercadoLivreErrorMapper
                 return new(Conflict, error.Message ?? "O anúncio foi alterado ao mesmo tempo por outra escrita (optimistic locking).");
         }
 
-        if (error.Causes.Any(cause => IsCode(cause.Code, "field_not_updatable") || Mentions(cause.Message, "not modifiable"))
-            || Mentions(error.Message, "not modifiable"))
+        // Título não modificável (emenda v1.1): só quando a cause (código, mensagem ou referência) cita o título. Um
+        // field_not_updatable de outro campo é recusa do corpo inteiro (ML_REJECTED, abaixo).
+        if (error.Causes.FirstOrDefault(IsTitleNotUpdatable) is { } titleCause)
         {
-            return new(FieldNotUpdatable, CauseMessage(error, "field_not_updatable") ?? "Campo não pode ser alterado.");
+            return new(FieldNotUpdatable, titleCause.Message ?? error.Message ?? "O título não pode ser alterado.");
+        }
+
+        if (Mentions(error.Message, "title") && (Mentions(error.Message, "not modifiable") || Mentions(error.Message, "cannot be updated")))
+        {
+            return new(FieldNotUpdatable, error.Message!);
         }
 
         if (error.Causes.Any(cause => IsCode(cause.Code, "item.description.type.invalid")))
@@ -62,6 +68,10 @@ internal static class MercadoLivreErrorMapper
 
     /// <summary>Falha de rede, timeout, circuito aberto, 429 ou 5xx: o resultado da escrita é incerto ou nulo.</summary>
     public static FieldResult.Rejected UnavailableResult(string reason) => new(Unavailable, $"Mercado Livre indisponível: {reason}.");
+
+    private static bool IsTitleNotUpdatable(MlCause cause) =>
+        (IsCode(cause.Code, "field_not_updatable") || Mentions(cause.Message, "not modifiable"))
+        && (Mentions(cause.Message, "title") || cause.References.Any(reference => Mentions(reference, "title")));
 
     private static bool IsCode(string? code, string expected) => string.Equals(code, expected, StringComparison.OrdinalIgnoreCase);
 
@@ -97,7 +107,7 @@ internal static class MercadoLivreErrorMapper
             {
                 foreach (var entry in cause.EnumerateArray().Where(entry => entry.ValueKind == JsonValueKind.Object))
                 {
-                    causes.Add(new MlCause(Text(entry, "code"), Text(entry, "message")));
+                    causes.Add(new MlCause(Text(entry, "code"), Text(entry, "message"), References(entry)));
                 }
             }
 
@@ -126,7 +136,12 @@ internal static class MercadoLivreErrorMapper
         return text.Length > MaxMessageLength ? text[..MaxMessageLength] : text;
     }
 
-    private sealed record MlCause(string? Code, string? Message);
+    private static List<string> References(JsonElement cause) =>
+        cause.TryGetProperty("references", out var references) && references.ValueKind == JsonValueKind.Array
+            ? [.. references.EnumerateArray().Where(reference => reference.ValueKind == JsonValueKind.String).Select(reference => reference.GetString()!)]
+            : [];
+
+    private sealed record MlCause(string? Code, string? Message, IReadOnlyList<string> References);
 
     private sealed record MlError(string? Message, IReadOnlyList<MlCause> Causes)
     {

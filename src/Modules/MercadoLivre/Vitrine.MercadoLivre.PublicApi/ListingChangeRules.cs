@@ -217,19 +217,22 @@ public static partial class ListingChangeRules
     [GeneratedRegex(@"[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}", RegexOptions.CultureInvariant, RegexTimeoutMilliseconds)]
     private static partial Regex Email();
 
-    [GeneratedRegex(
-        @"\bhttps?://|\bwww\.|\b[A-Za-z0-9-]+\.(?:com|net|org)(?:\.br)?\b",
-        RegexOptions.CultureInvariant | RegexOptions.IgnoreCase,
-        RegexTimeoutMilliseconds)]
+    // http(s):// e www. em qualquer caixa; domínio solto só com TLD em minúsculas ("novo.Com" não é URL).
+    [GeneratedRegex(@"(?i:\bhttps?://|\bwww\.)|\b[A-Za-z0-9-]+\.(?:com|net|org)(?:\.br)?\b", RegexOptions.CultureInvariant, RegexTimeoutMilliseconds)]
     private static partial Regex Url();
 
     [GeneratedRegex(@"whats\s?app", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase, RegexTimeoutMilliseconds)]
     private static partial Regex WhatsApp();
 
-    // Telefone brasileiro: +55 opcional, DDD opcional (com ou sem parênteses), 8 ou 9 dígitos com ou sem hífen. Sem
-    // dígito ao redor, para não casar trechos de códigos maiores (ex.: EAN de 13 dígitos).
+    // Telefone brasileiro (emenda v1.1), sem dígito colado ao redor (não casa trechos de códigos maiores):
+    // - com DDD (com ou sem parênteses) e +55 opcional: 8 ou 9 dígitos, com ou sem hífen;
+    // - sem DDD: só celular de 9 dígitos começando por 9 (9XXXX-XXXX ou 9XXXXXXXX);
+    // - 8 dígitos com máscara XXXX-XXXX só com palavra de contato até 20 caracteres antes.
+    // Anos (2008-2012), resolução (1920 1080), lotes, potências e códigos de peça ficam de fora.
     [GeneratedRegex(
-        @"(?<![0-9])(?:\+?55[ .-]?)?(?:\(?[1-9][0-9]\)?[ .-]?)?9?[0-9]{4}[ .-]?[0-9]{4}(?![0-9])",
+        @"(?<![0-9])(?:\+?55[ .-]?)?\(?[1-9][0-9]\)?[ .-]?9?[0-9]{4}[ .-]?[0-9]{4}(?![0-9])"
+        + @"|(?<![0-9])9[0-9]{4}-?[0-9]{4}(?![0-9])"
+        + @"|(?i:\b(?:telefone|tel|fone|celular|cel|ligue|contato|whats|zap))[^\r\n]{0,20}?(?<![0-9])[0-9]{4}-[0-9]{4}(?![0-9])",
         RegexOptions.CultureInvariant,
         RegexTimeoutMilliseconds)]
     private static partial Regex Phone();
