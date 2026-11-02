@@ -20,7 +20,23 @@ internal sealed record ItemInfo(
     string Thumbnail,
     string SecureThumbnail,
     string ListingTypeId,
-    DateTimeOffset LastUpdated);
+    DateTimeOffset LastUpdated)
+{
+    /// <summary>Categoria sintética do anúncio (<c>category_id</c>, SPEC-0034).</summary>
+    public string CategoryId { get; init; } = string.Empty;
+
+    /// <summary>Anúncio de catálogo (<c>catalog_listing</c>, SPEC-0034).</summary>
+    public bool CatalogListing { get; init; }
+
+    /// <summary>Atributos preenchidos do anúncio (SPEC-0034).</summary>
+    public IReadOnlyList<ItemAttribute> Attributes { get; init; } = [];
+}
+
+/// <summary>Atributo preenchido de um anúncio (<c>attributes[]</c> do <c>GET /items/{id}</c>).</summary>
+internal sealed record ItemAttribute(string Id, string Name, string? ValueId, string? ValueName);
+
+/// <summary>Descrição de um anúncio (<c>GET /items/{id}/description</c>).</summary>
+internal sealed record ItemDescription(string PlainText, DateTimeOffset LastUpdated, DateTimeOffset DateCreated);
 
 /// <summary>Alteração parcial de um anúncio (<c>POST /__sim/sellers/{id}/items/{itemId}</c>).</summary>
 internal sealed record ItemChange(string? Title, decimal? Price, int? AvailableQuantity, int? SoldQuantity, string? Status);
@@ -201,6 +217,9 @@ internal sealed class SimulatorState
             return _items.TryGetValue(itemId, out var item) ? item.Info : null;
         }
     }
+
+    /// <summary>Descrição do anúncio; <c>null</c> quando o anúncio não existe ou não tem descrição (SPEC-0034).</summary>
+    public ItemDescription? FindDescription(string itemId) => throw new NotImplementedException("SPEC-0034: scaffold.");
 
     /// <summary>Emite um <c>code</c> de uso único para o vendedor, válido por <see cref="CodeLifetime"/>.</summary>
     public string IssueCode(string clientId, string redirectUri, string codeChallenge, long sellerId)

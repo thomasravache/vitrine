@@ -7,4 +7,9 @@
     <IsPackable>false</IsPackable>
   </PropertyGroup>
 
+  <!-- Testes de unidade da SPEC-0034 (regras de edição, categorias e massa em memória). -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="Vitrine.UnitTests" />
+  </ItemGroup>
+
 </Project>
