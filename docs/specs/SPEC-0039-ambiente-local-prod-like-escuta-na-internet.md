@@ -89,9 +89,9 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 |---|---|---|---|
 | G0 Spec | PASS | validate: 0 erro(s) — b44124e (árvore suja) | 2026-11-02 |
 | G1 Red | PASS | MANUAL: red b521a31: dotnet test --project tests/Vitrine.Tooling.Tests -- --filter-trait 'spec=SPEC-0039:IT-01' → total 2, failed 1 (Ambiente_local_publica_o_Caddy_so_em_127_0_0_1: 80/tcp, 443/tcp, 443/udp sem host_ip; esperado 127.0.0.1); guarda de staging/produção verde. Teste de ferramenta (Tooling), fora do red unitário do --run. | 2026-11-02 |
-| G2 Green | PASS | build exit 0 (npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts a); test exit 0 (at least ~677ms faster with isolate: false — reuses workers across files instead of one pe); lint exit 0 ([0m[34mChecked 67 files in 36[0m[0m[2m[34mms[0m[0m[34m.[0m[0m[34m No fixes app); coverage exit 0 (No lines with coverage information in this diff.) — 8f6ffe1 | 2026-11-02 |
-| G3 Arquitetura | PASS | arch_test exit 0 (duration: 2s 240ms) — 8f6ffe1 | 2026-11-02 |
-| G4 Review | FAIL | Reviewer: MUDANÇAS NECESSÁRIAS — padrão 0.0.0.0 explícito publica só IPv4 e derruba o AAAA de staging/produção (infra/main.tf ipv6=true); runbook sem UDP no ss | 2026-11-02 |
+| G2 Green | PASS | build exit 0 (npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts a); test exit 0 (learn more: https://vitest.dev/guide/improving-performance#test-environments); lint exit 0 ([0m[34mChecked 67 files in 80[0m[0m[2m[34mms[0m[0m[34m.[0m[0m[34m No fixes app); coverage exit 0 (No lines with coverage information in this diff.) — f7cc53b | 2026-11-02 |
+| G3 Arquitetura | PASS | arch_test exit 0 (duration: 3s 100ms) — f7cc53b | 2026-11-02 |
+| G4 Review | FAIL | verify G1+G4: PASS; revisão: Reviewer: APROVADO (2ª rodada; achados IPv6 e ss -ltun resolvidos pela Emenda v1.1) — f7cc53b | 2026-11-02 |
 | G5 Integração & CI | PENDING | | |
 | H2 Integração aprovada | PENDING | | |
 | G6 Deploy | PENDING | | |
