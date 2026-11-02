@@ -4,7 +4,7 @@ title: "Simulador do ML: detalhes, categorias e edição de anúncios"
 tier: full
 type: feature
 user_facing: false
-status: approved
+status: implemented
 created: 2026-11-02
 parent: SPEC-0032
 depends_on: [SPEC-0024, SPEC-0033]
@@ -276,7 +276,7 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 | G5 Integração & CI | PASS | build exit 0 (npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts a); test exit 0 (at least ~683ms faster with isolate: false — reuses workers across files instead of one pe); test_integration exit 0 (duration: 4m 34s 884ms); test_e2e exit 0 (40 passed (2.1m)); arch_test exit 0 (duration: 2s 242ms); security_scan exit 0 ([90m2:27PM[0m [32mINF[0m [1mno leaks found[0m) — 0c5b08e | 2026-11-02 |
 | H2 Integração aprovada | PASS | política auto-on-green (aprovada por thomas em 2026-10-13); G5 PASS | 2026-11-02 |
 | G6 Deploy | PASS | MANUAL: deploy local cde90e6 (main após PR #68) com o simulador novo (vitrine-ml-simulator:local): deploy.sh OK (health 200 em 5 s); smoke BASE_URL=https://vitrine.localhost → 4 passed; GET https://ml-simulador.vitrine.localhost/categories/MLB90001 → 200 com max_title_length 60 e max_description_length 50000 | 2026-11-02 |
-| G7 Pronto & Docs | PENDING | | |
+| G7 Pronto & Docs | PASS | Relatório de Entrega e Definição de Pronto: ok — fc8777a | 2026-11-02 |
 
 ## 13. Registro de Impedimentos
 <!-- Toda parada é registrada pelo Architect com `spec_graph.py impede` e fechada com `resolve` — não edite à mão. Tipos: spec (spec errada/incompleta → resolve com Emenda) | decisão (só o humano decide → resposta ou ADR) | trabalho (falta algo que exige código → SPEC-NNNN nova) | externo (acesso, ambiente, terceiro → ação tomada) | falha (3 FAILs seguidos no mesmo gate → diagnóstico e decisão). Com impedimento aberto a spec aparece como parada no INDEX e não pode ser fechada. -->
