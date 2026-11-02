@@ -3,6 +3,7 @@ using Vitrine.MercadoLivreSimulator;
 
 namespace Vitrine.UnitTests.MercadoLivreSimulator;
 
+[Trait("spec", "SPEC-0034:CH-01")]
 public sealed class SimulatorItemSearchTests
 {
     // Dado 2.300 anúncios na massa (IDs MLB sintéticos).

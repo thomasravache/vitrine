@@ -12,6 +12,7 @@ namespace Vitrine.IntegrationTests.MercadoLivreSimulator;
 /// SPEC-0024:CT-01 — as respostas do simulador têm os mesmos campos e tipos JSON das fixtures documentadas do ML
 /// (<c>tests/Fixtures/MercadoLivre/</c>, compartilhadas com os CT das SPEC-0021/0023) nos campos usados pelo Vitrine.
 /// </summary>
+[Trait("spec", "SPEC-0034:CH-01")]
 public sealed class SimulatorContractTests
 {
     /// <summary>Campos do token usados pela Api (SPEC-0020/0021).</summary>

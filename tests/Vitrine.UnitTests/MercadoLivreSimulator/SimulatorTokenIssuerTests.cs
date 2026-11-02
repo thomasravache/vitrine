@@ -2,6 +2,7 @@ using Vitrine.MercadoLivreSimulator;
 
 namespace Vitrine.UnitTests.MercadoLivreSimulator;
 
+[Trait("spec", "SPEC-0034:CH-01")]
 public sealed class SimulatorTokenIssuerTests
 {
     private const long Seller = 3_000_000_001;

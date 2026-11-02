@@ -9,6 +9,7 @@ using WireMock.Server;
 namespace Vitrine.IntegrationTests.MercadoLivreSimulator;
 
 /// <summary>SPEC-0024:IT-05 — <c>POST /__sim/notify</c> entrega a notificação no formato do ML a <c>Simulator:NotificationUrl</c>.</summary>
+[Trait("spec", "SPEC-0034:CH-01")]
 public sealed class SimulatorNotificationTests
 {
     private const string ReceiverPath = "/api/v1/mercadolivre/notifications";

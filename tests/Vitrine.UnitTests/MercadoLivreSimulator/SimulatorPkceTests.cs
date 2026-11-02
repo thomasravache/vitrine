@@ -2,6 +2,7 @@ using SimulatorPkce = Vitrine.MercadoLivreSimulator.Pkce;
 
 namespace Vitrine.UnitTests.MercadoLivreSimulator;
 
+[Trait("spec", "SPEC-0034:CH-01")]
 public sealed class SimulatorPkceTests
 {
     // RFC 7636, apêndice B: vetor de teste do método S256.

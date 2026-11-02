@@ -9,6 +9,7 @@ namespace Vitrine.IntegrationTests.MercadoLivreSimulator;
 /// SPEC-0024:IT-02 — vendedor criado por <c>POST /__sim/sellers</c>, <c>/users/me</c>, busca por offset e scan,
 /// <c>/items/bulk</c>, alteração de anúncio, revogação, expiração do access token e reset.
 /// </summary>
+[Trait("spec", "SPEC-0034:CH-01")]
 public sealed class SimulatorSellersAndItemsTests
 {
     private static string Search(long sellerId, string query) =>

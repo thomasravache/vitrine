@@ -6,6 +6,7 @@ namespace Vitrine.IntegrationTests.MercadoLivreSimulator;
 /// SPEC-0031:IT-01 — os IDs de <c>POST /__sim/sellers</c> não se repetem entre execuções do simulador: o banco do Vitrine
 /// persiste entre deploys, e um ID repetido colide com uma conta já conectada (409 <c>ML_ACCOUNT_IN_USE</c>).
 /// </summary>
+[Trait("spec", "SPEC-0034:CH-01")]
 public sealed class SimulatorRestartTests
 {
     private const int SellersPerRun = 3;
