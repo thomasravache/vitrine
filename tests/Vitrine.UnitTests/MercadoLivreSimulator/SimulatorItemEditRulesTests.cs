@@ -12,7 +12,7 @@ public sealed class SimulatorItemEditRulesTests
     private const string TitleNotUpdatable = "field_not_updatable";
     private const string TitleLength = "item.title.length.invalid";
     private const string AttributesInvalid = "item.attributes.invalid";
-    private const string StatusNotModifiable = "item.status.not_modifiable";
+    private const string StatusNotActive = "item.status.not_active";
     private const string DescriptionInvalid = "item.description.type.invalid";
     private const string DescriptionLength = "item.description.max_length";
 
@@ -198,7 +198,7 @@ public sealed class SimulatorItemEditRulesTests
         var result = ItemEditRules.Apply(item, Category("MLB90001"), Attribute("COLOR", Preto), Now);
 
         // Então o ML recusa pelo status e nada muda
-        AssertRejected(result, item, StatusNotModifiable);
+        AssertRejected(result, item, StatusNotActive);
     }
 
     [Fact]

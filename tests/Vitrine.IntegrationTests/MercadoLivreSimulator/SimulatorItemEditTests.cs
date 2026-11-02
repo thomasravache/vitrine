@@ -149,7 +149,7 @@ public sealed class SimulatorItemEditTests
         var response = await PutItemAsync(
             client, id, new { attributes = new[] { new { id = "COLOR", value_id = Preto } } }, seller.AccessToken, cancellationToken);
 
-        AssertRejected(response, "item.status.not_modifiable");
+        AssertRejected(response, "item.status.not_active");
         Assert.Equal(before.Body, (await GetItemAsync(client, id, cancellationToken)).Body);
     }
 
