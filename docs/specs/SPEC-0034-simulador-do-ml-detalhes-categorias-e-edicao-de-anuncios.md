@@ -113,7 +113,7 @@ PUT  /items/{id}/description?api_version=2 { plain_text } -> 200; sem descriçã
                              acima de max_description_length -> 400 item.description.max_length (sintético)
 PUT  /items/{id}                          { title?, attributes?: [{ id, value_id? | value_name? }] }
      sem token 401; token de outro vendedor 403; atômico (qualquer violação: nada muda)
-     status != active                     -> 400 cause item.status.not_modifiable (sintético)
+     status != active                     -> 400 cause item.status.not_active (sintético; Emenda v1.1)
      title com sold_quantity > 0 ou catalog_listing -> 400 field_not_updatable, "title is not modifiable"
      title vazio ou > max_title_length    -> 400 item.title.length.invalid (sintético)
      atributo desconhecido, read_only ou hidden, value_id fora de values, unidade fora de allowed_units
@@ -323,3 +323,4 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 <!-- Mudança em spec aprovada: uma linha por emenda. Mudou o contrato? Incremente `contract_version` e rode `spec_graph.py impacted SPEC-0034`. -->
 | Versão do contrato | Data | Mudança | Motivo | Specs impactadas | Aprovado por |
 |---|---|---|---|---|---|
+| v1.1 (contrato inalterado para o gateway) | 2026-11-02 | (1) item não ativo responde cause `item.status.not_active` (antes `item.status.not_modifiable`), igual à fixture `error-item-not-active.json` e ao `MercadoLivreErrorMapper` da SPEC-0033; (2) leituras registradas: `value_id` de COLOR segue a fixture do ML (Preto `52049`, Branco `52055`); "anúncio de número par" = parte numérica do id; atributo de lista aplicado por `value_id` volta com o `value_name`; unidade de `number_unit` lida do `value_name`; o id do atributo aparece na `message` da cause; `/__sim` usa `value_id` em snake_case como o ML; 409 forçado no formato de erro do ML | Test-writer no G1: com `not_modifiable` o gateway traduziria item pausado como `ML_REJECTED` em vez de `ITEM_NOT_ACTIVE` | nenhuma | thomas (piloto automático do épico SPEC-0032) |
