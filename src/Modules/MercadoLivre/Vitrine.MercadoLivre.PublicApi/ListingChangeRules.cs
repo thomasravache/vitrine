@@ -20,6 +20,9 @@ public static partial class ListingChangeRules
     private const string ValueNotAllowed = "ATTRIBUTE_VALUE_NOT_ALLOWED";
     private const int RegexTimeoutMilliseconds = 1000;
 
+    // Faixa de anos (ex.: 2008-2012) sem dígito depois: não é telefone (autopeças, eletrônicos).
+    private const string NotYearRange = @"(?!(?:19|20)[0-9]{2}[-/. ](?:19|20)[0-9]{2}(?![0-9]))";
+
     /// <summary>
     /// <c>TITLE_LOCKED_SOLD</c> (vendas), <c>TITLE_LOCKED_CATALOG</c> (catálogo), <c>TITLE_LOCKED_USER_PRODUCT</c> (user
     /// product), nessa precedência; nulo quando o título pode ser editado.
@@ -224,15 +227,16 @@ public static partial class ListingChangeRules
     [GeneratedRegex(@"whats\s?app", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase, RegexTimeoutMilliseconds)]
     private static partial Regex WhatsApp();
 
-    // Telefone brasileiro (emenda v1.1), sem dígito colado ao redor (não casa trechos de códigos maiores):
-    // - com DDD (com ou sem parênteses) e +55 opcional: 8 ou 9 dígitos, com ou sem hífen;
+    // Telefone brasileiro (emendas v1.1 e v1.2). Nenhum ramo começa colado a dígito ou letra (inclusive acentuada), nem
+    // termina colado a dígito; faixa de anos (2008-2012, 2019/2021) nunca é telefone:
+    // - com DDD (com ou sem parênteses) e +55 opcional: 8 ou 9 dígitos, com ou sem separador;
     // - sem DDD: só celular de 9 dígitos começando por 9 (9XXXX-XXXX ou 9XXXXXXXX);
-    // - 8 dígitos com máscara XXXX-XXXX só com palavra de contato até 20 caracteres antes.
-    // Anos (2008-2012), resolução (1920 1080), lotes, potências e códigos de peça ficam de fora.
+    // - 8 dígitos (XXXX-XXXX, XXXX XXXX, XXXXXXXX) só com palavra de contato inteira até 20 caracteres antes.
     [GeneratedRegex(
-        @"(?<![0-9])(?:\+?55[ .-]?)?\(?[1-9][0-9]\)?[ .-]?9?[0-9]{4}[ .-]?[0-9]{4}(?![0-9])"
-        + @"|(?<![0-9])9[0-9]{4}-?[0-9]{4}(?![0-9])"
-        + @"|(?i:\b(?:telefone|tel|fone|celular|cel|ligue|contato|whats|zap))[^\r\n]{0,20}?(?<![0-9])[0-9]{4}-[0-9]{4}(?![0-9])",
+        @"(?<![0-9\p{L}])(?:\+?55[ .-]?)?\(?[1-9][0-9]\)?[ .-]?" + NotYearRange + @"9?[0-9]{4}[ .-]?[0-9]{4}(?![0-9])"
+        + @"|(?<![0-9\p{L}])9[0-9]{4}-?[0-9]{4}(?![0-9])"
+        + @"|(?i:\b(?:telefone|tel|fone|celular|cel|ligue|contato|whats|zap)\b)[^\r\n]{0,20}?(?<![0-9\p{L}])" + NotYearRange
+        + @"[0-9]{4}[ .-]?[0-9]{4}(?![0-9])",
         RegexOptions.CultureInvariant,
         RegexTimeoutMilliseconds)]
     private static partial Regex Phone();
