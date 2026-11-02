@@ -4,8 +4,8 @@
 
 ## Saúde
 
-- Validação (G0): **0 erro(s), 47 aviso(s)** — rode `spec_graph.py validate`
-- Specs: approved 7, implemented 29
+- Validação (G0): **0 erro(s), 49 aviso(s)** — rode `spec_graph.py validate`
+- Specs: approved 6, implemented 30
 - Impedimentos: **0 aberto(s)**, 11 resolvido(s)
 
 ## Cobertura de Pilares
@@ -39,17 +39,16 @@ Perfil: **padrao**
 
 **Em andamento:** —  
 **Paradas por impedimento:** —  
-**Próximo lote:** SPEC-0009, SPEC-0033
+**Próximo lote:** SPEC-0009, SPEC-0034, SPEC-0035
 
 | Onda | Spec | Título | Tier/Tam. | Status | Prontidão | Observação |
 |---|---|---|---|---|---|---|
 | 1 | SPEC-0009 | Provisionamento na nuvem e go-live | full/M | approved | ✅ pronta |  |
-| 1 | SPEC-0033 | Leitura detalhada e edição de anúncios no gateway do Mercado Livre | full/M | approved | ✅ pronta |  |
-| 2 | SPEC-0034 | Simulador do ML: detalhes, categorias e edição de anúncios | full/M | approved | ⛔ aguarda implementação de SPEC-0033 |  |
-| 2 | SPEC-0035 | Sugestão de melhoria de anúncio com IA (geração, cota e custo) | full/M | approved | ⛔ aguarda implementação de SPEC-0033 |  |
-| 3 | SPEC-0036 | Aprovar e publicar a melhoria no Mercado Livre | full/M | approved | ⛔ aguarda implementação de SPEC-0035 |  |
-| 3 | SPEC-0037 | Suíte de avaliação da melhoria de anúncio | full/M | approved | ⛔ aguarda implementação de SPEC-0035 |  |
-| 4 | SPEC-0038 | Telas de detalhe e melhoria de anúncio (jornada aprovar-melhoria) | full/M | approved | ⛔ aguarda implementação de SPEC-0034; aguarda implementação de SPEC-0036 |  |
+| 1 | SPEC-0034 | Simulador do ML: detalhes, categorias e edição de anúncios | full/M | approved | ✅ pronta |  |
+| 1 | SPEC-0035 | Sugestão de melhoria de anúncio com IA (geração, cota e custo) | full/M | approved | ✅ pronta |  |
+| 2 | SPEC-0036 | Aprovar e publicar a melhoria no Mercado Livre | full/M | approved | ⛔ aguarda implementação de SPEC-0035 |  |
+| 2 | SPEC-0037 | Suíte de avaliação da melhoria de anúncio | full/M | approved | ⛔ aguarda implementação de SPEC-0035 |  |
+| 3 | SPEC-0038 | Telas de detalhe e melhoria de anúncio (jornada aprovar-melhoria) | full/M | approved | ⛔ aguarda implementação de SPEC-0034; aguarda implementação de SPEC-0036 |  |
 
 ## Épicos
 
@@ -57,7 +56,7 @@ Perfil: **padrao**
 |---|---|---|---|
 | SPEC-0001 | Fundação da plataforma Vitrine | approved | 16/17 implementadas |
 | SPEC-0019 | Conectar conta do Mercado Livre e ver os anúncios | implemented | 12/12 implementadas |
-| SPEC-0032 | Melhorar anúncio com IA (aprovar e publicar no Mercado Livre) | approved | 1/7 implementadas |
+| SPEC-0032 | Melhorar anúncio com IA (aprovar e publicar no Mercado Livre) | approved | 2/7 implementadas |
 
 ## Grafo de Dependências
 
@@ -73,12 +72,10 @@ flowchart LR
     S0009["SPEC-0009<br/>Provisionamento na nuvem e go-live"]:::approved
   end
   subgraph E0019["SPEC-0019 · Conectar conta do Mercado Livre e ver os anúncios"]
-    S0020["SPEC-0020<br/>Conectar e desconectar conta do Mercado…"]:::implemented
-    S0021["SPEC-0021<br/>Gateway autenticado da API do Mercado L…"]:::implemented
     S0024["SPEC-0024<br/>Simulador do Mercado Livre para desenvo…"]:::implemented
   end
   subgraph E0032["SPEC-0032 · Melhorar anúncio com IA (aprovar e publicar no Mercado Livre)"]
-    S0033["SPEC-0033<br/>Leitura detalhada e edição de anúncios …"]:::approved
+    S0033["SPEC-0033<br/>Leitura detalhada e edição de anúncios …"]:::implemented
     S0034["SPEC-0034<br/>Simulador do ML: detalhes, categorias e…"]:::approved
     S0035["SPEC-0035<br/>Sugestão de melhoria de anúncio com IA …"]:::approved
     S0036["SPEC-0036<br/>Aprovar e publicar a melhoria no Mercad…"]:::approved
@@ -94,9 +91,6 @@ flowchart LR
   S0006 --> S0009
   S0007 --> S0009
   S0008 --> S0009
-  S0020 -. contrato v1 .-> S0021
-  S0020 -. contrato v1 .-> S0033
-  S0021 -. contrato v1 .-> S0033
   S0024 --> S0034
   S0033 --> S0034
   S0033 -. contrato v1 .-> S0034
@@ -153,7 +147,7 @@ flowchart LR
 | [SPEC-0030](SPEC-0030-code-e-state-do-oauth-podem-chegar-ao-sentry-pelos-breadcrum.md) | Code e state do OAuth podem chegar ao Sentry pelos breadcrumbs de navegação da SPA | lite | fix | implemented | 2026-10-30 | SPEC-0019 | SPEC-0025 | — |
 | [SPEC-0031](SPEC-0031-simulador-do-ml-repete-ids-de-vendedor-depois-de-reiniciar.md) | Simulador do ML repete IDs de vendedor depois de reiniciar | lite | fix | implemented | 2026-10-30 | SPEC-0019 | SPEC-0024 | — |
 | [SPEC-0032](SPEC-0032-melhorar-anuncio-com-ia-aprovar-e-publicar-no-mercado-livre.md) | Melhorar anúncio com IA (aprovar e publicar no Mercado Livre) | epic | feature | approved | 2026-11-02 | — | SPEC-0019 | — |
-| [SPEC-0033](SPEC-0033-leitura-detalhada-e-edicao-de-anuncios-no-gateway-do-mercado.md) | Leitura detalhada e edição de anúncios no gateway do Mercado Livre | full | feature | approved | 2026-11-02 | SPEC-0032 | — | SPEC-0020@1, SPEC-0021@1 |
+| [SPEC-0033](SPEC-0033-leitura-detalhada-e-edicao-de-anuncios-no-gateway-do-mercado.md) | Leitura detalhada e edição de anúncios no gateway do Mercado Livre | full | feature | implemented | 2026-11-02 | SPEC-0032 | — | SPEC-0020@1, SPEC-0021@1 |
 | [SPEC-0034](SPEC-0034-simulador-do-ml-detalhes-categorias-e-edicao-de-anuncios.md) | Simulador do ML: detalhes, categorias e edição de anúncios | full | feature | approved | 2026-11-02 | SPEC-0032 | SPEC-0024, SPEC-0033 | SPEC-0033@1 |
 | [SPEC-0035](SPEC-0035-sugestao-de-melhoria-de-anuncio-com-ia-geracao-cota-e-custo.md) | Sugestão de melhoria de anúncio com IA (geração, cota e custo) | full | feature | approved | 2026-11-02 | SPEC-0032 | SPEC-0033 | SPEC-0033@1 |
 | [SPEC-0036](SPEC-0036-aprovar-e-publicar-a-melhoria-no-mercado-livre.md) | Aprovar e publicar a melhoria no Mercado Livre | full | feature | approved | 2026-11-02 | SPEC-0032 | SPEC-0035 | SPEC-0033@1 |
