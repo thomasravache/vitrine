@@ -63,7 +63,8 @@ não resolver, adicione `127.0.0.1 vitrine.localhost` ao `/etc/hosts`.
 ### Só em 127.0.0.1 e acesso de outra máquina (SPEC-0039)
 O `deploy/local/.env.example` define `CADDY_BIND_ADDRESS=127.0.0.1`: o Caddy publica 80/443 só no loopback. Sem isso,
 numa máquina com IP público o Vitrine local fica aberto na internet — o Docker publica portas por regras próprias do
-iptables, que passam antes das do ufw. Staging e produção não definem a variável (padrão `0.0.0.0`).
+iptables, que passam antes das do ufw. Staging e produção não definem a variável: o Caddy publica em todas as
+interfaces, IPv4 e IPv6 (um `0.0.0.0` explícito publicaria só IPv4).
 
 **Quem já tem `deploy/local/.env`:** copie do `.env.example` a linha `CADDY_BIND_ADDRESS=127.0.0.1` e rode o deploy de
 novo (o `up -d` recria o Caddy com as portas novas).
@@ -74,7 +75,8 @@ porta 443 local do cliente:
 ```bash
 # No cliente: 443 local -> 127.0.0.1:443 do servidor (porta < 1024 exige sudo)
 sudo ssh -N -L 443:127.0.0.1:443 <servidor>
-# Com alias do ~/.ssh/config: o sudo troca o HOME, então passe config, chave e known_hosts do seu usuário
+# Com alias do ~/.ssh/config: o sudo troca o HOME e não repassa o agente SSH, então passe config, chave (-i) e
+# known_hosts do seu usuário
 sudo ssh -N -L 443:127.0.0.1:443 -F ~/.ssh/config -i "$HOME/.ssh/<chave>" -o UserKnownHostsFile="$HOME/.ssh/known_hosts" <alias>
 ```
 
@@ -85,7 +87,7 @@ certificado, importe também no cliente a raiz da CA interna (parágrafo acima).
 
 Conferir no servidor:
 ```bash
-ss -ltn | grep -E ':(80|443)\b'           # esperado: 127.0.0.1:80 e 127.0.0.1:443, nunca 0.0.0.0 ou *
+ss -ltun | grep -E ':(80|443)\b'          # esperado: só 127.0.0.1 (80/tcp, 443/tcp e 443/udp), nunca 0.0.0.0, [::] ou *
 # De outra máquina, sem túnel: o IP público não responde (conexão recusada ou timeout)
 curl -k --max-time 5 -H 'Host: vitrine.localhost' https://<IP público>/health/live
 ```
@@ -107,7 +109,7 @@ docker compose -p vitrine down
 | `SITE_ADDRESS` | host público (Caddy + health check) |
 | `DB_CONNECTION_STRING` | connection string Npgsql do PostgreSQL (`ConnectionStrings__vitrine`). Produção: `tofu output -raw production_database_connection_string` (usuário `vitrine_app`, banco `vitrine`, VPC + TLS; nunca o `doadmin`) |
 | `COMPOSE_PROFILES` | `db-container` sobe o Postgres em container (local e staging); `ml-simulator` sobe o simulador do ML (**só local**) |
-| `CADDY_BIND_ADDRESS` | interface do host onde o Caddy publica 80/443: `127.0.0.1` no local (o Docker passa por cima do ufw); ausente em staging/produção (padrão `0.0.0.0`) |
+| `CADDY_BIND_ADDRESS` | interface do host onde o Caddy publica 80/443: `127.0.0.1` no local (o Docker passa por cima do ufw); ausente em staging/produção (todas as interfaces, IPv4 e IPv6) |
 | `CADDY_EXTRA_SITES_DIR` | diretório de sites extras do Caddy (`*.caddy`); só o local usa (`./local/caddy-sites`); padrão `deploy/caddy-sites` (vazio) |
 | `ML_*` | Mercado Livre (SPEC-0020): no local, o simulador com credenciais sintéticas; em servidor, o app do DevCenter (secrets) e URLs oficiais |
 | `POSTGRES_PASSWORD` | senha do Postgres em container |
