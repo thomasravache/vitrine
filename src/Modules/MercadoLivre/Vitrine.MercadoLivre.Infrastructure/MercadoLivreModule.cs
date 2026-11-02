@@ -110,8 +110,9 @@ public static class MercadoLivreModule
                 resilience.Retry.DisableForUnsafeHttpMethods();
             });
 
-        // Gateway autenticado da API do ML (SPEC-0021, ADR-0010): mercadolivre-api com 3 tentativas no total (Retry-After
-        // limitado a 30 s), 10 s por tentativa, 60 s no total e circuit breaker padrão; o token é anexado depois do
+        // Gateway autenticado da API do ML (SPEC-0021, ADR-0010): mercadolivre-api com 3 tentativas no total para GET
+        // (Retry-After limitado a 30 s; PUT/POST nunca repetidos, SPEC-0033), 10 s por tentativa, 60 s no total e circuit
+        // breaker padrão; o token é anexado depois do
         // pipeline, então cada tentativa usa o token vigente. O refresh (mercadolivre-oauth) nunca é retentado.
 #pragma warning disable EXTEXP0001
         var api = services.AddHttpClient(ApiHttpClientName).RemoveAllResilienceHandlers();
@@ -132,6 +133,8 @@ public static class MercadoLivreModule
         services.AddSingleton<MercadoLivreAccessTokenProvider>();
         services.AddSingleton<IMercadoLivreAccessTokenProvider>(provider => provider.GetRequiredService<MercadoLivreAccessTokenProvider>());
         services.AddScoped<IMercadoLivreItems, MercadoLivreItemsGateway>();
+        services.AddMemoryCache();
+        services.AddScoped<MercadoLivreApiCaller>();
         services.AddScoped<IMercadoLivreListingDetails, MercadoLivreListingDetailsGateway>();
         services.AddScoped<IMercadoLivreListingEditor, MercadoLivreListingEditor>();
 
@@ -176,7 +179,8 @@ public static class MercadoLivreModule
     public static readonly TimeSpan MaxRetryAfter = TimeSpan.FromSeconds(30);
 
     // 3 tentativas no total (emenda v1.1), 10 s por tentativa e 60 s no total. MaxDelay não limita o Retry-After: o
-    // gerador de espera padrão (que lê o cabeçalho) é envolvido por um teto de 30 s.
+    // gerador de espera padrão (que lê o cabeçalho) é envolvido por um teto de 30 s. Escritas (PUT/POST) nunca são
+    // repetidas pelo pipeline (SPEC-0033, ADR-0010): só o editor repete, e só o 409.
     private static void ConfigureApiResilience(HttpStandardResilienceOptions resilience)
     {
         resilience.Retry.MaxRetryAttempts = 2;
@@ -190,6 +194,7 @@ public static class MercadoLivreModule
             var delay = retryAfter is null ? null : await retryAfter(arguments);
             return delay > MaxRetryAfter ? MaxRetryAfter : delay;
         };
+        resilience.Retry.DisableForUnsafeHttpMethods();
     }
 
     internal static void ConfigureNpgsql(NpgsqlDbContextOptionsBuilder npgsql) =>

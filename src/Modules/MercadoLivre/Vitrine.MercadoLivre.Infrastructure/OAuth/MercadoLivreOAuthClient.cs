@@ -89,6 +89,12 @@ internal sealed partial class MercadoLivreOAuthClient(
                 return new TokenExchange.Unavailable();
             }
 
+            if (!HasWriteScope(body.Scope))
+            {
+                // O escopo vem do app no DevCenter (SPEC-0020): sem write, as escritas da SPEC-0033 recebem 403.
+                Log.MissingWriteScope(logger);
+            }
+
             return new TokenExchange.Issued(
                 new MercadoLivreTokens(body.AccessToken, body.RefreshToken, TimeSpan.FromSeconds(body.ExpiresIn)), body.UserId);
         }
@@ -136,6 +142,9 @@ internal sealed partial class MercadoLivreOAuthClient(
         var client = httpClients.CreateClient(MercadoLivreModule.HttpClientName);
         return client.SendAsync(request, cancellationToken);
     }
+
+    private static bool HasWriteScope(string? scope) =>
+        scope is not null && scope.Split(' ', StringSplitOptions.RemoveEmptyEntries).Contains("write", StringComparer.Ordinal);
 
     private Uri ApiUri(string path) => new($"{Options.ApiBaseUrl.TrimEnd('/')}/{path}");
 
@@ -204,5 +213,8 @@ internal sealed partial class MercadoLivreOAuthClient(
 
         [LoggerMessage(EventId = 6, Level = LogLevel.Error, Message = "Mercado Livre recusou /users/me: status {Status}, error {MlError}.")]
         public static partial void UsersMeFailed(ILogger logger, int status, string mlError);
+
+        [LoggerMessage(EventId = 7, Level = LogLevel.Warning, Message = "Token do Mercado Livre emitido sem o escopo write: as edições de anúncio serão recusadas (403). Conferir o app no DevCenter.")]
+        public static partial void MissingWriteScope(ILogger logger);
     }
 }
