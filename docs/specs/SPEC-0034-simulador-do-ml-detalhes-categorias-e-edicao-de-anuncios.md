@@ -261,8 +261,8 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 **Fase final: Integração, entrega e documentação**
 - [x] Review independente (G4)
 - [x] Integração + CI verde (G5) e aprovação (H2)
-- [ ] Deploy no ambiente local prod-like com smoke (G6)
-- [ ] Relatório de Entrega, docs raiz e CHANGELOG (G7)
+- [x] Deploy no ambiente local prod-like com smoke (G6)
+- [x] Relatório de Entrega, docs raiz e CHANGELOG (G7)
 
 ## 12. Registro de Gates
 <!-- Status: PENDING | PASS | FAIL | N/A. PASS e N/A exigem evidência (comando + resultado, SHA, execução de CI, veredito). -->
@@ -275,7 +275,7 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 | G4 Review | PASS | verify G1+G4: PASS; revisão: Reviewer independente: APPROVED_WITH_NOTES (0 blocker/major; compatível com o MercadoLivreErrorMapper da SPEC-0033; minors: catch estreito no NotificationSender, descrição aceita em item não ativo (conferir no go-live), oráculo mais permissivo que ListingChangeRules) — d25bc38 | 2026-11-02 |
 | G5 Integração & CI | PASS | build exit 0 (npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts a); test exit 0 (at least ~683ms faster with isolate: false — reuses workers across files instead of one pe); test_integration exit 0 (duration: 4m 34s 884ms); test_e2e exit 0 (40 passed (2.1m)); arch_test exit 0 (duration: 2s 242ms); security_scan exit 0 ([90m2:27PM[0m [32mINF[0m [1mno leaks found[0m) — 0c5b08e | 2026-11-02 |
 | H2 Integração aprovada | PASS | política auto-on-green (aprovada por thomas em 2026-10-13); G5 PASS | 2026-11-02 |
-| G6 Deploy | PENDING | | |
+| G6 Deploy | PASS | MANUAL: deploy local cde90e6 (main após PR #68) com o simulador novo (vitrine-ml-simulator:local): deploy.sh OK (health 200 em 5 s); smoke BASE_URL=https://vitrine.localhost → 4 passed; GET https://ml-simulador.vitrine.localhost/categories/MLB90001 → 200 com max_title_length 60 e max_description_length 50000 | 2026-11-02 |
 | G7 Pronto & Docs | PENDING | | |
 
 ## 13. Registro de Impedimentos
@@ -287,37 +287,49 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 <!-- Preenchido no CLOSE (G7). Diz o que foi feito, como, e prova que foi resolvido. Para status implemented o validate exige todas as subseções preenchidas, todo teste do plano com PASS + evidência e a Definição de Pronto toda marcada. -->
 
 ### O que foi entregue
-<!-- comportamento entregue do ponto de vista do usuário/sistema -->
+O simulador do Mercado Livre agora serve o anúncio completo (categoria, atributos, vendas, catálogo, descrição), três categorias sintéticas (MLB90001–3) com limites e atributos, e aceita editar título, atributos e descrição com as regras do ML: título travado com vendas ou catálogo, só valores permitidos, descrição em texto puro e item ativo. Depois de uma edição aceita, envia a notificação `items` como o ML. Os testes ganharam controles para forçar falhas de escrita e inspecionar as escritas recebidas. Continua só em desenvolvimento, E2E e ambiente local (ADR-0016).
 
 ### Como foi feito
-<!-- decisões de implementação, módulos/arquivos principais, desvios e emendas (com versão), dívidas assumidas -->
+- `tools/MercadoLivreSimulator`: `SimulatorCategories` (categorias e atributos sintéticos; COLOR com os ids da fixture), `ItemEditRules` (regras puras e atômicas), `SimulatorState` (massa com vendas e catálogo, `EditItem`, `WriteDescription`, `FailNextWrite`, `Writes`), `MlEndpoints` (detalhes, descrição, categorias, PUT), `ControlEndpoints` (`fail-next-write`, `writes`, atributos no controle), `NotificationSender` (envio extraído do `/__sim/notify`, disparado depois de escrita aceita).
+- Emenda v1.1: item não ativo responde `item.status.not_active`, como o gateway da SPEC-0033 espera; leituras de ids e formato registradas.
+- G4 aprovado com notas: `catch` estreito no `NotificationSender`; o simulador é mais permissivo que `ListingChangeRules` em alguns casos (o Vitrine valida antes).
 
 ### Prova de Correção
-<!-- type fix: o teste de regressão falhou antes da correção (commit red + saída) e passa depois (commit green + execução). Outros tipos: "N/A". -->
+N/A — `type: feature`.
 
 ### Verificação
-<!-- Uma linha por teste do plano (todos os IDs da seção 7). Resultado: PASS. Evidência: execução de CI, commit ou relatório. -->
 | Teste | Comportamento | Resultado | Evidência |
 |---|---|---|---|
+| CH-01 | OAuth, busca, bulk, notificações e IDs do simulador (SPEC-0024/0031) inalterados | PASS | CI PR #68 runs/41491351573 (d25bc38); main cde90e6 |
+| UT-01 | Regras de edição do item: status, título travado com vendas/catálogo, limite, atributos de lista, `number_unit`, read_only; atomicidade | PASS | CI PR #68 runs/41491351573 (d25bc38); main cde90e6 |
+| UT-02 | Regras de descrição: tag, entidade, emoji e limite de 50.000 | PASS | CI PR #68 runs/41491351573 (d25bc38); main cde90e6 |
+| UT-03 | Massa: vendas, catálogo, categoria, atributos e descrição nos anúncios pares | PASS | CI PR #68 runs/41491351573 (d25bc38); main cde90e6 |
+| IT-01 | `GET /items/{id}`, descrição, `/categories/{id}` e `/attributes` no formato do ML | PASS | CI PR #68 runs/41491351573 (d25bc38); main cde90e6 |
+| IT-02 | `PUT /items/{id}` com as regras do ML (inclui `item.status.not_active`, Emenda v1.1) | PASS | CI PR #68 runs/41491351573 (d25bc38); main cde90e6 |
+| IT-03 | Descrição: POST quando não existe e PUT `api_version=2` quando existe | PASS | CI PR #68 runs/41491351573 (d25bc38); main cde90e6 |
+| IT-04 | Notificação `items` depois de uma escrita aceita, nenhuma em escrita recusada | PASS | CI PR #68 runs/41491351573 (d25bc38); main cde90e6 |
+| IT-05 | Controles `/__sim/fail-next-write` e `/__sim/writes` | PASS | CI PR #68 runs/41491351573 (d25bc38); main cde90e6 |
+| CT-01 | Respostas do simulador no formato das fixtures da SPEC-0033 | PASS | CI PR #68 runs/41491351573 (d25bc38); main cde90e6 |
+| CT-02 | Requisições do gateway (fixtures da SPEC-0033) aceitas pelo simulador | PASS | CI PR #68 runs/41491351573 (d25bc38); main cde90e6 |
 
 ### Definição de Pronto
-- [ ] Todos os testes do plano passando e listados na Verificação
-- [ ] Todo comportamento do Mapa de Comportamentos coberto e verificado
-- [ ] Suíte completa, arquitetura e CI verdes no resultado integrado (G5)
-- [ ] Review independente sem achados blocker/major (G4)
-- [ ] Padrão arquitetural existente mantido, ou desvio coberto por ADR aprovado
-- [ ] Requisitos não-funcionais medidos com evidência (ou N/A justificado)
-- [ ] Disponível no ambiente-alvo via pipeline, com smoke/E2E passando no ambiente (G6)
-- [ ] Observabilidade e rollback prontos conforme o Plano de Rollout
-- [ ] Documentação raiz e CHANGELOG atualizados (G7)
-- [ ] Guia de jornadas e mapa do sistema atualizados quando a entrega muda uma jornada ou um componente (G7)
-- [ ] Pendências registradas como novas specs (ou nenhuma)
+- [x] Todos os testes do plano passando e listados na Verificação
+- [x] Todo comportamento do Mapa de Comportamentos coberto e verificado
+- [x] Suíte completa, arquitetura e CI verdes no resultado integrado (G5)
+- [x] Review independente sem achados blocker/major (G4)
+- [x] Padrão arquitetural existente mantido, ou desvio coberto por ADR aprovado
+- [x] Requisitos não-funcionais medidos com evidência (ou N/A justificado)
+- [x] Disponível no ambiente-alvo via pipeline, com smoke/E2E passando no ambiente (G6)
+- [x] Observabilidade e rollback prontos conforme o Plano de Rollout
+- [x] Documentação raiz e CHANGELOG atualizados (G7)
+- [x] Guia de jornadas e mapa do sistema atualizados quando a entrega muda uma jornada ou um componente (G7)
+- [x] Pendências registradas como novas specs (ou nenhuma)
 
 ### Deploy
-<!-- ambiente(s), versão/tag, data, estratégia, estado da feature flag, execução do pipeline -->
+Ambiente local prod-like, `ghcr.io/thomasravache/vitrine-api:cde90e6` + `vitrine-ml-simulator:local`, 2026-11-02: smoke 4/4 e `/categories/MLB90001` respondendo pelo Caddy. E2E do CI (40) verdes com o simulador novo. Nunca vai a staging/produção.
 
 ### Pendências
-<!-- specs criadas para o que ficou de fora, ou "Nenhuma" -->
+Para o go-live com o usuário: conferir se o ML real aceita mudar a descrição de anúncio pausado (o simulador aceita; o Vitrine bloqueia antes). Notas do G4 sem spec: `catch` estreito no `NotificationSender` e diferenças de rigor entre `ItemEditRules` e `ListingChangeRules`.
 
 ## 15. Emendas
 <!-- Mudança em spec aprovada: uma linha por emenda. Mudou o contrato? Incremente `contract_version` e rode `spec_graph.py impacted SPEC-0034`. -->

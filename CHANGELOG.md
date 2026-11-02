@@ -23,6 +23,7 @@ Cada entrada cita a spec de origem (`SPEC-NNNN`); gere-as com `spec_graph.py rep
 - Simulador do Mercado Livre para desenvolvimento, E2E e ambiente local (`https://ml-simulador.vitrine.localhost`), sem conta real do ML (SPEC-0024)
 - Telas de Contas e Anúncios: conectar e desconectar contas do Mercado Livre, ver, buscar e filtrar os anúncios e sincronizar, no celular e no desktop (SPEC-0025)
 - Gateway do Mercado Livre lê o anúncio completo e as regras da categoria e publica título, atributos e descrição com resultado por campo, aplicando as regras do ML antes de enviar (SPEC-0033)
+- Simulador do Mercado Livre com detalhes do anúncio, categorias e edição de título, atributos e descrição seguindo as regras do ML, mais controles de falha para os testes (SPEC-0034)
 
 ### Fixed
 - O código e o state do retorno do OAuth do Mercado Livre não chegam mais ao Sentry da SPA (SPEC-0030)
