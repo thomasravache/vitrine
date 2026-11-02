@@ -22,6 +22,7 @@ Cada entrada cita a spec de origem (`SPEC-NNNN`); gere-as com `spec_graph.py rep
 - Webhook de notificações do Mercado Livre: anúncios alterados no ML são atualizados no Vitrine em instantes, com deduplicação, limite por IP e retenção do registro (SPEC-0023)
 - Simulador do Mercado Livre para desenvolvimento, E2E e ambiente local (`https://ml-simulador.vitrine.localhost`), sem conta real do ML (SPEC-0024)
 - Telas de Contas e Anúncios: conectar e desconectar contas do Mercado Livre, ver, buscar e filtrar os anúncios e sincronizar, no celular e no desktop (SPEC-0025)
+- Gateway do Mercado Livre lê o anúncio completo e as regras da categoria e publica título, atributos e descrição com resultado por campo, aplicando as regras do ML antes de enviar (SPEC-0033)
 
 ### Fixed
 - O código e o state do retorno do OAuth do Mercado Livre não chegam mais ao Sentry da SPA (SPEC-0030)
