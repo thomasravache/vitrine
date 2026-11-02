@@ -37,10 +37,13 @@ services:
   caddy:
     image: caddy:2.11.7-alpine
     restart: unless-stopped
+    # Interface do host (SPEC-0039): sem CADDY_BIND_ADDRESS (staging/produção), todas as interfaces, IPv4 e IPv6 — um
+    # 0.0.0.0 explícito publicaria só IPv4. O ambiente local usa 127.0.0.1 (deploy/local/.env.example), porque o Docker
+    # publica portas por regras próprias do iptables, antes do ufw.
     ports:
-      - "80:80"
-      - "443:443"
-      - "443:443/udp"
+      - "${CADDY_BIND_ADDRESS:+${CADDY_BIND_ADDRESS}:}80:80"
+      - "${CADDY_BIND_ADDRESS:+${CADDY_BIND_ADDRESS}:}443:443"
+      - "${CADDY_BIND_ADDRESS:+${CADDY_BIND_ADDRESS}:}443:443/udp"
     environment:
       SITE_ADDRESS: ${SITE_ADDRESS:?SITE_ADDRESS não definido}
     # Só na rede do proxy: toda conexão do Caddy com a API sai de PROXY_SUBNET (forwarded headers confiáveis).
