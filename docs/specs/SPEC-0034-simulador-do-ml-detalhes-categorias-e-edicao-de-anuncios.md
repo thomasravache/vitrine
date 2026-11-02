@@ -245,21 +245,21 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 ## 11. Checklist de Implementação
 <!-- Preenchido na fase PLAN, após a aprovação. Cada fase começa pelos testes. -->
 **Fase 0: Caracterização**
-- [ ] CH-01 escrito, passando no código atual (simulador atual: busca, bulk e notificações), commitado antes de qualquer mudança
+- [x] CH-01 escrito, passando no código atual (simulador atual: busca, bulk e notificações), commitado antes de qualquer mudança
 
 **Fase 1: Estado do simulador**
-- [ ] Red: escrever UT-01..UT-03 com a tag `SPEC-0034:<ID>` e confirmar que falham pelo motivo certo
-- [ ] Green: categorias sintéticas MLB90001–3, descrição e regras de edição em memória
-- [ ] Refactor mantendo tudo verde
+- [x] Red: escrever UT-01..UT-03 com a tag `SPEC-0034:<ID>` e confirmar que falham pelo motivo certo
+- [x] Green: categorias sintéticas MLB90001–3, descrição e regras de edição em memória
+- [x] Refactor mantendo tudo verde
 
 **Fase 2: Endpoints do simulador**
-- [ ] Red: escrever IT-01..IT-05 e CT-01..CT-02 com a tag `SPEC-0034:<ID>` e confirmar que falham pelo motivo certo
-- [ ] Green: detalhes, descrição, `/categories/{id}/attributes`, PUT com as regras do ML, notificação após editar e `/__sim` `fail-next-write`/writes
-- [ ] Refactor mantendo tudo verde
-- [ ] Validar: build + suíte completa + arquitetura (G2/G3)
+- [x] Red: escrever IT-01..IT-05 e CT-01..CT-02 com a tag `SPEC-0034:<ID>` e confirmar que falham pelo motivo certo
+- [x] Green: detalhes, descrição, `/categories/{id}/attributes`, PUT com as regras do ML, notificação após editar e `/__sim` `fail-next-write`/writes
+- [x] Refactor mantendo tudo verde
+- [x] Validar: build + suíte completa + arquitetura (G2/G3)
 
 **Fase final: Integração, entrega e documentação**
-- [ ] Review independente (G4)
+- [x] Review independente (G4)
 - [ ] Integração + CI verde (G5) e aprovação (H2)
 - [ ] Deploy no ambiente local prod-like com smoke (G6)
 - [ ] Relatório de Entrega, docs raiz e CHANGELOG (G7)
@@ -269,10 +269,10 @@ Registrada no frontmatter (`approved_by`, `approved_at`) somente depois que o hu
 | Gate | Status | Evidência | Data |
 |---|---|---|---|
 | G0 Spec | PASS | validate: 0 erro(s) — b44124e (árvore suja) | 2026-11-02 |
-| G1 Red | PENDING | | |
-| G2 Green | PENDING | | |
-| G3 Arquitetura | PENDING | | |
-| G4 Review | PENDING | | |
+| G1 Red | PASS | verify G1: PASS; `dotnet test tests/Vitrine.UnitTests && npm --prefix web run test` exit 2 (red: Test run completed with non-success exit code: 2 (see: https://aka.ms/testingplatform/exit) — ce7bca8 | 2026-11-02 |
+| G2 Green | PASS | build exit 0 (npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts a); test exit 0 (learn more: https://vitest.dev/guide/improving-performance#test-environments); lint exit 0 ([0m[34mChecked 67 files in 75[0m[0m[2m[34mms[0m[0m[34m.[0m[0m[34m No fixes app); coverage exit 0 (Coverage: 93%) — d25bc38 | 2026-11-02 |
+| G3 Arquitetura | PASS | arch_test exit 0 (duration: 2s 117ms) — d25bc38 | 2026-11-02 |
+| G4 Review | PASS | verify G1+G4: PASS; revisão: Reviewer independente: APPROVED_WITH_NOTES (0 blocker/major; compatível com o MercadoLivreErrorMapper da SPEC-0033; minors: catch estreito no NotificationSender, descrição aceita em item não ativo (conferir no go-live), oráculo mais permissivo que ListingChangeRules) — d25bc38 | 2026-11-02 |
 | G5 Integração & CI | PENDING | | |
 | H2 Integração aprovada | PENDING | | |
 | G6 Deploy | PENDING | | |
