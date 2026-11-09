@@ -15,8 +15,8 @@
     <PackageVersion Include="Microsoft.Extensions.ServiceDiscovery" Version="10.11.0" />
     <PackageVersion Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.20.1" />
     <PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.20.1" />
-    <PackageVersion Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.20.1" />
-    <PackageVersion Include="OpenTelemetry.Instrumentation.Http" Version="1.20.1" />
+    <PackageVersion Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.20.2" />
+    <PackageVersion Include="OpenTelemetry.Instrumentation.Http" Version="1.20.2" />
     <PackageVersion Include="OpenTelemetry.Instrumentation.Runtime" Version="1.20.1" />
   </ItemGroup>
   <ItemGroup Label="Observabilidade (ADR-0009)">
@@ -29,7 +29,7 @@
     <PackageVersion Include="OpenTelemetry.Exporter.InMemory" Version="1.20.1" />
     <PackageVersion Include="Testcontainers.PostgreSql" Version="4.16.0" />
     <PackageVersion Include="TngTech.ArchUnitNET.xUnitV3" Version="0.13.5" />
-    <PackageVersion Include="WireMock.Net" Version="2.21.0" />
+    <PackageVersion Include="WireMock.Net" Version="2.30.0" />
     <PackageVersion Include="coverlet.MTP" Version="10.1.0" />
     <PackageVersion Include="xunit.v3" Version="4.0.2" />
   </ItemGroup>
@@ -44,9 +44,9 @@
     <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
   </ItemGroup>
   <ItemGroup Label="Mensageria">
-    <PackageVersion Include="WolverineFx" Version="6.59.0" />
-    <PackageVersion Include="WolverineFx.EntityFrameworkCore" Version="6.59.0" />
-    <PackageVersion Include="WolverineFx.Postgresql" Version="6.59.0" />
-    <PackageVersion Include="WolverineFx.RuntimeCompilation" Version="6.59.0" />
+    <PackageVersion Include="WolverineFx" Version="6.63.0" />
+    <PackageVersion Include="WolverineFx.EntityFrameworkCore" Version="6.63.0" />
+    <PackageVersion Include="WolverineFx.Postgresql" Version="6.63.0" />
+    <PackageVersion Include="WolverineFx.RuntimeCompilation" Version="6.63.0" />
   </ItemGroup>
 </Project>
