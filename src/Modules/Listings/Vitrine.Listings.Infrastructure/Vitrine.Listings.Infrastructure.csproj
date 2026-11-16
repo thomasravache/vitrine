@@ -3,6 +3,7 @@
   <!-- Persistência no schema "listings" (ADR-0011), handlers Wolverine duráveis e agendador da reconciliação (ADR-0014). -->
 
   <ItemGroup>
+    <PackageReference Include="WolverineFx" />
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
 
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
