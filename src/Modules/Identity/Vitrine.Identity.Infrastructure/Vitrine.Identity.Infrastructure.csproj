@@ -3,6 +3,7 @@
   <!-- ASP.NET Core Identity + EF Core no schema "identity" (ADR-0007, ADR-0011) e publicação via outbox (ADR-0014). -->
 
   <ItemGroup>
+    <PackageReference Include="WolverineFx" />
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
 
     <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" />
